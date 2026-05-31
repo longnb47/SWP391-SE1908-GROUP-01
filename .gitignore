@@ -40,3 +40,9 @@ build/
 .m2repo*/
 .mvn-build-temp*/
 __write_root_test.txt
+
+# Local-only project notes
+AGENTS.md
+REPORT_TASK_DAILY.md
+docs/srs-summary.md
+docs/
