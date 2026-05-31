@@ -3,8 +3,12 @@ server:
 spring:
   application:
     name: AI-HUB-STUDY
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 20MB
   datasource:
-    url: jdbc:mysql://localhost:3306/lms_ai?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://localhost:3306/ai_hub_study?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
     username: root
     password: 12345
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -16,3 +20,10 @@ spring:
     properties:
       hibernate:
         format_sql: true
+
+aws:
+  region: ${AWS_REGION:}
+  s3:
+    bucket-name: ${AWS_S3_BUCKET_NAME:}
+    key-prefix: ${AWS_S3_KEY_PREFIX:}
+    endpoint: ${AWS_S3_ENDPOINT:}

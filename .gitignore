@@ -31,3 +31,12 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Local env secrets
+.env
+
+# Local scratch / temp
+.docx_extract/
+.m2repo*/
+.mvn-build-temp*/
+__write_root_test.txt
