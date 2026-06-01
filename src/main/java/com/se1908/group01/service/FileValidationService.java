@@ -31,7 +31,9 @@ public class FileValidationService {
 		}
 
 		var ext = getExtensionLower(originalFilename);
-		if (!StringUtils.hasText(ext) || !ALLOWED_EXTENSIONS.contains(ext)) {
+		var contentType = file.getContentType();
+		var isImage = StringUtils.hasText(contentType) && contentType.toLowerCase().startsWith("image/");
+		if (!StringUtils.hasText(ext) || (!ALLOWED_EXTENSIONS.contains(ext) && !isImage)) {
 			throw new IllegalArgumentException("Unsupported file extension: " + ext);
 		}
 	}
@@ -47,4 +49,3 @@ public class FileValidationService {
 		return base.substring(lastDot + 1).toLowerCase();
 	}
 }
-
