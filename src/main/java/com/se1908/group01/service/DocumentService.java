@@ -18,20 +18,23 @@ public class DocumentService {
 	private final S3StorageService s3StorageService;
 	private final S3Properties s3Properties;
 	private final DocumentRepository documentRepository;
+	private final DocumentIngestionService documentIngestionService;
 
 	public DocumentService(
 			FileValidationService fileValidationService,
 			S3StorageService s3StorageService,
 			S3Properties s3Properties,
-			DocumentRepository documentRepository
+			DocumentRepository documentRepository,
+			DocumentIngestionService documentIngestionService
 	) {
 		this.fileValidationService = fileValidationService;
 		this.s3StorageService = s3StorageService;
 		this.s3Properties = s3Properties;
 		this.documentRepository = documentRepository;
+		this.documentIngestionService = documentIngestionService;
 	}
 
-	@Transactional
+	@Transactional(rollbackFor = Exception.class)
 	public DocumentUploadResponse upload(Long userId, MultipartFile file, Boolean isPublic) throws IOException {
 		if (userId == null) {
 			throw new IllegalArgumentException("userId is required");
@@ -55,7 +58,15 @@ public class DocumentService {
 			doc.setIsPublic(Boolean.TRUE.equals(isPublic));
 
 			doc = documentRepository.save(doc);
+			documentIngestionService.ingest(doc, file);
 		} catch (RuntimeException ex) {
+			try {
+				s3StorageService.delete(key);
+			} catch (RuntimeException ignored) {
+				// best effort cleanup
+			}
+			throw ex;
+		} catch (IOException ex) {
 			try {
 				s3StorageService.delete(key);
 			} catch (RuntimeException ignored) {

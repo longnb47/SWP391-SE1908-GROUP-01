@@ -7,6 +7,18 @@ spring:
     multipart:
       max-file-size: 20MB
       max-request-size: 20MB
+  ai:
+    model:
+      embedding:
+        text: ${SPRING_AI_MODEL_EMBEDDING_TEXT:none}
+    google:
+      genai:
+        embedding:
+          api-key: ${GEMINI_API_KEY:}
+          text:
+            options:
+              model: gemini-embedding-001
+              task-type: RETRIEVAL_DOCUMENT
   datasource:
     url: jdbc:mysql://localhost:3306/ai_hub_study?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
     username: root
