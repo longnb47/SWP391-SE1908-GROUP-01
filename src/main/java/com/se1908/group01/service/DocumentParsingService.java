@@ -1,5 +1,6 @@
 package com.se1908.group01.service;
 
+import com.se1908.group01.config.OcrProperties;
 import com.se1908.group01.dto.TextSegment;
 import com.se1908.group01.util.FileExtensionUtil;
 import java.io.IOException;
@@ -9,6 +10,8 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.graphics.PDXObject;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
+import org.apache.pdfbox.rendering.ImageType;
+import org.apache.pdfbox.rendering.PDFRenderer;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.hwpf.HWPFDocument;
@@ -36,9 +39,21 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 public class DocumentParsingService {
 
+	private final OcrService ocrService;
+	private final OcrProperties ocrProperties;
+
+	public DocumentParsingService(OcrService ocrService, OcrProperties ocrProperties) {
+		this.ocrService = ocrService;
+		this.ocrProperties = ocrProperties;
+	}
+
 	public List<TextSegment> extractSegments(MultipartFile file) throws IOException {
 		var filename = file.getOriginalFilename();
 		var ext = FileExtensionUtil.getExtensionLower(filename);
+		var contentType = file.getContentType();
+		if (StringUtils.hasText(contentType) && contentType.toLowerCase().startsWith("image/")) {
+			return extractImage(file);
+		}
 		if (!StringUtils.hasText(ext)) {
 			throw new IllegalArgumentException("Cannot detect file extension");
 		}
@@ -49,14 +64,16 @@ public class DocumentParsingService {
 			case "doc" -> extractDoc(file);
 			case "pptx" -> extractPptx(file);
 			case "xlsx", "xls" -> extractExcel(file);
+			case "png", "jpg", "jpeg", "webp", "gif", "bmp", "tif", "tiff" -> extractImage(file);
 			default -> throw new IllegalArgumentException("Unsupported file extension for parsing: " + ext);
 		};
 	}
 
-	private static List<TextSegment> extractPdf(MultipartFile file) throws IOException {
+	private List<TextSegment> extractPdf(MultipartFile file) throws IOException {
 		try (var in = file.getInputStream(); var doc = PDDocument.load(in)) {
 			var stripper = new PDFTextStripper();
 			stripper.setSortByPosition(true);
+			var renderer = new PDFRenderer(doc);
 
 			List<TextSegment> segments = new ArrayList<>();
 			int pages = doc.getNumberOfPages();
@@ -66,22 +83,50 @@ public class DocumentParsingService {
 				var pageText = stripper.getText(doc);
 
 				int imageCount = countImages(doc.getPage(i - 1));
+				var ocrText = "";
+				if (shouldOcrPdfPage(pageText)) {
+					var pageImage = renderer.renderImageWithDPI(i - 1, ocrProperties.getPdfDpi(), ImageType.RGB);
+					ocrText = ocrService.extractText(pageImage);
+				}
+
 				var combined = new StringBuilder();
 				combined.append("[PAGE ").append(i).append("]\n");
 				if (StringUtils.hasText(pageText)) {
 					combined.append(pageText.trim()).append("\n");
+				}
+				if (StringUtils.hasText(ocrText)) {
+					combined.append("[OCR]\n").append(ocrText.trim()).append("\n");
 				}
 				if (imageCount > 0) {
 					combined.append("[IMAGE_COUNT=").append(imageCount).append("]\n");
 				}
 
 				var text = combined.toString().trim();
-				if (StringUtils.hasText(text)) {
+				if (StringUtils.hasText(pageText) || StringUtils.hasText(ocrText) || imageCount > 0) {
 					segments.add(new TextSegment(text, i));
 				}
 			}
 			return segments;
 		}
+	}
+
+	private boolean shouldOcrPdfPage(String pageText) {
+		if (!ocrService.isEnabled()) {
+			return false;
+		}
+		if (!StringUtils.hasText(pageText)) {
+			return true;
+		}
+		var compactTextLength = pageText.replaceAll("\\s+", "").length();
+		return compactTextLength < Math.max(1, ocrProperties.getPdfTextMinCharacters());
+	}
+
+	private List<TextSegment> extractImage(MultipartFile file) throws IOException {
+		var ocrText = ocrService.extractText(file);
+		if (!StringUtils.hasText(ocrText)) {
+			return List.of();
+		}
+		return List.of(new TextSegment("[IMAGE OCR]\n" + ocrText.trim(), null));
 	}
 
 	private static int countImages(PDPage page) throws IOException {
@@ -225,4 +270,3 @@ public class DocumentParsingService {
 		}
 	}
 }
-

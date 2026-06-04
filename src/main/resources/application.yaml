@@ -39,3 +39,13 @@ aws:
     bucket-name: ${AWS_S3_BUCKET_NAME:}
     key-prefix: ${AWS_S3_KEY_PREFIX:}
     endpoint: ${AWS_S3_ENDPOINT:}
+
+ocr:
+  tesseract:
+    enabled: ${TESSERACT_ENABLED:false}
+    executable-path: ${TESSERACT_EXECUTABLE_PATH:}
+    tessdata-path: ${TESSERACT_TESSDATA_PATH:}
+    language: ${TESSERACT_LANGUAGE:eng}
+    timeout-seconds: ${TESSERACT_TIMEOUT_SECONDS:60}
+    pdf-dpi: ${TESSERACT_PDF_DPI:200}
+    pdf-text-min-characters: ${TESSERACT_PDF_TEXT_MIN_CHARACTERS:20}

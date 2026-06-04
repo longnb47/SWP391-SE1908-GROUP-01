@@ -4,12 +4,10 @@ import com.se1908.group01.config.S3Properties;
 import com.se1908.group01.dto.DocumentUploadResponse;
 import com.se1908.group01.entity.Document;
 import com.se1908.group01.repository.DocumentRepository;
-import com.se1908.group01.util.FileExtensionUtil;
 import com.se1908.group01.util.FilenameSanitizer;
 import java.io.IOException;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -60,9 +58,7 @@ public class DocumentService {
 			doc.setIsPublic(Boolean.TRUE.equals(isPublic));
 
 			doc = documentRepository.save(doc);
-			if (!isImageFile(originalName, file.getContentType())) {
-				documentIngestionService.ingest(doc, file);
-			}
+			documentIngestionService.ingest(doc, file);
 		} catch (RuntimeException ex) {
 			try {
 				s3StorageService.delete(key);
@@ -89,15 +85,6 @@ public class DocumentService {
 		res.setIsPublic(doc.getIsPublic());
 		res.setUploadedAt(doc.getUploadedAt());
 		return res;
-	}
-
-	private static boolean isImageFile(String filename, String contentType) {
-		if (StringUtils.hasText(contentType) && contentType.toLowerCase().startsWith("image/")) {
-			return true;
-		}
-		var ext = FileExtensionUtil.getExtensionLower(filename);
-		return ext.equals("png") || ext.equals("jpg") || ext.equals("jpeg") || ext.equals("webp") || ext.equals("gif")
-				|| ext.equals("bmp") || ext.equals("tif") || ext.equals("tiff");
 	}
 
 	private String buildObjectKey(Long userId, String sanitizedFilename) {
