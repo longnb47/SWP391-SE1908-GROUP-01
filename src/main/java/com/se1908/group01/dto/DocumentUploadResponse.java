@@ -1,5 +1,6 @@
 package com.se1908.group01.dto;
 
+import com.se1908.group01.entity.DocumentStatus;
 import java.time.Instant;
 
 public class DocumentUploadResponse {
@@ -11,7 +12,10 @@ public class DocumentUploadResponse {
 	private String contentType;
 	private Long fileSize;
 	private Boolean isPublic;
+	private Boolean isDeleted;
+	private DocumentStatus status;
 	private Instant uploadedAt;
+	private Instant deletedAt;
 
 	public Long getDocumentId() {
 		return documentId;
@@ -69,6 +73,22 @@ public class DocumentUploadResponse {
 		this.isPublic = isPublic;
 	}
 
+	public Boolean getIsDeleted() {
+		return isDeleted;
+	}
+
+	public void setIsDeleted(Boolean isDeleted) {
+		this.isDeleted = isDeleted;
+	}
+
+	public DocumentStatus getStatus() {
+		return status;
+	}
+
+	public void setStatus(DocumentStatus status) {
+		this.status = status;
+	}
+
 	public Instant getUploadedAt() {
 		return uploadedAt;
 	}
@@ -76,5 +96,12 @@ public class DocumentUploadResponse {
 	public void setUploadedAt(Instant uploadedAt) {
 		this.uploadedAt = uploadedAt;
 	}
-}
 
+	public Instant getDeletedAt() {
+		return deletedAt;
+	}
+
+	public void setDeletedAt(Instant deletedAt) {
+		this.deletedAt = deletedAt;
+	}
+}

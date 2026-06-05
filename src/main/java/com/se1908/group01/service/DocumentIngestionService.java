@@ -3,12 +3,13 @@ package com.se1908.group01.service;
 import com.se1908.group01.dto.ChunkData;
 import com.se1908.group01.entity.Document;
 import com.se1908.group01.entity.DocumentChunk;
+import com.se1908.group01.entity.DocumentStatus;
 import com.se1908.group01.repository.DocumentChunkRepository;
+import com.se1908.group01.repository.DocumentRepository;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
@@ -18,25 +19,28 @@ public class DocumentIngestionService {
 	private final DocumentChunkingService chunkingService;
 	private final DocumentEmbeddingService embeddingService;
 	private final DocumentChunkRepository documentChunkRepository;
+	private final DocumentRepository documentRepository;
 
 	public DocumentIngestionService(
 			DocumentParsingService parsingService,
 			DocumentChunkingService chunkingService,
 			DocumentEmbeddingService embeddingService,
-			DocumentChunkRepository documentChunkRepository
+			DocumentChunkRepository documentChunkRepository,
+			DocumentRepository documentRepository
 	) {
 		this.parsingService = parsingService;
 		this.chunkingService = chunkingService;
 		this.embeddingService = embeddingService;
 		this.documentChunkRepository = documentChunkRepository;
+		this.documentRepository = documentRepository;
 	}
 
-	@Transactional(rollbackFor = Exception.class)
 	public int ingest(Document document, MultipartFile file) throws IOException {
 		if (document == null || document.getDocumentId() == null) {
 			throw new IllegalArgumentException("Document is required");
 		}
 
+		updateStatus(document, DocumentStatus.PARSING);
 		var segments = parsingService.extractSegments(file);
 		var chunks = chunkingService.chunk(segments);
 
@@ -44,9 +48,11 @@ public class DocumentIngestionService {
 		documentChunkRepository.deleteByDocumentDocumentId(document.getDocumentId());
 
 		if (chunks.isEmpty()) {
-			return 0;
+			updateStatus(document, DocumentStatus.FAILED);
+			throw new IllegalStateException("No text content could be extracted from document");
 		}
 
+		updateStatus(document, DocumentStatus.INDEXING);
 		var texts = chunks.stream().map(ChunkData::getContent).toList();
 		var vectors = embeddingService.embedVectors(texts);
 		if (vectors.size() != chunks.size()) {
@@ -66,6 +72,12 @@ public class DocumentIngestionService {
 		}
 
 		documentChunkRepository.saveAll(entities);
+		updateStatus(document, DocumentStatus.READY);
 		return entities.size();
+	}
+
+	private void updateStatus(Document document, DocumentStatus status) {
+		document.setStatus(status);
+		documentRepository.save(document);
 	}
 }

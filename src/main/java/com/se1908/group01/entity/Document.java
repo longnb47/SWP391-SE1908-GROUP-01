@@ -2,6 +2,8 @@ package com.se1908.group01.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -36,6 +38,16 @@ public class Document {
 	@Column(name = "is_public", nullable = false)
 	private Boolean isPublic = Boolean.FALSE;
 
+	@Column(name = "is_deleted", nullable = false)
+	private Boolean isDeleted = Boolean.FALSE;
+
+	@Column(name = "deleted_at")
+	private Instant deletedAt;
+
+	@Enumerated(EnumType.STRING)
+	@Column(name = "status", nullable = false, length = 32)
+	private DocumentStatus status = DocumentStatus.UPLOADED;
+
 	@Column(name = "uploaded_at", nullable = false)
 	private Instant uploadedAt;
 
@@ -43,6 +55,12 @@ public class Document {
 	void prePersist() {
 		if (uploadedAt == null) {
 			uploadedAt = Instant.now();
+		}
+		if (status == null) {
+			status = DocumentStatus.UPLOADED;
+		}
+		if (isDeleted == null) {
+			isDeleted = Boolean.FALSE;
 		}
 	}
 
@@ -100,6 +118,30 @@ public class Document {
 
 	public void setIsPublic(Boolean isPublic) {
 		this.isPublic = isPublic;
+	}
+
+	public Boolean getIsDeleted() {
+		return isDeleted;
+	}
+
+	public void setIsDeleted(Boolean isDeleted) {
+		this.isDeleted = isDeleted;
+	}
+
+	public Instant getDeletedAt() {
+		return deletedAt;
+	}
+
+	public void setDeletedAt(Instant deletedAt) {
+		this.deletedAt = deletedAt;
+	}
+
+	public DocumentStatus getStatus() {
+		return status;
+	}
+
+	public void setStatus(DocumentStatus status) {
+		this.status = status;
 	}
 
 	public Instant getUploadedAt() {
