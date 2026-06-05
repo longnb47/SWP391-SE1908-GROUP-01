@@ -498,3 +498,90 @@ Sau đó lên GitHub tạo Pull Request vào `main`.
 - Luôn pull `main` mới nhất trước khi tạo branch.
 - Commit thường xuyên, mỗi commit nên tập trung vào một nội dung cụ thể.
 - Trước khi hỏi lỗi, hãy gửi kèm ảnh màn hình hoặc nội dung lỗi trong terminal.
+
+---
+
+## 16. Quy tắc cấu trúc code backend
+
+Khi code backend Spring Boot, mọi thành viên cần giữ cấu trúc code thống nhất để dễ review, dễ bảo trì và tránh làm rối project.
+
+### 16.1. Luồng xử lý chuẩn
+
+Luồng xử lý chính nên đi theo mô hình:
+
+```text
+Controller -> Service -> Repository -> Entity / Database / External Service
+```
+
+Không viết toàn bộ logic trong `Controller`. Controller chỉ nên nhận request, gọi xuống `Service`, sau đó trả response cho frontend.
+
+### 16.2. Trách nhiệm từng package
+
+- `controller/`: chỉ nhận request, lấy parameter/body, gọi service và trả response cho frontend.
+- `service/`: xử lý business logic chính của chức năng.
+- `repository/`: chỉ thao tác với database thông qua Spring Data JPA.
+- `entity/`: chỉ mapping với table trong database, không viết business logic.
+- `dto/`: chứa request/response object dùng cho API.
+- `config/`: chứa cấu hình như database, S3, AI, security hoặc các config khác.
+- `exception/`: xử lý lỗi tập trung và trả response lỗi thống nhất.
+- `util/`: chứa các hàm tiện ích dùng chung, không phụ thuộc business logic nặng.
+
+### 16.3. Ví dụ cấu trúc đúng
+
+```text
+DocumentController
+  -> DocumentService
+    -> DocumentRepository
+    -> S3StorageService
+```
+
+### 16.4. Ví dụ không nên làm
+
+```text
+DocumentController
+  -> tự validate file
+  -> tự upload S3
+  -> tự save database
+  -> tự xử lý lỗi chi tiết
+```
+
+### 16.5. Chuẩn API response
+
+Tất cả API nên trả response theo format thống nhất.
+
+Khi thành công:
+
+```json
+{
+  "success": true,
+  "message": "Action successfully",
+  "data": {},
+  "errors": null,
+  "timestamp": "2026-06-01T10:30:00Z"
+}
+```
+
+Khi có lỗi:
+
+```json
+{
+  "success": false,
+  "message": "Validation failed",
+  "data": null,
+  "errors": [
+    {
+      "field": "email",
+      "message": "Email is invalid"
+    }
+  ],
+  "timestamp": "2026-06-01T10:30:00Z"
+}
+```
+
+### 16.6. Lưu ý bắt buộc
+
+- Không commit file `.env`, API key, password database, AWS key hoặc secret key.
+- Không lưu file upload trực tiếp vào database; file vật lý phải lưu ở storage, metadata mới lưu database.
+- Không chỉnh sửa module không liên quan đến task nếu chưa thống nhất với leader.
+- Nếu thêm API mới, cần đặt tên endpoint rõ ràng, đúng RESTful nhất có thể.
+- Nếu thêm field mới vào entity, cần kiểm tra ảnh hưởng tới database, DTO, repository và API response.
