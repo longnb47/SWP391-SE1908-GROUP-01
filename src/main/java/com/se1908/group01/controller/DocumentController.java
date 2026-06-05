@@ -44,6 +44,18 @@ public class DocumentController {
 		}
 	}
 
+	@GetMapping("/my")
+	public ApiResponse<List<DocumentUploadResponse>> getMyDocuments(@RequestParam("userId") Long userId) {
+		var response = documentService.getMyDocuments(userId);
+		return ApiResponse.success("Get my documents successfully", response);
+	}
+
+	@GetMapping("/public")
+	public ApiResponse<List<DocumentUploadResponse>> getPublicDocuments() {
+		var response = documentService.getPublicDocuments();
+		return ApiResponse.success("Get public documents successfully", response);
+	}
+
 	@DeleteMapping("/{documentId}")
 	public ApiResponse<DocumentUploadResponse> moveToTrash(
 			@PathVariable Long documentId,

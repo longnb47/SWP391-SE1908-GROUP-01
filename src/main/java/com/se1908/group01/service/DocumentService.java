@@ -97,6 +97,23 @@ public class DocumentService {
 	}
 
 	@Transactional(readOnly = true)
+	public List<DocumentUploadResponse> getMyDocuments(Long userId) {
+		validateUserId(userId);
+		return documentRepository.findByUserIdAndIsDeletedFalseOrderByUploadedAtDesc(userId)
+				.stream()
+				.map(this::toResponse)
+				.toList();
+	}
+
+	@Transactional(readOnly = true)
+	public List<DocumentUploadResponse> getPublicDocuments() {
+		return documentRepository.findByIsPublicTrueAndIsDeletedFalseOrderByUploadedAtDesc()
+				.stream()
+				.map(this::toResponse)
+				.toList();
+	}
+
+	@Transactional(readOnly = true)
 	public List<DocumentUploadResponse> getTrash(Long userId) {
 		validateUserId(userId);
 		return documentRepository.findByUserIdAndIsDeletedTrueOrderByDeletedAtDesc(userId)
