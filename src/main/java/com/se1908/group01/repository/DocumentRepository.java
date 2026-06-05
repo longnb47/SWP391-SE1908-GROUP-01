@@ -9,6 +9,10 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
 
 	Optional<Document> findByDocumentIdAndUserId(Long documentId, Long userId);
 
+	Optional<Document> findByDocumentIdAndUserIdAndIsDeletedFalse(Long documentId, Long userId);
+
+	Optional<Document> findByDocumentIdAndIsPublicTrueAndIsDeletedFalse(Long documentId);
+
 	List<Document> findByUserIdAndIsDeletedFalseOrderByUploadedAtDesc(Long userId);
 
 	List<Document> findByIsPublicTrueAndIsDeletedFalseOrderByUploadedAtDesc();

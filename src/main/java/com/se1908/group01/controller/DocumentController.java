@@ -10,6 +10,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -50,10 +51,35 @@ public class DocumentController {
 		return ApiResponse.success("Get my documents successfully", response);
 	}
 
+	@GetMapping("/{documentId}")
+	public ApiResponse<DocumentUploadResponse> getDocumentDetail(
+			@PathVariable Long documentId,
+			@RequestParam("userId") Long userId
+	) {
+		var response = documentService.getDocumentDetail(userId, documentId);
+		return ApiResponse.success("Get document detail successfully", response);
+	}
+
 	@GetMapping("/public")
 	public ApiResponse<List<DocumentUploadResponse>> getPublicDocuments() {
 		var response = documentService.getPublicDocuments();
 		return ApiResponse.success("Get public documents successfully", response);
+	}
+
+	@GetMapping("/public/{documentId}")
+	public ApiResponse<DocumentUploadResponse> getPublicDocumentDetail(@PathVariable Long documentId) {
+		var response = documentService.getPublicDocumentDetail(documentId);
+		return ApiResponse.success("Get public document detail successfully", response);
+	}
+
+	@PatchMapping("/{documentId}/visibility")
+	public ApiResponse<DocumentUploadResponse> updateVisibility(
+			@PathVariable Long documentId,
+			@RequestParam("userId") Long userId,
+			@RequestParam("isPublic") Boolean isPublic
+	) {
+		var response = documentService.updateVisibility(userId, documentId, isPublic);
+		return ApiResponse.success("Update document visibility successfully", response);
 	}
 
 	@DeleteMapping("/{documentId}")

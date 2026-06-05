@@ -106,11 +106,36 @@ public class DocumentService {
 	}
 
 	@Transactional(readOnly = true)
+	public DocumentUploadResponse getDocumentDetail(Long userId, Long documentId) {
+		return toResponse(findOwnedActiveDocument(userId, documentId));
+	}
+
+	@Transactional(readOnly = true)
 	public List<DocumentUploadResponse> getPublicDocuments() {
 		return documentRepository.findByIsPublicTrueAndIsDeletedFalseOrderByUploadedAtDesc()
 				.stream()
 				.map(this::toResponse)
 				.toList();
+	}
+
+	@Transactional(readOnly = true)
+	public DocumentUploadResponse getPublicDocumentDetail(Long documentId) {
+		if (documentId == null) {
+			throw new IllegalArgumentException("documentId is required");
+		}
+		return documentRepository.findByDocumentIdAndIsPublicTrueAndIsDeletedFalse(documentId)
+				.map(this::toResponse)
+				.orElseThrow(() -> new ResourceNotFoundException("Public document not found"));
+	}
+
+	@Transactional
+	public DocumentUploadResponse updateVisibility(Long userId, Long documentId, Boolean isPublic) {
+		if (isPublic == null) {
+			throw new IllegalArgumentException("isPublic is required");
+		}
+		var doc = findOwnedActiveDocument(userId, documentId);
+		doc.setIsPublic(isPublic);
+		return toResponse(documentRepository.save(doc));
 	}
 
 	@Transactional(readOnly = true)
@@ -167,6 +192,15 @@ public class DocumentService {
 			throw new IllegalArgumentException("documentId is required");
 		}
 		return documentRepository.findByDocumentIdAndUserId(documentId, userId)
+				.orElseThrow(() -> new ResourceNotFoundException("Document not found"));
+	}
+
+	private Document findOwnedActiveDocument(Long userId, Long documentId) {
+		validateUserId(userId);
+		if (documentId == null) {
+			throw new IllegalArgumentException("documentId is required");
+		}
+		return documentRepository.findByDocumentIdAndUserIdAndIsDeletedFalse(documentId, userId)
 				.orElseThrow(() -> new ResourceNotFoundException("Document not found"));
 	}
 
