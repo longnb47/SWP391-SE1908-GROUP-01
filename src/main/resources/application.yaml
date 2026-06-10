@@ -4,15 +4,40 @@ spring:
   application:
     name: AI-HUB-STUDY
   datasource:
-    url: jdbc:mysql://localhost:3306/lms_ai?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-    username: root
-    password: 12345
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:sqlserver://localhost:1433;databaseName=lms_ai;encrypt=true;trustServerCertificate=true
+    username: sa
+    password: Thienlqse193539
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
 
   jpa:
     hibernate:
-      ddl-auto: update   # chú ý: chỉ dùng update trong lúc phát triển, sau chuyển thành validate hoặc none
+      ddl-auto: create   # chú ý: chỉ dùng update trong lúc phát triển, sau chuyển thành validate hoặc none
     show-sql: true
     properties:
       hibernate:
         format_sql: true
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: fptuniversitys5@gmail.com
+    password: xdpz kyye nxln nhyn
+
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: 563063317579-9o7hign368sdvo0eld1e68elao0nnq1h.apps.googleusercontent.com
+            client-secret: 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
+            scope:
+              - email
+              - profile
