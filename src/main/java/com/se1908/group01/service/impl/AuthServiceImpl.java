@@ -10,6 +10,7 @@ import com.se1908.group01.repository.OtpVerificationRepository;
 import com.se1908.group01.repository.UserRepository;
 import com.se1908.group01.service.AuthService;
 import com.se1908.group01.service.EmailService;
+import com.se1908.group01.service.OtpService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final OtpVerificationRepository otpVerificationRepository;
     private final EmailService emailService;
+    private final OtpService otpService;
 
     public RegisterResponse register(RegisterRequest request) {
 
@@ -43,7 +45,7 @@ public class AuthServiceImpl implements AuthService {
 
         User savedUser = userRepository.save(user);
 
-        String otpCode = genarateOtp();
+        String otpCode = otpService.genarateOtp();
 
         OtpVerification otpVerification = OtpVerification.builder()
                 .userId(savedUser.getUserId())
@@ -62,41 +64,13 @@ public class AuthServiceImpl implements AuthService {
                 savedUser.getEmail()
         );
 
+
     }
 
 
-    private String genarateOtp() {
-        int otp = (int)(Math.random() * 900000) + 100000;
-        return String.valueOf(otp);
-    }
-
-
-    @Override
     public VerifyOtpResponse verifyOtp(VerifyOtpRequest request) {
-
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        OtpVerification otpVerification = otpVerificationRepository
-                .findTopByUserIdAndVerificationTypeOrderByCreatedAtDesc(
-                        user.getUserId(),
-                        "REGISTER"
-                )
-                .orElseThrow(() -> new RuntimeException("OTP not found"));
-
-        if (otpVerification.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new RuntimeException("OTP has expried");
-        }
-
-        if (!otpVerification.getOtpCode().equals(request.getOtp())) {
-            throw new RuntimeException("Invalid OTP!");
-        }
-
-        user.setStatus("ACTIVE");
-        user.setVerifiedStatus(true);
-
-        userRepository.save(user);
-
-        return new VerifyOtpResponse("OTP verified successfully. Account actived.");
+        return otpService.verifyOtp(request);
     }
+
+
 }
