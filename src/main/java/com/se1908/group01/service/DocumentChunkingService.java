@@ -3,15 +3,30 @@ package com.se1908.group01.service;
 import com.se1908.group01.dto.ChunkData;
 import com.se1908.group01.dto.TextSegment;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import org.springframework.ai.document.Document;
+import org.springframework.ai.transformer.splitter.TokenTextSplitter;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 @Service
 public class DocumentChunkingService {
 
-	private static final int MAX_CHARS = 1200;
-	private static final int OVERLAP_CHARS = 200;
+	private static final String PAGE_NUMBER_METADATA = "pageNumber";
+	private static final int CHUNK_SIZE_TOKENS = 300;
+	private static final int MIN_CHUNK_SIZE_CHARS = 200;
+	private static final int MIN_CHUNK_LENGTH_TO_EMBED = 5;
+	private static final int MAX_NUM_CHUNKS = 10000;
+
+	private final TokenTextSplitter textSplitter = TokenTextSplitter.builder()
+			.withChunkSize(CHUNK_SIZE_TOKENS)
+			.withMinChunkSizeChars(MIN_CHUNK_SIZE_CHARS)
+			.withMinChunkLengthToEmbed(MIN_CHUNK_LENGTH_TO_EMBED)
+			.withMaxNumChunks(MAX_NUM_CHUNKS)
+			.withKeepSeparator(true)
+			.build();
 
 	public List<ChunkData> chunk(List<TextSegment> segments) {
 		List<ChunkData> chunks = new ArrayList<>();
@@ -23,10 +38,15 @@ public class DocumentChunkingService {
 			}
 			var text = segment.getText().trim();
 			var pageNumber = segment.getPageNumber();
+			var metadata = new HashMap<String, Object>();
+			if (pageNumber != null) {
+				metadata.put(PAGE_NUMBER_METADATA, pageNumber);
+			}
 
-			for (String piece : splitWithOverlap(text, MAX_CHARS, OVERLAP_CHARS)) {
+			for (Document splitDocument : textSplitter.split(Document.builder().text(text).metadata(metadata).build())) {
+				var piece = splitDocument.getText();
 				if (StringUtils.hasText(piece)) {
-					chunks.add(new ChunkData(chunkIndex++, pageNumber, piece));
+					chunks.add(new ChunkData(chunkIndex++, extractPageNumber(splitDocument.getMetadata()), piece));
 				}
 			}
 		}
@@ -34,42 +54,14 @@ public class DocumentChunkingService {
 		return chunks;
 	}
 
-	private static List<String> splitWithOverlap(String text, int maxChars, int overlapChars) {
-		List<String> out = new ArrayList<>();
-		int start = 0;
-		int len = text.length();
-		while (start < len) {
-			int end = Math.min(len, start + maxChars);
-
-			// Prefer breaking on newline boundary when possible.
-			int breakAt = lastBreak(text, start, end);
-			if (breakAt > start + 200) {
-				end = breakAt;
-			}
-
-			String chunk = text.substring(start, end).trim();
-			if (!chunk.isEmpty()) {
-				out.add(chunk);
-			}
-
-			if (end >= len) {
-				break;
-			}
-			start = Math.max(0, end - overlapChars);
+	private static Integer extractPageNumber(Map<String, Object> metadata) {
+		var pageNumber = metadata.get(PAGE_NUMBER_METADATA);
+		if (pageNumber instanceof Integer value) {
+			return value;
 		}
-		return out;
-	}
-
-	private static int lastBreak(String text, int start, int end) {
-		int idx = text.lastIndexOf('\n', end - 1);
-		if (idx >= start) {
-			return idx;
+		if (pageNumber instanceof Number value) {
+			return value.intValue();
 		}
-		idx = text.lastIndexOf(". ", end - 1);
-		if (idx >= start) {
-			return idx + 1;
-		}
-		return -1;
+		return null;
 	}
 }
-
