@@ -1,9 +1,9 @@
 package com.se1908.group01.service.impl;
 
-import com.se1908.group01.dto.request.VerifyOtpRequest;
-import com.se1908.group01.dto.response.RegisterResponse;
-import com.se1908.group01.dto.request.RegisterRequest;
-import com.se1908.group01.dto.response.VerifyOtpResponse;
+import com.se1908.group01.dto.VerifyOtpRequest;
+import com.se1908.group01.dto.RegisterResponse;
+import com.se1908.group01.dto.RegisterRequest;
+import com.se1908.group01.dto.VerifyOtpResponse;
 import com.se1908.group01.entity.OtpVerification;
 import com.se1908.group01.entity.User;
 import com.se1908.group01.repository.OtpVerificationRepository;
@@ -45,7 +45,7 @@ public class AuthServiceImpl implements AuthService {
 
         User savedUser = userRepository.save(user);
 
-        String otpCode = otpService.genarateOtp();
+        String otpCode = otpService.generateOtp();
 
         OtpVerification otpVerification = OtpVerification.builder()
                 .userId(savedUser.getUserId())
@@ -63,14 +63,9 @@ public class AuthServiceImpl implements AuthService {
                 "Register successfully. OTP has been sent to your email.",
                 savedUser.getEmail()
         );
-
-
     }
-
 
     public VerifyOtpResponse verifyOtp(VerifyOtpRequest request) {
         return otpService.verifyOtp(request);
     }
-
-
 }

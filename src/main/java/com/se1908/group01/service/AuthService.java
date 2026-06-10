@@ -1,9 +1,9 @@
 package com.se1908.group01.service;
 
-import com.se1908.group01.dto.request.VerifyOtpRequest;
-import com.se1908.group01.dto.response.RegisterResponse;
-import com.se1908.group01.dto.request.RegisterRequest;
-import com.se1908.group01.dto.response.VerifyOtpResponse;
+import com.se1908.group01.dto.VerifyOtpRequest;
+import com.se1908.group01.dto.RegisterResponse;
+import com.se1908.group01.dto.RegisterRequest;
+import com.se1908.group01.dto.VerifyOtpResponse;
 
 public interface AuthService {
 

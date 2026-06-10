@@ -1,11 +1,10 @@
 package com.se1908.group01.controller;
 
-import com.se1908.group01.dto.request.RegisterRequest;
-import com.se1908.group01.dto.request.VerifyOtpRequest;
-import com.se1908.group01.dto.response.RegisterResponse;
-import com.se1908.group01.dto.response.VerifyOtpResponse;
+import com.se1908.group01.dto.RegisterRequest;
+import com.se1908.group01.dto.VerifyOtpRequest;
+import com.se1908.group01.dto.RegisterResponse;
+import com.se1908.group01.dto.VerifyOtpResponse;
 import com.se1908.group01.service.AuthService;
-import com.se1908.group01.service.EmailService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,7 +16,6 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
-    private final EmailService emailService;
 
     @PostMapping ("/register")
     public ResponseEntity<RegisterResponse> register(@RequestBody RegisterRequest request) {

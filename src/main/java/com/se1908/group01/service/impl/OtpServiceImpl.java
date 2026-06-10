@@ -1,7 +1,7 @@
 package com.se1908.group01.service.impl;
 
-import com.se1908.group01.dto.request.VerifyOtpRequest;
-import com.se1908.group01.dto.response.VerifyOtpResponse;
+import com.se1908.group01.dto.VerifyOtpRequest;
+import com.se1908.group01.dto.VerifyOtpResponse;
 import com.se1908.group01.entity.OtpVerification;
 import com.se1908.group01.entity.User;
 import com.se1908.group01.repository.OtpVerificationRepository;
@@ -20,7 +20,7 @@ public class OtpServiceImpl implements OtpService {
     private final UserRepository userRepository;
     private final OtpVerificationRepository otpVerificationRepository;
 
-    public String genarateOtp() {
+    public String generateOtp() {
         int otp = (int)(Math.random() * 900000) + 100000;
         return String.valueOf(otp);
     }

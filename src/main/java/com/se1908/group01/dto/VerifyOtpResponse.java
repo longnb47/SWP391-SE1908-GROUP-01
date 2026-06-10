@@ -1,4 +1,4 @@
-package com.se1908.group01.dto.response;
+package com.se1908.group01.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
