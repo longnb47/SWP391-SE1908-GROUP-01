@@ -28,10 +28,14 @@ import org.apache.poi.xslf.usermodel.XSLFPictureShape;
 import org.apache.poi.xslf.usermodel.XSLFShape;
 import org.apache.poi.xslf.usermodel.XSLFSlide;
 import org.apache.poi.xslf.usermodel.XSLFTextShape;
+import org.apache.poi.xwpf.usermodel.BodyElementType;
+import org.apache.poi.xwpf.usermodel.IBodyElement;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
 import org.apache.poi.xwpf.usermodel.XWPFTable;
+import org.apache.poi.xwpf.usermodel.XWPFTableCell;
+import org.apache.poi.xwpf.usermodel.XWPFTableRow;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -148,29 +152,12 @@ public class DocumentParsingService {
 			List<TextSegment> segments = new ArrayList<>();
 			StringBuilder sb = new StringBuilder();
 
-			for (XWPFParagraph p : doc.getParagraphs()) {
-				var t = p.getText();
-				if (StringUtils.hasText(t)) {
-					sb.append(t.trim()).append("\n");
+			for (IBodyElement element : doc.getBodyElements()) {
+				if (element.getElementType() == BodyElementType.PARAGRAPH && element instanceof XWPFParagraph p) {
+					appendDocxParagraph(sb, p);
+				} else if (element.getElementType() == BodyElementType.TABLE && element instanceof XWPFTable table) {
+					appendDocxTable(sb, table);
 				}
-				for (XWPFRun run : p.getRuns()) {
-					if (run.getEmbeddedPictures() != null && !run.getEmbeddedPictures().isEmpty()) {
-						sb.append("[IMAGE]\n");
-					}
-				}
-			}
-
-			for (XWPFTable table : doc.getTables()) {
-				sb.append("[TABLE]\n");
-				table.getRows().forEach(row -> {
-					var rowText = row.getTableCells().stream()
-							.map(c -> c.getText() == null ? "" : c.getText().trim())
-							.reduce((a, b) -> a + "\t" + b)
-							.orElse("");
-					if (StringUtils.hasText(rowText)) {
-						sb.append(rowText).append("\n");
-					}
-				});
 			}
 
 			if (!doc.getAllPictures().isEmpty()) {
@@ -183,6 +170,150 @@ public class DocumentParsingService {
 			}
 			return segments;
 		}
+	}
+
+	private static void appendDocxParagraph(StringBuilder sb, XWPFParagraph paragraph) {
+		var text = extractDocxParagraphText(paragraph);
+		if (isCodeParagraph(paragraph)) {
+			appendCodeBlock(sb, List.of(trimTrailing(text)));
+			return;
+		}
+		if (StringUtils.hasText(text)) {
+			sb.append(text.trim()).append("\n");
+		}
+		appendDocxParagraphImages(sb, paragraph);
+	}
+
+	private static void appendDocxTable(StringBuilder sb, XWPFTable table) {
+		if (containsCodeParagraph(table)) {
+			List<String> codeLines = new ArrayList<>();
+			for (XWPFTableRow row : table.getRows()) {
+				for (XWPFTableCell cell : row.getTableCells()) {
+					for (XWPFParagraph paragraph : cell.getParagraphs()) {
+						if (isCodeParagraph(paragraph)) {
+							codeLines.add(trimTrailing(extractDocxParagraphText(paragraph)));
+						}
+					}
+				}
+			}
+			appendCodeBlock(sb, codeLines);
+			return;
+		}
+
+		List<List<String>> rows = new ArrayList<>();
+		for (XWPFTableRow row : table.getRows()) {
+			List<String> cells = row.getTableCells().stream()
+					.map(DocumentParsingService::extractDocxCellText)
+					.toList();
+			if (cells.stream().anyMatch(StringUtils::hasText)) {
+				rows.add(cells);
+			}
+		}
+		if (rows.isEmpty()) {
+			return;
+		}
+
+		sb.append("[TABLE]\n");
+		for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
+			var cells = rows.get(rowIndex);
+			sb.append("| ");
+			for (String cell : cells) {
+				sb.append(escapeMarkdownTableCell(cell)).append(" | ");
+			}
+			sb.append("\n");
+			if (rowIndex == 0) {
+				sb.append("| ");
+				for (int i = 0; i < cells.size(); i++) {
+					sb.append("--- | ");
+				}
+				sb.append("\n");
+			}
+		}
+	}
+
+	private static void appendCodeBlock(StringBuilder sb, List<String> lines) {
+		if (lines.isEmpty()) {
+			return;
+		}
+		sb.append("[CODE]\n");
+		for (String line : lines) {
+			sb.append(line == null ? "" : line).append("\n");
+		}
+		sb.append("[/CODE]\n");
+	}
+
+	private static String extractDocxCellText(XWPFTableCell cell) {
+		List<String> parts = new ArrayList<>();
+		for (XWPFParagraph paragraph : cell.getParagraphs()) {
+			var text = extractDocxParagraphText(paragraph).trim();
+			if (StringUtils.hasText(text)) {
+				parts.add(text);
+			}
+		}
+		return String.join("<br>", parts);
+	}
+
+	private static String extractDocxParagraphText(XWPFParagraph paragraph) {
+		StringBuilder text = new StringBuilder();
+		for (XWPFRun run : paragraph.getRuns()) {
+			text.append(run);
+		}
+		if (text.isEmpty()) {
+			return paragraph.getText() == null ? "" : paragraph.getText();
+		}
+		return text.toString();
+	}
+
+	private static void appendDocxParagraphImages(StringBuilder sb, XWPFParagraph paragraph) {
+		for (XWPFRun run : paragraph.getRuns()) {
+			if (run.getEmbeddedPictures() != null && !run.getEmbeddedPictures().isEmpty()) {
+				sb.append("[IMAGE]\n");
+			}
+		}
+	}
+
+	private static boolean containsCodeParagraph(XWPFTable table) {
+		for (XWPFTableRow row : table.getRows()) {
+			for (XWPFTableCell cell : row.getTableCells()) {
+				for (XWPFParagraph paragraph : cell.getParagraphs()) {
+					if (isCodeParagraph(paragraph)) {
+						return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
+
+	private static boolean isCodeParagraph(XWPFParagraph paragraph) {
+		var style = paragraph.getStyle();
+		if (StringUtils.hasText(style) && style.toLowerCase().contains("code")) {
+			return true;
+		}
+		for (XWPFRun run : paragraph.getRuns()) {
+			var fontFamily = run.getFontFamily();
+			if (fontFamily != null) {
+				var font = fontFamily.toLowerCase();
+				if (font.contains("consolas") || font.contains("courier") || font.contains("monospace")) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	private static String escapeMarkdownTableCell(String value) {
+		if (value == null) {
+			return "";
+		}
+		return value.trim().replace("|", "\\|");
+	}
+
+	private static String trimTrailing(String value) {
+		if (value == null) {
+			return "";
+		}
+		return value.replaceAll("\\s+$", "");
 	}
 
 	private static List<TextSegment> extractDoc(MultipartFile file) throws IOException {
