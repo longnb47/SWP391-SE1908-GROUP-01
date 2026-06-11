@@ -1,49 +1,68 @@
 package com.se1908.group01.controller;
 
-import com.se1908.group01.dto.RegisterRequest;
-import com.se1908.group01.dto.VerifyOtpRequest;
-import com.se1908.group01.dto.RegisterResponse;
-import com.se1908.group01.dto.VerifyOtpResponse;
+import com.se1908.group01.dto.*;
 import com.se1908.group01.service.AuthService;
+import com.se1908.group01.service.OtpService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 
 
 @RestController
-@RequestMapping ("/api/auth")
+@RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthController {
 
     private final AuthService authService;
+    private final OtpService otpService;
 
-    @PostMapping ("/register")
-    public ResponseEntity<RegisterResponse> register(@RequestBody RegisterRequest request) {
+    @PostMapping("/register")
+    public ResponseEntity<ApiResponse<RegisterResponse>> register(
+          @Valid @RequestBody RegisterRequest request) {
+
         RegisterResponse response = authService.register(request);
 
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(
+                ApiResponse.success("Register successfully", response)
+        );
     }
-//@GetMapping ("/test-email")
-//    private String testEmail() {
-//        emailService.sendOtpEmail("lequocthien3264@gmail.com", "123456");
-//        return "Email send";
-//    }
 
-    @PostMapping ("/verify-otp")
-    public ResponseEntity<VerifyOtpResponse> verifyOtp(
-            @RequestBody VerifyOtpRequest request) {
+    @PostMapping("/verify-otp")
+    public ResponseEntity<ApiResponse<VerifyOtpResponse>> verifyOtp(
+          @Valid  @RequestBody VerifyOtpRequest request) {
 
         VerifyOtpResponse response = authService.verifyOtp(request);
 
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(
+                ApiResponse.success("OTP verified successfully", response)
+        );
     }
 
     @GetMapping("/google/success")
-    public String googleSuccess() {
-        return "Google Login Success";
+    public ResponseEntity<ApiResponse<GoogleLoginResponse>> googleSuccess(OAuth2AuthenticationToken authentication) {
+
+        String email = authentication.getPrincipal().getAttribute("email");
+        String fullName = authentication.getPrincipal().getAttribute("name");
+
+        GoogleLoginResponse response = authService.loginWithGoogle(email,fullName);
+        return ResponseEntity.ok(
+                ApiResponse.success("Google login successfully", response)
+        );
+
     }
 
+    @PostMapping("/resend-otp")
+    public ResponseEntity<ApiResponse<ResendOtpResponse>> resendOtp(
+            @Valid @RequestBody ResendOtpRequest request) {
 
+        ResendOtpResponse response = otpService.resendOtp(request);
+
+        return ResponseEntity.ok(
+                ApiResponse.success("OTP resent successfully", response)
+        );
+    }
 
 
 }

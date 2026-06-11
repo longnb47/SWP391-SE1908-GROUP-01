@@ -14,5 +14,10 @@ public interface OtpVerificationRepository extends JpaRepository<OtpVerification
             String verificationType
     );
 
+    void deleteAllByUserIdAndVerificationType(
+            Long userId,
+            String verificationType
+    );
+
 
 }

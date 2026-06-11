@@ -1,9 +1,6 @@
 package com.se1908.group01.service.impl;
 
-import com.se1908.group01.dto.VerifyOtpRequest;
-import com.se1908.group01.dto.RegisterResponse;
-import com.se1908.group01.dto.RegisterRequest;
-import com.se1908.group01.dto.VerifyOtpResponse;
+import com.se1908.group01.dto.*;
 import com.se1908.group01.entity.OtpVerification;
 import com.se1908.group01.entity.User;
 import com.se1908.group01.repository.OtpVerificationRepository;
@@ -30,7 +27,7 @@ public class AuthServiceImpl implements AuthService {
     public RegisterResponse register(RegisterRequest request) {
 
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email already exists");
+            throw new IllegalArgumentException("Email already exists");
         }
 
         User user = User.builder()
@@ -67,5 +64,41 @@ public class AuthServiceImpl implements AuthService {
 
     public VerifyOtpResponse verifyOtp(VerifyOtpRequest request) {
         return otpService.verifyOtp(request);
+    }
+
+    @Override
+    public GoogleLoginResponse loginWithGoogle(String email, String fullName) {
+
+        User user = userRepository.findByEmail(email)
+                .orElse(null);
+
+        if (user != null) {
+
+            if (!"GOOGLE".equals(user.getProvider())) {
+                throw new IllegalArgumentException(
+                        "Email already registered with another provider"
+                );
+            }
+
+        } else {
+
+            user = User.builder()
+                    .fullName(fullName)
+                    .email(email)
+                    .passwordHash(null)
+                    .provider("GOOGLE")
+                    .role("USER")
+                    .status("ACTIVE")
+                    .verifiedStatus(true)
+                    .build();
+
+            user = userRepository.save(user);
+        }
+
+        return new GoogleLoginResponse(
+                "Google login successfully",
+                user.getEmail(),
+                user.getFullName()
+        );
     }
 }
