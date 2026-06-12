@@ -30,14 +30,14 @@ public class DocumentChunk {
 	private Integer chunkIndex;
 
 	@Lob
-	@Column(name = "content", nullable = false, columnDefinition = "LONGTEXT")
+	@Column(name = "content", nullable = false)
 	private String content;
 
 	@Column(name = "page_number")
 	private Integer pageNumber;
 
 	@Lob
-	@Column(name = "embedding_vector", columnDefinition = "LONGTEXT")
+	@Column(name = "embedding_vector")
 	private String embeddingVector;
 
 	@Column(name = "created_at", nullable = false)

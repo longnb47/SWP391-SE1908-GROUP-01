@@ -20,14 +20,14 @@ spring:
               model: gemini-embedding-001
               task-type: RETRIEVAL_DOCUMENT
   datasource:
-    url: jdbc:mysql://localhost:3306/ai_hub_study?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-    username: root
-    password: 12345
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${SQLSERVER_DATASOURCE_URL:jdbc:sqlserver://localhost:1433;databaseName=lms_ai;encrypt=true;trustServerCertificate=true}
+    username: ${SQLSERVER_DATASOURCE_USERNAME:sa}
+    password: ${SQLSERVER_DATASOURCE_PASSWORD:12345}
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
 
   jpa:
     hibernate:
-      ddl-auto: update   # chú ý: chỉ dùng update trong lúc phát triển, sau chuyển thành validate hoặc none
+      ddl-auto: create # chú ý: chỉ dùng update trong lúc phát triển, sau chuyển thành validate hoặc none
     show-sql: true
     properties:
       hibernate:
