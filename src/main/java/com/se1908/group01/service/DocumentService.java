@@ -7,23 +7,23 @@ import org.springframework.web.multipart.MultipartFile;
 
 public interface DocumentService {
 
-	DocumentUploadResponse upload(Long userId, MultipartFile file, Boolean isPublic) throws IOException;
+	DocumentUploadResponse upload(MultipartFile file, Boolean isPublic) throws IOException;
 
-	DocumentUploadResponse moveToTrash(Long userId, Long documentId);
+	DocumentUploadResponse moveToTrash(Long documentId);
 
-	List<DocumentUploadResponse> getMyDocuments(Long userId);
+	List<DocumentUploadResponse> getMyDocuments();
 
-	DocumentUploadResponse getDocumentDetail(Long userId, Long documentId);
+	DocumentUploadResponse getDocumentDetail(Long documentId);
 
 	List<DocumentUploadResponse> getPublicDocuments();
 
 	DocumentUploadResponse getPublicDocumentDetail(Long documentId);
 
-	DocumentUploadResponse updateVisibility(Long userId, Long documentId, Boolean isPublic);
+	DocumentUploadResponse updateVisibility(Long documentId, Boolean isPublic);
 
-	List<DocumentUploadResponse> getTrash(Long userId);
+	List<DocumentUploadResponse> getTrash();
 
-	DocumentUploadResponse restoreFromTrash(Long userId, Long documentId);
+	DocumentUploadResponse restoreFromTrash(Long documentId);
 
-	void deletePermanently(Long userId, Long documentId);
+	void deletePermanently(Long documentId);
 }

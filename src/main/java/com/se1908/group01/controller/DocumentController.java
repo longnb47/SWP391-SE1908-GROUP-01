@@ -31,12 +31,11 @@ public class DocumentController {
 
 	@PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public ApiResponse<DocumentUploadResponse> upload(
-			@RequestParam("userId") Long userId,
 			@RequestParam("file") MultipartFile file,
 			@RequestParam(value = "isPublic", required = false) Boolean isPublic
 	) {
 		try {
-			var response = documentService.upload(userId, file, isPublic);
+			var response = documentService.upload(file, isPublic);
 			return ApiResponse.success("Upload document successfully", response);
 		} catch (S3Exception ex) {
 			throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "S3 upload failed", ex);
@@ -46,17 +45,14 @@ public class DocumentController {
 	}
 
 	@GetMapping("/my")
-	public ApiResponse<List<DocumentUploadResponse>> getMyDocuments(@RequestParam("userId") Long userId) {
-		var response = documentService.getMyDocuments(userId);
+	public ApiResponse<List<DocumentUploadResponse>> getMyDocuments() {
+		var response = documentService.getMyDocuments();
 		return ApiResponse.success("Get my documents successfully", response);
 	}
 
 	@GetMapping("/{documentId}")
-	public ApiResponse<DocumentUploadResponse> getDocumentDetail(
-			@PathVariable Long documentId,
-			@RequestParam("userId") Long userId
-	) {
-		var response = documentService.getDocumentDetail(userId, documentId);
+	public ApiResponse<DocumentUploadResponse> getDocumentDetail(@PathVariable Long documentId) {
+		var response = documentService.getDocumentDetail(documentId);
 		return ApiResponse.success("Get document detail successfully", response);
 	}
 
@@ -75,44 +71,34 @@ public class DocumentController {
 	@PatchMapping("/{documentId}/visibility")
 	public ApiResponse<DocumentUploadResponse> updateVisibility(
 			@PathVariable Long documentId,
-			@RequestParam("userId") Long userId,
 			@RequestParam("isPublic") Boolean isPublic
 	) {
-		var response = documentService.updateVisibility(userId, documentId, isPublic);
+		var response = documentService.updateVisibility(documentId, isPublic);
 		return ApiResponse.success("Update document visibility successfully", response);
 	}
 
 	@DeleteMapping("/{documentId}")
-	public ApiResponse<DocumentUploadResponse> moveToTrash(
-			@PathVariable Long documentId,
-			@RequestParam("userId") Long userId
-	) {
-		var response = documentService.moveToTrash(userId, documentId);
+	public ApiResponse<DocumentUploadResponse> moveToTrash(@PathVariable Long documentId) {
+		var response = documentService.moveToTrash(documentId);
 		return ApiResponse.success("Move document to trash successfully", response);
 	}
 
 	@GetMapping("/trash")
-	public ApiResponse<List<DocumentUploadResponse>> getTrash(@RequestParam("userId") Long userId) {
-		var response = documentService.getTrash(userId);
+	public ApiResponse<List<DocumentUploadResponse>> getTrash() {
+		var response = documentService.getTrash();
 		return ApiResponse.success("Get trash documents successfully", response);
 	}
 
 	@PostMapping("/{documentId}/restore")
-	public ApiResponse<DocumentUploadResponse> restoreFromTrash(
-			@PathVariable Long documentId,
-			@RequestParam("userId") Long userId
-	) {
-		var response = documentService.restoreFromTrash(userId, documentId);
+	public ApiResponse<DocumentUploadResponse> restoreFromTrash(@PathVariable Long documentId) {
+		var response = documentService.restoreFromTrash(documentId);
 		return ApiResponse.success("Restore document successfully", response);
 	}
 
 	@DeleteMapping("/{documentId}/permanent")
-	public ApiResponse<Void> deletePermanently(
-			@PathVariable Long documentId,
-			@RequestParam("userId") Long userId
-	) {
+	public ApiResponse<Void> deletePermanently(@PathVariable Long documentId) {
 		try {
-			documentService.deletePermanently(userId, documentId);
+			documentService.deletePermanently(documentId);
 			return ApiResponse.success("Delete document permanently successfully", null);
 		} catch (S3Exception ex) {
 			throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "S3 delete failed", ex);

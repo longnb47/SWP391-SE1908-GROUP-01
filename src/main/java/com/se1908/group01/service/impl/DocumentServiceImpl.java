@@ -7,6 +7,7 @@ import com.se1908.group01.entity.DocumentStatus;
 import com.se1908.group01.exception.ResourceNotFoundException;
 import com.se1908.group01.repository.DocumentChunkRepository;
 import com.se1908.group01.repository.DocumentRepository;
+import com.se1908.group01.service.CurrentUserService;
 import com.se1908.group01.service.DocumentIngestionService;
 import com.se1908.group01.service.DocumentService;
 import com.se1908.group01.service.FileValidationService;
@@ -29,6 +30,7 @@ public class DocumentServiceImpl implements DocumentService {
 	private final DocumentRepository documentRepository;
 	private final DocumentChunkRepository documentChunkRepository;
 	private final DocumentIngestionService documentIngestionService;
+	private final CurrentUserService currentUserService;
 
 	public DocumentServiceImpl(
 			FileValidationService fileValidationService,
@@ -36,7 +38,8 @@ public class DocumentServiceImpl implements DocumentService {
 			S3Properties s3Properties,
 			DocumentRepository documentRepository,
 			DocumentChunkRepository documentChunkRepository,
-			DocumentIngestionService documentIngestionService
+			DocumentIngestionService documentIngestionService,
+			CurrentUserService currentUserService
 	) {
 		this.fileValidationService = fileValidationService;
 		this.s3StorageService = s3StorageService;
@@ -44,15 +47,13 @@ public class DocumentServiceImpl implements DocumentService {
 		this.documentRepository = documentRepository;
 		this.documentChunkRepository = documentChunkRepository;
 		this.documentIngestionService = documentIngestionService;
+		this.currentUserService = currentUserService;
 	}
 
 	@Transactional(rollbackFor = Exception.class)
 	@Override
-	public DocumentUploadResponse upload(Long userId, MultipartFile file, Boolean isPublic) throws IOException {
-		if (userId == null) {
-			throw new IllegalArgumentException("userId is required");
-		}
-
+	public DocumentUploadResponse upload(MultipartFile file, Boolean isPublic) throws IOException {
+		var userId = currentUserService.getCurrentUserId();
 		fileValidationService.validateForUpload(file);
 
 		var originalName = FilenameSanitizer.sanitize(file.getOriginalFilename());
@@ -92,7 +93,8 @@ public class DocumentServiceImpl implements DocumentService {
 
 	@Transactional
 	@Override
-	public DocumentUploadResponse moveToTrash(Long userId, Long documentId) {
+	public DocumentUploadResponse moveToTrash(Long documentId) {
+		var userId = currentUserService.getCurrentUserId();
 		var doc = findOwnedDocument(userId, documentId);
 		if (!Boolean.TRUE.equals(doc.getIsDeleted())) {
 			doc.setIsDeleted(Boolean.TRUE);
@@ -104,8 +106,8 @@ public class DocumentServiceImpl implements DocumentService {
 
 	@Transactional(readOnly = true)
 	@Override
-	public List<DocumentUploadResponse> getMyDocuments(Long userId) {
-		validateUserId(userId);
+	public List<DocumentUploadResponse> getMyDocuments() {
+		var userId = currentUserService.getCurrentUserId();
 		return documentRepository.findByUserIdAndIsDeletedFalseOrderByUploadedAtDesc(userId)
 				.stream()
 				.map(this::toResponse)
@@ -114,7 +116,8 @@ public class DocumentServiceImpl implements DocumentService {
 
 	@Transactional(readOnly = true)
 	@Override
-	public DocumentUploadResponse getDocumentDetail(Long userId, Long documentId) {
+	public DocumentUploadResponse getDocumentDetail(Long documentId) {
+		var userId = currentUserService.getCurrentUserId();
 		return toResponse(findOwnedActiveDocument(userId, documentId));
 	}
 
@@ -140,10 +143,11 @@ public class DocumentServiceImpl implements DocumentService {
 
 	@Transactional
 	@Override
-	public DocumentUploadResponse updateVisibility(Long userId, Long documentId, Boolean isPublic) {
+	public DocumentUploadResponse updateVisibility(Long documentId, Boolean isPublic) {
 		if (isPublic == null) {
 			throw new IllegalArgumentException("isPublic is required");
 		}
+		var userId = currentUserService.getCurrentUserId();
 		var doc = findOwnedActiveDocument(userId, documentId);
 		doc.setIsPublic(isPublic);
 		return toResponse(documentRepository.save(doc));
@@ -151,8 +155,8 @@ public class DocumentServiceImpl implements DocumentService {
 
 	@Transactional(readOnly = true)
 	@Override
-	public List<DocumentUploadResponse> getTrash(Long userId) {
-		validateUserId(userId);
+	public List<DocumentUploadResponse> getTrash() {
+		var userId = currentUserService.getCurrentUserId();
 		return documentRepository.findByUserIdAndIsDeletedTrueOrderByDeletedAtDesc(userId)
 				.stream()
 				.map(this::toResponse)
@@ -161,7 +165,8 @@ public class DocumentServiceImpl implements DocumentService {
 
 	@Transactional
 	@Override
-	public DocumentUploadResponse restoreFromTrash(Long userId, Long documentId) {
+	public DocumentUploadResponse restoreFromTrash(Long documentId) {
+		var userId = currentUserService.getCurrentUserId();
 		var doc = findOwnedDocument(userId, documentId);
 		if (Boolean.TRUE.equals(doc.getIsDeleted())) {
 			doc.setIsDeleted(Boolean.FALSE);
@@ -173,7 +178,8 @@ public class DocumentServiceImpl implements DocumentService {
 
 	@Transactional(rollbackFor = Exception.class)
 	@Override
-	public void deletePermanently(Long userId, Long documentId) {
+	public void deletePermanently(Long documentId) {
+		var userId = currentUserService.getCurrentUserId();
 		var doc = findOwnedDocument(userId, documentId);
 		if (!Boolean.TRUE.equals(doc.getIsDeleted())) {
 			throw new IllegalArgumentException("Document must be in trash before permanent delete");
