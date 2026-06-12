@@ -1,5 +1,11 @@
 server:
   port: 8080
+
+app:
+  jwt:
+    secret: 5A7134743777217A25432A462D4A614E645267556B58703273357638792F423F
+    expiration-ms: 300000
+
 spring:
   application:
     name: AI-HUB-STUDY
@@ -27,11 +33,36 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: create # chú ý: chỉ dùng update trong lúc phát triển, sau chuyển thành validate hoặc none
+      ddl-auto: update # chú ý: chỉ dùng update trong lúc phát triển, sau chuyển thành validate hoặc none
     show-sql: true
     properties:
       hibernate:
         format_sql: true
+        dialect: org.hibernate.dialect.SQLServerDialect
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: fptuniversitys5@gmail.com
+    password: xdpz kyye nxln nhyn
+
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: 563063317579-9o7hign368sdvo0eld1e68elao0nnq1h.apps.googleusercontent.com
+            client-secret: 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
+            scope:
+              - email
+              - profile
 
 aws:
   region: ${AWS_REGION:}
