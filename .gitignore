@@ -31,3 +31,19 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Local env secrets
+.env
+
+# Local scratch / temp
+.docx_extract/
+.m2repo*/
+.mvn-build-temp*/
+__write_root_test.txt
+
+# Local-only project notes
+AGENTS.md
+REPORT_TASK_DAILY.md
+docs/srs-summary.md
+docs/
+REPORT_SYSTEM_API_SUMMARY.md

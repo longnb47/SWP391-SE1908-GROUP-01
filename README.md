@@ -154,45 +154,45 @@ Trong đó:
 - `scope`: khu vực/chức năng bị ảnh hưởng, ví dụ `login`, `register`, `chat`, `admin`, `upload`.
 - `description`: mô tả ngắn gọn nội dung đã làm.
 
-| Type | Khi nào dùng | Ví dụ commit |
-|---|---|---|
-| `feat` | Thêm chức năng mới | `feat(login): add login form` |
-| `fix` | Sửa lỗi | `fix(login): handle wrong password message` |
-| `docs` | Chỉ sửa tài liệu, README, hướng dẫn | `docs(readme): add commit convention` |
-| `style` | Sửa format code, dấu cách, xuống dòng, không đổi logic | `style(user): format user controller` |
+| Type       | Khi nào dùng                                                       | Ví dụ commit                                     |
+| ---------- | ------------------------------------------------------------------ | ------------------------------------------------ |
+| `feat`     | Thêm chức năng mới                                                 | `feat(login): add login form`                    |
+| `fix`      | Sửa lỗi                                                            | `fix(login): handle wrong password message`      |
+| `docs`     | Chỉ sửa tài liệu, README, hướng dẫn                                | `docs(readme): add commit convention`            |
+| `style`    | Sửa format code, dấu cách, xuống dòng, không đổi logic             | `style(user): format user controller`            |
 | `refactor` | Tối ưu/cấu trúc lại code nhưng không thêm tính năng, không sửa bug | `refactor(service): simplify user service logic` |
-| `test` | Thêm hoặc sửa test | `test(auth): add login service tests` |
-| `chore` | Việc phụ trợ như config, dependency, setup project | `chore(config): update application properties` |
-| `build` | Thay đổi liên quan build tool hoặc dependency | `build(maven): add mysql connector dependency` |
-| `ci` | Thay đổi liên quan CI/CD, GitHub Actions | `ci(github): add build workflow` |
-| `perf` | Cải thiện hiệu năng | `perf(query): optimize user search query` |
-| `revert` | Hoàn tác commit trước đó | `revert(login): remove old login validation` |
+| `test`     | Thêm hoặc sửa test                                                 | `test(auth): add login service tests`            |
+| `chore`    | Việc phụ trợ như config, dependency, setup project                 | `chore(config): update application properties`   |
+| `build`    | Thay đổi liên quan build tool hoặc dependency                      | `build(maven): add mysql connector dependency`   |
+| `ci`       | Thay đổi liên quan CI/CD, GitHub Actions                           | `ci(github): add build workflow`                 |
+| `perf`     | Cải thiện hiệu năng                                                | `perf(query): optimize user search query`        |
+| `revert`   | Hoàn tác commit trước đó                                           | `revert(login): remove old login validation`     |
 
 ### Quy tắc viết commit message
 
-| Quy tắc | Đúng | Sai |
-|---|---|---|
-| Viết ngắn gọn, rõ việc đã làm | `feat(chat): add send message API` | `update code` |
-| Dùng tiếng Anh nếu có thể | `fix(upload): validate file size` | `sửa lỗi tùm lum` |
+| Quy tắc                                 | Đúng                                    | Sai                                     |
+| --------------------------------------- | --------------------------------------- | --------------------------------------- |
+| Viết ngắn gọn, rõ việc đã làm           | `feat(chat): add send message API`      | `update code`                           |
+| Dùng tiếng Anh nếu có thể               | `fix(upload): validate file size`       | `sửa lỗi tùm lum`                       |
 | Không viết hoa chữ đầu phần description | `feat(login): add remember me checkbox` | `feat(login): Add remember me checkbox` |
-| Không thêm dấu chấm cuối câu | `docs(readme): update setup guide` | `docs(readme): update setup guide.` |
-| Một commit nên tập trung vào một việc | `fix(register): validate email format` | `fix login, update readme, add chat UI` |
+| Không thêm dấu chấm cuối câu            | `docs(readme): update setup guide`      | `docs(readme): update setup guide.`     |
+| Một commit nên tập trung vào một việc   | `fix(register): validate email format`  | `fix login, update readme, add chat UI` |
 
 ### Gợi ý scope cho project
 
-| Scope | Ý nghĩa |
-|---|---|
-| `login` | Chức năng đăng nhập |
-| `register` | Chức năng đăng ký |
-| `chat` | Chức năng chat |
-| `upload` | Chức năng upload file |
-| `admin` | Chức năng quản lý admin |
-| `user` | Chức năng liên quan user |
-| `auth` | Xác thực, phân quyền |
-| `db` | Database, entity, repository |
-| `ui` | Giao diện |
-| `config` | Cấu hình project |
-| `readme` | Tài liệu README |
+| Scope      | Ý nghĩa                      |
+| ---------- | ---------------------------- |
+| `login`    | Chức năng đăng nhập          |
+| `register` | Chức năng đăng ký            |
+| `chat`     | Chức năng chat               |
+| `upload`   | Chức năng upload file        |
+| `admin`    | Chức năng quản lý admin      |
+| `user`     | Chức năng liên quan user     |
+| `auth`     | Xác thực, phân quyền         |
+| `db`       | Database, entity, repository |
+| `ui`       | Giao diện                    |
+| `config`   | Cấu hình project             |
+| `readme`   | Tài liệu README              |
 
 Ví dụ commit message nên dùng trong nhóm:
 
