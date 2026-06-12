@@ -1,5 +1,11 @@
 server:
   port: 8080
+
+app:
+  jwt:
+    secret: 5A7134743777217A25432A462D4A614E645267556B58703273357638792F423F
+    expiration-ms: 300000
+
 spring:
   application:
     name: AI-HUB-STUDY

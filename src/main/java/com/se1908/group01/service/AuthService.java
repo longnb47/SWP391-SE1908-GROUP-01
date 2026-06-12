@@ -7,4 +7,5 @@ public interface AuthService {
     RegisterResponse register(RegisterRequest request);
     VerifyOtpResponse verifyOtp(VerifyOtpRequest request);
     GoogleLoginResponse loginWithGoogle(String email, String fullName);
+    LoginResponse login(LoginRequest request);
 }

@@ -5,6 +5,7 @@ import com.se1908.group01.entity.OtpVerification;
 import com.se1908.group01.entity.User;
 import com.se1908.group01.repository.OtpVerificationRepository;
 import com.se1908.group01.repository.UserRepository;
+import com.se1908.group01.security.JwtUtil;
 import com.se1908.group01.service.AuthService;
 import com.se1908.group01.service.EmailService;
 import com.se1908.group01.service.OtpService;
@@ -23,6 +24,7 @@ public class AuthServiceImpl implements AuthService {
     private final OtpVerificationRepository otpVerificationRepository;
     private final EmailService emailService;
     private final OtpService otpService;
+    private final JwtUtil jwtUtil;
 
     public RegisterResponse register(RegisterRequest request) {
 
@@ -100,5 +102,23 @@ public class AuthServiceImpl implements AuthService {
                 user.getEmail(),
                 user.getFullName()
         );
+    }
+
+    @Override
+    public LoginResponse login(LoginRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid email or password"));
+
+        if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+            throw new IllegalArgumentException("Invalid email or password");
+        }
+
+        if (!"ACTIVE".equals(user.getStatus())) {
+            throw new IllegalArgumentException("Account is not verified. Please complete OTP verification.");
+        }
+
+        String token = jwtUtil.generateToken(user.getUserId(), user.getEmail(), user.getRole());
+
+        return new LoginResponse(token, user.getUserId(), user.getEmail(), user.getRole());
     }
 }

@@ -53,6 +53,17 @@ public class AuthController {
 
     }
 
+    @PostMapping("/login")
+    public ResponseEntity<ApiResponse<LoginResponse>> login(
+            @Valid @RequestBody LoginRequest request) {
+
+        LoginResponse response = authService.login(request);
+
+        return ResponseEntity.ok(
+                ApiResponse.success("Login successfully", response)
+        );
+    }
+
     @PostMapping("/resend-otp")
     public ResponseEntity<ApiResponse<ResendOtpResponse>> resendOtp(
             @Valid @RequestBody ResendOtpRequest request) {
