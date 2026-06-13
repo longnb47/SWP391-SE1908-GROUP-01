@@ -1,5 +1,6 @@
 package com.se1908.group01.entity;
 
+import com.se1908.group01.enums.VerificationType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -29,7 +30,8 @@ public class OtpVerification {
     private String otpCode;
 
     @Column (name = "verification_type", nullable = false, length = 50)
-    private String verificationType;
+    @Enumerated (EnumType.STRING)
+    private VerificationType verificationType;
 
     @Column (nullable = false)
     private Integer attempts;

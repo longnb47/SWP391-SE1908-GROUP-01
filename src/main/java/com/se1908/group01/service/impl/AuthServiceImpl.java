@@ -3,6 +3,10 @@ package com.se1908.group01.service.impl;
 import com.se1908.group01.dto.*;
 import com.se1908.group01.entity.OtpVerification;
 import com.se1908.group01.entity.User;
+import com.se1908.group01.enums.AccountStatus;
+import com.se1908.group01.enums.AuthProvider;
+import com.se1908.group01.enums.Role;
+import com.se1908.group01.enums.VerificationType;
 import com.se1908.group01.repository.OtpVerificationRepository;
 import com.se1908.group01.repository.UserRepository;
 import com.se1908.group01.security.JwtUtil;
@@ -36,9 +40,9 @@ public class AuthServiceImpl implements AuthService {
                 .fullName(request.getFullName())
                 .email(request.getEmail())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
-                .provider("LOCAL")
-                .role("USER")
-                .status("PENDING")
+                .provider(AuthProvider.LOCAL)
+                .role(Role.USER)
+                .status(AccountStatus.PENDING)
                 .verifiedStatus(false)
                 .build();
 
@@ -49,7 +53,7 @@ public class AuthServiceImpl implements AuthService {
         OtpVerification otpVerification = OtpVerification.builder()
                 .userId(savedUser.getUserId())
                 .otpCode(otpCode)
-                .verificationType("REGISTER")
+                .verificationType(VerificationType.REGISTER)
                 .attempts(0)
                 .expiresAt(LocalDateTime.now().plusMinutes(5))
                 .build();
@@ -76,7 +80,7 @@ public class AuthServiceImpl implements AuthService {
 
         if (user != null) {
 
-            if (!"GOOGLE".equals(user.getProvider())) {
+            if (!AuthProvider.GOOGLE.equals(user.getProvider())) {
                 throw new IllegalArgumentException(
                         "Email already registered with another provider"
                 );
@@ -88,9 +92,9 @@ public class AuthServiceImpl implements AuthService {
                     .fullName(fullName)
                     .email(email)
                     .passwordHash(null)
-                    .provider("GOOGLE")
-                    .role("USER")
-                    .status("ACTIVE")
+                    .provider(AuthProvider.GOOGLE)
+                    .role(Role.USER)
+                    .status(AccountStatus.ACTIVE)
                     .verifiedStatus(true)
                     .build();
 
@@ -113,12 +117,12 @@ public class AuthServiceImpl implements AuthService {
             throw new IllegalArgumentException("Invalid email or password");
         }
 
-        if (!"ACTIVE".equals(user.getStatus())) {
+        if (!AccountStatus.ACTIVE.equals(user.getStatus())) {
             throw new IllegalArgumentException("Account is not verified. Please complete OTP verification.");
         }
 
-        String token = jwtUtil.generateToken(user.getUserId(), user.getEmail(), user.getRole());
+        String token = jwtUtil.generateToken(user.getUserId(), user.getEmail(), user.getRole().name());
 
-        return new LoginResponse(token, user.getUserId(), user.getEmail(), user.getRole());
+        return new LoginResponse(token, user.getUserId(), user.getEmail(), user.getRole().name());
     }
 }
