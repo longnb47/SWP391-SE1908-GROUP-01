@@ -6,6 +6,8 @@ import com.se1908.group01.dto.VerifyOtpRequest;
 import com.se1908.group01.dto.VerifyOtpResponse;
 import com.se1908.group01.entity.OtpVerification;
 import com.se1908.group01.entity.User;
+import com.se1908.group01.enums.AccountStatus;
+import com.se1908.group01.enums.VerificationType;
 import com.se1908.group01.exception.ResourceNotFoundException;
 import com.se1908.group01.repository.OtpVerificationRepository;
 import com.se1908.group01.repository.UserRepository;
@@ -41,7 +43,7 @@ public class OtpServiceImpl implements OtpService {
         OtpVerification otpVerification = otpVerificationRepository
                 .findTopByUserIdAndVerificationTypeOrderByCreatedAtDesc(
                         user.getUserId(),
-                        "REGISTER"
+                        VerificationType.REGISTER
                 )
                 .orElseThrow(() -> new ResourceNotFoundException("OTP not found"));
 
@@ -63,7 +65,7 @@ public class OtpServiceImpl implements OtpService {
             throw new IllegalArgumentException("Invalid OTP!");
         }
 
-        user.setStatus("ACTIVE");
+        user.setStatus(AccountStatus.ACTIVE);
         user.setVerifiedStatus(true);
         userRepository.save(user);
         otpVerificationRepository.delete(otpVerification);
@@ -83,7 +85,7 @@ public class OtpServiceImpl implements OtpService {
         otpVerificationRepository
                 .deleteAllByUserIdAndVerificationType(
                         user.getUserId(),
-                        "REGISTER"
+                        VerificationType.REGISTER
                 );
 
         String otpCode = generateOtp();
@@ -91,7 +93,7 @@ public class OtpServiceImpl implements OtpService {
         OtpVerification otpVerification = OtpVerification.builder()
                 .userId(user.getUserId())
                 .otpCode(otpCode)
-                .verificationType("REGISTER")
+                .verificationType(VerificationType.REGISTER)
                 .attempts(0)
                 .expiresAt(LocalDateTime.now().plusMinutes(5))
                 .build();

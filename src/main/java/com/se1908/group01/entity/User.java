@@ -1,5 +1,8 @@
 package com.se1908.group01.entity;
 
+import com.se1908.group01.enums.AccountStatus;
+import com.se1908.group01.enums.AuthProvider;
+import com.se1908.group01.enums.Role;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -32,13 +35,16 @@ public class User {
     private String passwordHash;
 
     @Column(nullable = false, length = 20)
-    private String provider;
+    @Enumerated (EnumType.STRING)
+    private AuthProvider provider;
 
     @Column(nullable = false, length = 20)
-    private String role;
+    @Enumerated (EnumType.STRING)
+    private Role role;
 
     @Column(nullable = false, length = 20)
-    private String status;
+    @Enumerated (EnumType.STRING)
+    private AccountStatus status;
 
     @Column(name = "verified_status", nullable = false)
     private boolean verifiedStatus;
