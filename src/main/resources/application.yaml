@@ -9,6 +9,10 @@ app:
 spring:
   application:
     name: AI-HUB-STUDY
+  jackson:
+    datatype:
+      datetime:
+        write-dates-as-timestamps: false
   servlet:
     multipart:
       max-file-size: 20MB
