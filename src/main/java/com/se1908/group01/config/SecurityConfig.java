@@ -44,7 +44,7 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .formLogin(form -> form.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/auth/**", "/api/auth/refresh", "/api/auth/logout").permitAll()
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                         .requestMatchers("/api/documents/public", "/api/documents/public/*").permitAll()
                         .requestMatchers(

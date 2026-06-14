@@ -16,5 +16,6 @@ public class GoogleLoginResponse {
     private String email;
     private Role role;
     private String fullName;
+    private String refreshToken;
 
 }
