@@ -7,6 +7,7 @@ import com.se1908.group01.entity.DocumentStatus;
 import com.se1908.group01.exception.ResourceNotFoundException;
 import com.se1908.group01.repository.DocumentChunkRepository;
 import com.se1908.group01.repository.DocumentRepository;
+import com.se1908.group01.repository.DocumentTagRepository;
 import com.se1908.group01.service.CurrentUserService;
 import com.se1908.group01.service.DocumentIngestionService;
 import com.se1908.group01.service.DocumentService;
@@ -29,6 +30,7 @@ public class DocumentServiceImpl implements DocumentService {
 	private final S3Properties s3Properties;
 	private final DocumentRepository documentRepository;
 	private final DocumentChunkRepository documentChunkRepository;
+	private final DocumentTagRepository documentTagRepository;
 	private final DocumentIngestionService documentIngestionService;
 	private final CurrentUserService currentUserService;
 
@@ -38,6 +40,7 @@ public class DocumentServiceImpl implements DocumentService {
 			S3Properties s3Properties,
 			DocumentRepository documentRepository,
 			DocumentChunkRepository documentChunkRepository,
+			DocumentTagRepository documentTagRepository,
 			DocumentIngestionService documentIngestionService,
 			CurrentUserService currentUserService
 	) {
@@ -46,6 +49,7 @@ public class DocumentServiceImpl implements DocumentService {
 		this.s3Properties = s3Properties;
 		this.documentRepository = documentRepository;
 		this.documentChunkRepository = documentChunkRepository;
+		this.documentTagRepository = documentTagRepository;
 		this.documentIngestionService = documentIngestionService;
 		this.currentUserService = currentUserService;
 	}
@@ -188,6 +192,7 @@ public class DocumentServiceImpl implements DocumentService {
 		if (doc.getS3Key() != null && !doc.getS3Key().isBlank()) {
 			s3StorageService.delete(doc.getS3Key());
 		}
+		documentTagRepository.deleteByDocumentDocumentId(doc.getDocumentId());
 		documentChunkRepository.deleteByDocumentDocumentId(doc.getDocumentId());
 		documentRepository.delete(doc);
 	}
