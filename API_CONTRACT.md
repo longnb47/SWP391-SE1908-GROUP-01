@@ -8,7 +8,9 @@ This document describes the currently available backend APIs so the frontend tea
 
 ## 1. Standard response format
 
-All APIs return responses using this format:
+All REST APIs return responses using this format.
+
+> Note: Google OAuth2 browser login is a redirect flow, so the browser is redirected back to the frontend instead of receiving this JSON format directly.
 
 ```json
 {
@@ -171,7 +173,7 @@ Status: `200 OK`
 
 ## 2.3. Login
 
-Log in using email and password, then receive a JWT access token.
+Log in using email and password, then receive an access token and refresh token.
 
 ### Request
 
@@ -204,6 +206,7 @@ Status: `200 OK`
   "message": "Login successfully",
   "data": {
     "accessToken": "jwt-token",
+    "refreshToken": "refresh-token",
     "tokenType": "Bearer",
     "userId": 1,
     "email": "long@example.com",
@@ -216,11 +219,15 @@ Status: `200 OK`
 
 ### Frontend usage
 
-After a successful login, store `data.accessToken` and send it when calling private APIs:
+After a successful login, store both `data.accessToken` and `data.refreshToken`.
+
+Use the access token when calling private APIs:
 
 ```text
 Authorization: Bearer <accessToken>
 ```
+
+Use the refresh token only when calling `/api/auth/refresh` or `/api/auth/logout`.
 
 ### Error cases
 
@@ -284,17 +291,88 @@ Status: `200 OK`
 
 ---
 
-## 2.5. Google OAuth2 Success
+## 2.5. Google OAuth2 Login Redirect Flow
 
-Callback endpoint after a successful Google OAuth2 login.
+Google OAuth2 login is a browser redirect flow. The frontend should redirect the browser to the backend OAuth2 authorization URL. After Google login finishes, the backend redirects the browser back to the React app.
 
 ### Request
 
 - Method: `GET`
-- URL: `/api/auth/google/success`
+- URL: `/oauth2/authorization/google`
 - Auth: OAuth2 login flow
 
-The frontend usually does not call this endpoint like a normal JSON API. It is used as part of the Google OAuth2 flow.
+The frontend should open this URL in the browser, not call it with Axios as a normal JSON API.
+
+### Success redirect
+
+When Google login succeeds and the backend can create or find the user account, the backend redirects to:
+
+```text
+http://localhost:5173/oauth2/redirect?token=<accessToken>&refreshToken=<refreshToken>&email=<email>&userId=<userId>&role=<role>&fullName=<fullName>
+```
+
+### Success query parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| `token` | string | JWT access token |
+| `refreshToken` | string | Refresh token |
+| `email` | string | User email |
+| `userId` | number | User ID |
+| `role` | string | User role, for example `USER` |
+| `fullName` | string | Google account display name |
+
+### Error redirect
+
+When Google login fails, or when the Google email is already registered with another provider, the backend redirects to:
+
+```text
+http://localhost:5173/login?error=<error-message>
+```
+
+Example:
+
+```text
+http://localhost:5173/login?error=Email%20already%20registered%20with%20another%20provider
+```
+
+### Frontend usage
+
+1. Redirect the browser to `http://localhost:8080/oauth2/authorization/google`.
+2. React handles `/oauth2/redirect`.
+3. Read `token`, `refreshToken`, `email`, `userId`, `role`, and `fullName` from query parameters.
+4. Store the latest `token` and `refreshToken`.
+5. Redirect the user to the dashboard.
+6. If the browser returns to `/login?error=...`, show the error message on the login page.
+
+### Backend note
+
+`GET /api/auth/google/success` may still exist internally, but the current frontend flow should not depend on it. The expected frontend integration point is the redirect URL above.
+
+---
+
+## 2.6. Refresh token
+
+Use a refresh token to get a new access token and a new refresh token.
+
+### Request
+
+- Method: `POST`
+- URL: `/api/auth/refresh`
+- Auth: No access token required
+- Content-Type: `application/json`
+
+```json
+{
+  "refreshToken": "refresh-token"
+}
+```
+
+### Request fields
+
+| Field | Type | Required | Rule |
+|---|---|---|---|
+| `refreshToken` | string | Yes | Must not be blank |
 
 ### Success response
 
@@ -303,15 +381,83 @@ Status: `200 OK`
 ```json
 {
   "success": true,
-  "message": "Google login successfully",
+  "message": "Token refreshed successfully",
   "data": {
-    "message": "Google login successfully",
-    "token": "jwt-token",
-    "userId": 1,
-    "email": "long@example.com",
-    "role": "USER",
-    "fullName": "Long Nguyen"
+    "accessToken": "new-jwt-token",
+    "refreshToken": "new-refresh-token",
+    "tokenType": "Bearer"
   },
+  "errors": null,
+  "timestamp": "2026-06-14T10:30:00Z"
+}
+```
+
+### Refresh token rotation rule
+
+This backend uses refresh token rotation.
+
+When `/api/auth/refresh` succeeds:
+
+- The old refresh token is revoked.
+- The backend returns a new access token.
+- The backend returns a new refresh token.
+- The frontend must replace both old tokens with the new tokens.
+
+Example:
+
+```text
+Login returns: A1 + R1
+POST /api/auth/refresh with R1
+Backend returns: A2 + R2
+Frontend must use A2 + R2 from now on
+R1 must not be used again
+```
+
+If the frontend uses an old refresh token again, the backend may treat it as refresh token reuse and revoke sessions for security.
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Validation failed` | Missing refresh token |
+| `400` | `Validation failed` | Invalid refresh token |
+| `400` | `Validation failed` | Refresh token expired |
+| `400` | `Validation failed` | Refresh token was already used |
+
+---
+
+## 2.7. Logout
+
+Logout by revoking the current refresh token.
+
+### Request
+
+- Method: `POST`
+- URL: `/api/auth/logout`
+- Auth: No access token required
+- Content-Type: `application/json`
+
+```json
+{
+  "refreshToken": "refresh-token"
+}
+```
+
+### Request fields
+
+| Field | Type | Required | Rule |
+|---|---|---|---|
+| `refreshToken` | string | Yes | Must not be blank |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Logged out successfully",
+  "data": null,
   "errors": null,
   "timestamp": "2026-06-14T10:30:00Z"
 }
@@ -321,8 +467,28 @@ Status: `200 OK`
 
 | Status | Message | Reason |
 |---|---|---|
-| `400` | `Validation failed` | Email is already registered with another provider |
-| `401` | `Unauthorized` | Invalid OAuth2 authentication |
+| `400` | `Validation failed` | Missing refresh token |
+
+---
+
+## 2.8. Recommended frontend token flow
+
+```text
+Login or Google login
+-> Store accessToken and refreshToken
+-> Call private APIs with accessToken
+-> If private API returns 401 because accessToken expired
+-> Call POST /api/auth/refresh with refreshToken
+-> Store new accessToken and new refreshToken
+-> Retry the failed private API request
+-> On logout, call POST /api/auth/logout with the latest refreshToken
+```
+
+Important frontend notes:
+
+- Always store the latest refresh token returned by `/api/auth/refresh`.
+- Do not reuse an old refresh token after a successful refresh.
+- Avoid sending multiple refresh requests at the same time with the same refresh token.
 
 ---
 
@@ -1329,6 +1495,8 @@ Status: `200 OK`
 ## 6. Frontend notes
 
 - Private APIs do not require `userId`; the backend reads the current user from JWT.
+- After login or Google login, store both `accessToken` and `refreshToken`.
+- When refreshing tokens, always replace the old refresh token with the new one from the response.
 - Header for private APIs:
 
 ```text

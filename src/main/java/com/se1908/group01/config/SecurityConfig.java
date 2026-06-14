@@ -1,6 +1,8 @@
 package com.se1908.group01.config;
 
 import com.se1908.group01.security.JwtAuthenticationFilter;
+import com.se1908.group01.security.OAuth2FrontendFailureHandler;
+import com.se1908.group01.security.OAuth2FrontendSuccessHandler;
 import com.se1908.group01.security.RestAccessDeniedHandler;
 import com.se1908.group01.security.RestAuthenticationEntryPoint;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,8 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final RestAuthenticationEntryPoint restAuthenticationEntryPoint;
     private final RestAccessDeniedHandler restAccessDeniedHandler;
+    private final OAuth2FrontendSuccessHandler oAuth2FrontendSuccessHandler;
+    private final OAuth2FrontendFailureHandler oAuth2FrontendFailureHandler;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -59,7 +63,8 @@ public class SecurityConfig {
                         .accessDeniedHandler(restAccessDeniedHandler)
                 )
                 .oauth2Login(oauth2 -> oauth2
-                        .defaultSuccessUrl("/api/auth/google/success", true)
+                        .successHandler(oAuth2FrontendSuccessHandler)
+                        .failureHandler(oAuth2FrontendFailureHandler)
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
