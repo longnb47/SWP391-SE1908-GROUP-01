@@ -13,6 +13,7 @@ import com.se1908.group01.security.JwtUtil;
 import com.se1908.group01.service.AuthService;
 import com.se1908.group01.service.EmailService;
 import com.se1908.group01.service.OtpService;
+import com.se1908.group01.service.RefreshTokenService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,7 @@ public class AuthServiceImpl implements AuthService {
     private final EmailService emailService;
     private final OtpService otpService;
     private final JwtUtil jwtUtil;
+    private final RefreshTokenService refreshTokenService;
 
     public RegisterResponse register(RegisterRequest request) {
 
@@ -106,13 +108,15 @@ public class AuthServiceImpl implements AuthService {
                 user.getEmail(),
                 user.getRole().name()
         );
+        String rawRefreshToken = refreshTokenService.issue(user.getUserId(), null, null);
         return new GoogleLoginResponse(
                 "Google login successfully",
                 token,
                 user.getUserId(),
                 user.getEmail(),
                 user.getRole(),
-                user.getFullName()
+                user.getFullName(),
+                rawRefreshToken
         );
     }
 
@@ -130,7 +134,25 @@ public class AuthServiceImpl implements AuthService {
         }
 
         String token = jwtUtil.generateToken(user.getUserId(), user.getEmail(), user.getRole().name());
+        String rawRefreshToken = refreshTokenService.issue(user.getUserId(), null, null);
 
-        return new LoginResponse(token, user.getUserId(), user.getEmail(), user.getRole().name());
+        return new LoginResponse(token, rawRefreshToken, user.getUserId(), user.getEmail(), user.getRole().name());
+    }
+
+    @Override
+    public RefreshResponse refresh(String rawRefreshToken) {
+        RotationResult result = refreshTokenService.rotate(rawRefreshToken);
+
+        User user = userRepository.findById(result.getUserId())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        String newAccessToken = jwtUtil.generateToken(user.getUserId(), user.getEmail(), user.getRole().name());
+
+        return new RefreshResponse(newAccessToken, result.getNewRawToken());
+    }
+
+    @Override
+    public void logout(String rawRefreshToken) {
+        refreshTokenService.revoke(rawRefreshToken);
     }
 }

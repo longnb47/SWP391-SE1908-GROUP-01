@@ -5,6 +5,7 @@ app:
   jwt:
     secret: ${APP_JWT_SECRET:}
     expiration-ms: ${APP_JWT_EXPIRATION_MS:300000}
+    refresh-expiration-ms: ${APP_JWT_REFRESH_EXPIRATION_MS:604800000}
 
 spring:
   application:
