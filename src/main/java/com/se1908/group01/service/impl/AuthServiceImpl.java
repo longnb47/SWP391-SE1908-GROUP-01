@@ -101,9 +101,17 @@ public class AuthServiceImpl implements AuthService {
             user = userRepository.save(user);
         }
 
+        String token = jwtUtil.generateToken(
+                user.getUserId(),
+                user.getEmail(),
+                user.getRole().name()
+        );
         return new GoogleLoginResponse(
                 "Google login successfully",
+                token,
+                user.getUserId(),
                 user.getEmail(),
+                user.getRole(),
                 user.getFullName()
         );
     }
