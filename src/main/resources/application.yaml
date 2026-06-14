@@ -75,6 +75,7 @@ aws:
     bucket-name: ${AWS_S3_BUCKET_NAME:}
     key-prefix: ${AWS_S3_KEY_PREFIX:}
     endpoint: ${AWS_S3_ENDPOINT:}
+    presigned-url-expiration-minutes: ${AWS_S3_PRESIGNED_URL_EXPIRATION_MINUTES:10}
 
 ocr:
   tesseract:

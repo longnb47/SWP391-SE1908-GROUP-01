@@ -7,5 +7,7 @@ public interface S3StorageService {
 
 	void uploadPrivate(MultipartFile file, String objectKey) throws IOException;
 
+	String createPresignedGetUrl(String objectKey, String fileName, String contentType, boolean download);
+
 	void delete(String objectKey);
 }

@@ -2,6 +2,7 @@ package com.se1908.group01.controller;
 
 import com.se1908.group01.dto.ApiResponse;
 import com.se1908.group01.dto.DocumentUploadResponse;
+import com.se1908.group01.dto.FileAccessUrlResponse;
 import com.se1908.group01.service.DocumentService;
 import java.io.IOException;
 import java.util.List;
@@ -56,6 +57,18 @@ public class DocumentController {
 		return ApiResponse.success("Get document detail successfully", response);
 	}
 
+	@GetMapping("/{documentId}/preview-url")
+	public ApiResponse<FileAccessUrlResponse> getPreviewUrl(@PathVariable Long documentId) {
+		var response = documentService.getPreviewUrl(documentId);
+		return ApiResponse.success("Get document preview URL successfully", response);
+	}
+
+	@GetMapping("/{documentId}/download-url")
+	public ApiResponse<FileAccessUrlResponse> getDownloadUrl(@PathVariable Long documentId) {
+		var response = documentService.getDownloadUrl(documentId);
+		return ApiResponse.success("Get document download URL successfully", response);
+	}
+
 	@GetMapping("/public")
 	public ApiResponse<List<DocumentUploadResponse>> getPublicDocuments() {
 		var response = documentService.getPublicDocuments();
@@ -66,6 +79,18 @@ public class DocumentController {
 	public ApiResponse<DocumentUploadResponse> getPublicDocumentDetail(@PathVariable Long documentId) {
 		var response = documentService.getPublicDocumentDetail(documentId);
 		return ApiResponse.success("Get public document detail successfully", response);
+	}
+
+	@GetMapping("/public/{documentId}/preview-url")
+	public ApiResponse<FileAccessUrlResponse> getPublicPreviewUrl(@PathVariable Long documentId) {
+		var response = documentService.getPublicPreviewUrl(documentId);
+		return ApiResponse.success("Get public document preview URL successfully", response);
+	}
+
+	@GetMapping("/public/{documentId}/download-url")
+	public ApiResponse<FileAccessUrlResponse> getPublicDownloadUrl(@PathVariable Long documentId) {
+		var response = documentService.getPublicDownloadUrl(documentId);
+		return ApiResponse.success("Get public document download URL successfully", response);
 	}
 
 	@PatchMapping("/{documentId}/visibility")

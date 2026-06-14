@@ -1,6 +1,7 @@
 package com.se1908.group01.service;
 
 import com.se1908.group01.dto.DocumentUploadResponse;
+import com.se1908.group01.dto.FileAccessUrlResponse;
 import java.io.IOException;
 import java.util.List;
 import org.springframework.web.multipart.MultipartFile;
@@ -15,9 +16,17 @@ public interface DocumentService {
 
 	DocumentUploadResponse getDocumentDetail(Long documentId);
 
+	FileAccessUrlResponse getPreviewUrl(Long documentId);
+
+	FileAccessUrlResponse getDownloadUrl(Long documentId);
+
 	List<DocumentUploadResponse> getPublicDocuments();
 
 	DocumentUploadResponse getPublicDocumentDetail(Long documentId);
+
+	FileAccessUrlResponse getPublicPreviewUrl(Long documentId);
+
+	FileAccessUrlResponse getPublicDownloadUrl(Long documentId);
 
 	DocumentUploadResponse updateVisibility(Long documentId, Boolean isPublic);
 

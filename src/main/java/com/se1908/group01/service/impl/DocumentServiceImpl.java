@@ -2,6 +2,7 @@ package com.se1908.group01.service.impl;
 
 import com.se1908.group01.config.S3Properties;
 import com.se1908.group01.dto.DocumentUploadResponse;
+import com.se1908.group01.dto.FileAccessUrlResponse;
 import com.se1908.group01.entity.Document;
 import com.se1908.group01.entity.DocumentStatus;
 import com.se1908.group01.exception.ResourceNotFoundException;
@@ -15,6 +16,7 @@ import com.se1908.group01.service.FileValidationService;
 import com.se1908.group01.service.S3StorageService;
 import com.se1908.group01.util.FilenameSanitizer;
 import java.io.IOException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -127,6 +129,20 @@ public class DocumentServiceImpl implements DocumentService {
 
 	@Transactional(readOnly = true)
 	@Override
+	public FileAccessUrlResponse getPreviewUrl(Long documentId) {
+		var userId = currentUserService.getCurrentUserId();
+		return toFileAccessUrlResponse(findOwnedActiveDocument(userId, documentId), false);
+	}
+
+	@Transactional(readOnly = true)
+	@Override
+	public FileAccessUrlResponse getDownloadUrl(Long documentId) {
+		var userId = currentUserService.getCurrentUserId();
+		return toFileAccessUrlResponse(findOwnedActiveDocument(userId, documentId), true);
+	}
+
+	@Transactional(readOnly = true)
+	@Override
 	public List<DocumentUploadResponse> getPublicDocuments() {
 		return documentRepository.findByIsPublicTrueAndIsDeletedFalseOrderByUploadedAtDesc()
 				.stream()
@@ -143,6 +159,18 @@ public class DocumentServiceImpl implements DocumentService {
 		return documentRepository.findByDocumentIdAndIsPublicTrueAndIsDeletedFalse(documentId)
 				.map(this::toResponse)
 				.orElseThrow(() -> new ResourceNotFoundException("Public document not found"));
+	}
+
+	@Transactional(readOnly = true)
+	@Override
+	public FileAccessUrlResponse getPublicPreviewUrl(Long documentId) {
+		return toFileAccessUrlResponse(findPublicActiveDocument(documentId), false);
+	}
+
+	@Transactional(readOnly = true)
+	@Override
+	public FileAccessUrlResponse getPublicDownloadUrl(Long documentId) {
+		return toFileAccessUrlResponse(findPublicActiveDocument(documentId), true);
 	}
 
 	@Transactional
@@ -229,10 +257,29 @@ public class DocumentServiceImpl implements DocumentService {
 				.orElseThrow(() -> new ResourceNotFoundException("Document not found"));
 	}
 
+	private Document findPublicActiveDocument(Long documentId) {
+		if (documentId == null) {
+			throw new IllegalArgumentException("documentId is required");
+		}
+		return documentRepository.findByDocumentIdAndIsPublicTrueAndIsDeletedFalse(documentId)
+				.orElseThrow(() -> new ResourceNotFoundException("Public document not found"));
+	}
+
 	private void validateUserId(Long userId) {
 		if (userId == null) {
 			throw new IllegalArgumentException("userId is required");
 		}
+	}
+
+	private FileAccessUrlResponse toFileAccessUrlResponse(Document doc, boolean download) {
+		var expiresAt = Instant.now().plus(Duration.ofMinutes(s3Properties.getPresignedUrlExpirationMinutes()));
+		var url = s3StorageService.createPresignedGetUrl(
+				doc.getS3Key(),
+				doc.getOriginalFileName(),
+				doc.getContentType(),
+				download
+		);
+		return new FileAccessUrlResponse(url, expiresAt, doc.getOriginalFileName(), doc.getContentType());
 	}
 
 	private DocumentUploadResponse toResponse(Document doc) {

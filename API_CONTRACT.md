@@ -727,6 +727,96 @@ Status: `200 OK`
 
 ---
 
+## 3.4.1. Get my document preview URL
+
+Get a temporary pre-signed URL for previewing an owned document.
+
+### Request
+
+- Method: `GET`
+- URL: `/api/documents/{documentId}/preview-url`
+- Auth: JWT required
+
+### Path variables
+
+| Name | Type | Required |
+|---|---|---|
+| `documentId` | number | Yes |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Get document preview URL successfully",
+  "data": {
+    "url": "https://s3-presigned-url",
+    "expiresAt": "2026-06-14T10:40:00Z",
+    "fileName": "example.pdf",
+    "contentType": "application/pdf"
+  },
+  "errors": null,
+  "timestamp": "2026-06-14T10:30:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `404` | `Resource not found` | Document does not exist, does not belong to the user, or was soft-deleted |
+| `500` | `Request failed` | S3 pre-signer is not configured |
+
+---
+
+## 3.4.2. Get my document download URL
+
+Get a temporary pre-signed URL for downloading an owned document.
+
+### Request
+
+- Method: `GET`
+- URL: `/api/documents/{documentId}/download-url`
+- Auth: JWT required
+
+### Path variables
+
+| Name | Type | Required |
+|---|---|---|
+| `documentId` | number | Yes |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Get document download URL successfully",
+  "data": {
+    "url": "https://s3-presigned-url",
+    "expiresAt": "2026-06-14T10:40:00Z",
+    "fileName": "example.pdf",
+    "contentType": "application/pdf"
+  },
+  "errors": null,
+  "timestamp": "2026-06-14T10:30:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `404` | `Resource not found` | Document does not exist, does not belong to the user, or was soft-deleted |
+| `500` | `Request failed` | S3 pre-signer is not configured |
+
+---
+
 ## 3.5. Get public documents
 
 Get public documents for the community page.
@@ -814,6 +904,94 @@ Status: `200 OK`
 | Status | Message | Reason |
 |---|---|---|
 | `404` | `Resource not found` | Public document does not exist or is not public |
+
+---
+
+## 3.6.1. Get public document preview URL
+
+Get a temporary pre-signed URL for previewing a public document.
+
+### Request
+
+- Method: `GET`
+- URL: `/api/documents/public/{documentId}/preview-url`
+- Auth: Public, no JWT required
+
+### Path variables
+
+| Name | Type | Required |
+|---|---|---|
+| `documentId` | number | Yes |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Get public document preview URL successfully",
+  "data": {
+    "url": "https://s3-presigned-url",
+    "expiresAt": "2026-06-14T10:40:00Z",
+    "fileName": "public-file.pdf",
+    "contentType": "application/pdf"
+  },
+  "errors": null,
+  "timestamp": "2026-06-14T10:30:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `404` | `Resource not found` | Public document does not exist or is not public |
+| `500` | `Request failed` | S3 pre-signer is not configured |
+
+---
+
+## 3.6.2. Get public document download URL
+
+Get a temporary pre-signed URL for downloading a public document.
+
+### Request
+
+- Method: `GET`
+- URL: `/api/documents/public/{documentId}/download-url`
+- Auth: Public, no JWT required
+
+### Path variables
+
+| Name | Type | Required |
+|---|---|---|
+| `documentId` | number | Yes |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Get public document download URL successfully",
+  "data": {
+    "url": "https://s3-presigned-url",
+    "expiresAt": "2026-06-14T10:40:00Z",
+    "fileName": "public-file.pdf",
+    "contentType": "application/pdf"
+  },
+  "errors": null,
+  "timestamp": "2026-06-14T10:30:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `404` | `Resource not found` | Public document does not exist or is not public |
+| `500` | `Request failed` | S3 pre-signer is not configured |
 
 ---
 
@@ -1512,7 +1690,9 @@ false
 ```
 
 - `s3Key` is an internal object key for backend/S3 usage. The frontend should not use `s3Key` to access files directly.
-- There is no pre-signed URL / file preview API yet.
+- Use preview/download URL APIs to access files from private S3 safely.
+- Pre-signed URLs are temporary. If a URL expires, call the backend again to get a new one.
+- Preview rendering and lazy loading pages are frontend responsibilities.
 - There is no ChatBox/RAG API yet.
 - `ResendOtpResponse.mesage` is currently misspelled according to the existing DTO. If the team wants `message`, the DTO/backend should be updated later.
 - Tag colors should be sent as HEX values such as `#8B5CF6`, `#22C55E`, or `#FFF`.

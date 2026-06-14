@@ -3,6 +3,9 @@ package com.se1908.group01.service.impl;
 import com.se1908.group01.config.S3Properties;
 import com.se1908.group01.service.S3StorageService;
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -10,17 +13,22 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.model.ObjectCannedACL;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import org.springframework.lang.Nullable;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 
 @Service
 public class S3StorageServiceImpl implements S3StorageService {
 
 	private final S3Client s3Client;
+	private final S3Presigner s3Presigner;
 	private final S3Properties s3Properties;
 
-	public S3StorageServiceImpl(@Nullable S3Client s3Client, S3Properties s3Properties) {
+	public S3StorageServiceImpl(@Nullable S3Client s3Client, @Nullable S3Presigner s3Presigner, S3Properties s3Properties) {
 		this.s3Client = s3Client;
+		this.s3Presigner = s3Presigner;
 		this.s3Properties = s3Properties;
 	}
 
@@ -46,6 +54,35 @@ public class S3StorageServiceImpl implements S3StorageService {
 	}
 
 	@Override
+	public String createPresignedGetUrl(String objectKey, String fileName, String contentType, boolean download) {
+		if (s3Presigner == null) {
+			throw new IllegalStateException("S3 pre-signer is not configured (missing aws.region/AWS credentials)");
+		}
+		if (!StringUtils.hasText(s3Properties.getBucketName())) {
+			throw new IllegalStateException("Missing required config: aws.s3.bucket-name (env AWS_S3_BUCKET_NAME)");
+		}
+		if (!StringUtils.hasText(objectKey)) {
+			throw new IllegalArgumentException("S3 object key is required");
+		}
+
+		var requestBuilder = GetObjectRequest.builder()
+				.bucket(s3Properties.getBucketName())
+				.key(objectKey)
+				.responseContentDisposition(contentDisposition(download, fileName));
+
+		if (StringUtils.hasText(contentType)) {
+			requestBuilder.responseContentType(contentType);
+		}
+
+		var presignRequest = GetObjectPresignRequest.builder()
+				.signatureDuration(Duration.ofMinutes(s3Properties.getPresignedUrlExpirationMinutes()))
+				.getObjectRequest(requestBuilder.build())
+				.build();
+
+		return s3Presigner.presignGetObject(presignRequest).url().toString();
+	}
+
+	@Override
 	public void delete(String objectKey) {
 		if (s3Client == null) {
 			return;
@@ -58,5 +95,14 @@ public class S3StorageServiceImpl implements S3StorageService {
 				.key(objectKey)
 				.build();
 		s3Client.deleteObject(request);
+	}
+
+	private String contentDisposition(boolean download, String fileName) {
+		var disposition = download ? "attachment" : "inline";
+		if (!StringUtils.hasText(fileName)) {
+			return disposition;
+		}
+		var encodedFileName = URLEncoder.encode(fileName, StandardCharsets.UTF_8).replace("+", "%20");
+		return disposition + "; filename*=UTF-8''" + encodedFileName;
 	}
 }

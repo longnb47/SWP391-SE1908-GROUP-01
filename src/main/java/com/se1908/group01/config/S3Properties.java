@@ -20,6 +20,11 @@ public class S3Properties {
 	 */
 	private String endpoint;
 
+	/**
+	 * Pre-signed URL lifetime in minutes.
+	 */
+	private long presignedUrlExpirationMinutes = 10;
+
 	public String getBucketName() {
 		return bucketName;
 	}
@@ -42,5 +47,13 @@ public class S3Properties {
 
 	public void setEndpoint(String endpoint) {
 		this.endpoint = endpoint;
+	}
+
+	public long getPresignedUrlExpirationMinutes() {
+		return presignedUrlExpirationMinutes;
+	}
+
+	public void setPresignedUrlExpirationMinutes(long presignedUrlExpirationMinutes) {
+		this.presignedUrlExpirationMinutes = presignedUrlExpirationMinutes;
 	}
 }
