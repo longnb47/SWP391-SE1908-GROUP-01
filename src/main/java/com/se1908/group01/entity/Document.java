@@ -23,6 +23,9 @@ public class Document {
 	@Column(name = "user_id", nullable = false)
 	private Long userId;
 
+	@Column(name = "folder_id")
+	private Long folderId;
+
 	@Column(name = "original_file_name", nullable = false, length = 512)
 	private String originalFileName;
 
@@ -78,6 +81,14 @@ public class Document {
 
 	public void setUserId(Long userId) {
 		this.userId = userId;
+	}
+
+	public Long getFolderId() {
+		return folderId;
+	}
+
+	public void setFolderId(Long folderId) {
+		this.folderId = folderId;
 	}
 
 	public String getOriginalFileName() {

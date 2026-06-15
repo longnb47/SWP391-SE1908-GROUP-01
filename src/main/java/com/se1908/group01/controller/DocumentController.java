@@ -1,9 +1,12 @@
 package com.se1908.group01.controller;
 
 import com.se1908.group01.dto.ApiResponse;
+import com.se1908.group01.dto.DocumentMoveFolderRequest;
+import com.se1908.group01.dto.DocumentRenameRequest;
 import com.se1908.group01.dto.DocumentUploadResponse;
 import com.se1908.group01.dto.FileAccessUrlResponse;
 import com.se1908.group01.service.DocumentService;
+import jakarta.validation.Valid;
 import java.io.IOException;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -13,6 +16,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -55,6 +59,24 @@ public class DocumentController {
 	public ApiResponse<DocumentUploadResponse> getDocumentDetail(@PathVariable Long documentId) {
 		var response = documentService.getDocumentDetail(documentId);
 		return ApiResponse.success("Get document detail successfully", response);
+	}
+
+	@PatchMapping("/{documentId}/rename")
+	public ApiResponse<DocumentUploadResponse> renameDocument(
+			@PathVariable Long documentId,
+			@Valid @RequestBody DocumentRenameRequest request
+	) {
+		var response = documentService.renameDocument(documentId, request.getOriginalFileName());
+		return ApiResponse.success("Rename document successfully", response);
+	}
+
+	@PatchMapping("/{documentId}/folder")
+	public ApiResponse<DocumentUploadResponse> moveDocumentToFolder(
+			@PathVariable Long documentId,
+			@RequestBody DocumentMoveFolderRequest request
+	) {
+		var response = documentService.moveDocumentToFolder(documentId, request.getFolderId());
+		return ApiResponse.success("Move document to folder successfully", response);
 	}
 
 	@GetMapping("/{documentId}/preview-url")

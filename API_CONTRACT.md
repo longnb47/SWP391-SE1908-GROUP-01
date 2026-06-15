@@ -1,4 +1,4 @@
-# API Contract — AI Study Hub Backend
+﻿# API Contract â€” AI Study Hub Backend
 
 This document describes the currently available backend APIs so the frontend team knows which endpoints exist, what to send, and what each API returns.
 
@@ -515,6 +515,7 @@ Document APIs usually return a `DocumentUploadResponse` object:
 {
   "documentId": 1,
   "userId": 1,
+  "folderId": null,
   "originalFileName": "example.pdf",
   "s3Key": "documents/1/uuid-example.pdf",
   "contentType": "application/pdf",
@@ -533,6 +534,7 @@ Document APIs usually return a `DocumentUploadResponse` object:
 |---|---|---|
 | `documentId` | number | Document ID |
 | `userId` | number | Owner user ID |
+| `folderId` | number / null | Folder ID if the document is inside a folder |
 | `originalFileName` | string | Sanitized original file name |
 | `s3Key` | string | S3 object key |
 | `contentType` | string | MIME type |
@@ -603,6 +605,7 @@ Status: `200 OK`
   "data": {
     "documentId": 1,
     "userId": 1,
+    "folderId": null,
     "originalFileName": "example.pdf",
     "s3Key": "documents/1/uuid-example.pdf",
     "contentType": "application/pdf",
@@ -652,6 +655,7 @@ Status: `200 OK`
     {
       "documentId": 1,
       "userId": 1,
+      "folderId": null,
       "originalFileName": "example.pdf",
       "s3Key": "documents/1/uuid-example.pdf",
       "contentType": "application/pdf",
@@ -703,6 +707,7 @@ Status: `200 OK`
   "data": {
     "documentId": 1,
     "userId": 1,
+    "folderId": null,
     "originalFileName": "example.pdf",
     "s3Key": "documents/1/uuid-example.pdf",
     "contentType": "application/pdf",
@@ -727,7 +732,136 @@ Status: `200 OK`
 
 ---
 
-## 3.4.1. Get my document preview URL
+## 3.4.1. Rename my document
+
+Rename the document metadata field `originalFileName`. This does not rename or move the physical file in S3.
+
+### Request
+
+- Method: `PATCH`
+- URL: `/api/documents/{documentId}/rename`
+- Auth: JWT required
+- Content-Type: `application/json`
+
+```json
+{
+  "originalFileName": "new-file-name.pdf"
+}
+```
+
+### Request fields
+
+| Field | Type | Required | Rule |
+|---|---|---|---|
+| `originalFileName` | string | Yes | Must not be blank, maximum 512 characters |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Rename document successfully",
+  "data": {
+    "documentId": 1,
+    "userId": 1,
+    "folderId": null,
+    "originalFileName": "new-file-name.pdf",
+    "s3Key": "documents/1/uuid-example.pdf",
+    "contentType": "application/pdf",
+    "fileSize": 123456,
+    "isPublic": false,
+    "isDeleted": false,
+    "status": "READY",
+    "uploadedAt": "2026-06-14T10:30:00Z",
+    "deletedAt": null
+  },
+  "errors": null,
+  "timestamp": "2026-06-14T10:30:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Validation failed` | Missing or invalid originalFileName |
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `404` | `Resource not found` | Document does not exist, does not belong to the user, or was soft-deleted |
+
+---
+
+## 3.4.2. Move my document to folder
+
+Move an owned active document into a folder, or remove it from the current folder.
+
+### Request
+
+- Method: `PATCH`
+- URL: `/api/documents/{documentId}/folder`
+- Auth: JWT required
+- Content-Type: `application/json`
+
+Move into a folder:
+
+```json
+{
+  "folderId": 1
+}
+```
+
+Remove from folder:
+
+```json
+{
+  "folderId": null
+}
+```
+
+### Request fields
+
+| Field | Type | Required | Rule |
+|---|---|---|---|
+| `folderId` | number / null | No | Must belong to the current user if provided |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Move document to folder successfully",
+  "data": {
+    "documentId": 1,
+    "userId": 1,
+    "folderId": 1,
+    "originalFileName": "example.pdf",
+    "s3Key": "documents/1/uuid-example.pdf",
+    "contentType": "application/pdf",
+    "fileSize": 123456,
+    "isPublic": false,
+    "isDeleted": false,
+    "status": "READY",
+    "uploadedAt": "2026-06-14T10:30:00Z",
+    "deletedAt": null
+  },
+  "errors": null,
+  "timestamp": "2026-06-14T10:30:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `404` | `Resource not found` | Document/folder does not exist or does not belong to the user |
+
+---
+
+## 3.4.3. Get my document preview URL
 
 Get a temporary pre-signed URL for previewing an owned document.
 
@@ -772,7 +906,7 @@ Status: `200 OK`
 
 ---
 
-## 3.4.2. Get my document download URL
+## 3.4.4. Get my document download URL
 
 Get a temporary pre-signed URL for downloading an owned document.
 
@@ -839,6 +973,7 @@ Status: `200 OK`
     {
       "documentId": 2,
       "userId": 1,
+      "folderId": null,
       "originalFileName": "public-file.pdf",
       "s3Key": "documents/1/uuid-public-file.pdf",
       "contentType": "application/pdf",
@@ -884,6 +1019,7 @@ Status: `200 OK`
   "data": {
     "documentId": 2,
     "userId": 1,
+    "folderId": null,
     "originalFileName": "public-file.pdf",
     "s3Key": "documents/1/uuid-public-file.pdf",
     "contentType": "application/pdf",
@@ -1242,7 +1378,285 @@ Status: `200 OK`
 
 ---
 
-## 4. Tag APIs
+## 4. Document Folder APIs
+
+Document folder APIs allow users to organize documents into simple personal folders. A folder only has a name. Folders are private and require JWT.
+
+Private folder APIs require:
+
+```text
+Authorization: Bearer <accessToken>
+```
+
+---
+
+## 4.1. Document folder response object
+
+Folder APIs return a `DocumentFolderResponse` object:
+
+```json
+{
+  "folderId": 1,
+  "userId": 1,
+  "name": "Semester 1",
+  "createdAt": "2026-06-15T10:30:00Z",
+  "updatedAt": "2026-06-15T10:30:00Z"
+}
+```
+
+### Folder fields
+
+| Field | Type | Description |
+|---|---|---|
+| `folderId` | number | Folder ID |
+| `userId` | number | Owner user ID |
+| `name` | string | Folder name |
+| `createdAt` | string | Folder creation time |
+| `updatedAt` | string | Last update time |
+
+---
+
+## 4.2. Create document folder
+
+Create a new personal document folder.
+
+### Request
+
+- Method: `POST`
+- URL: `/api/document-folders`
+- Auth: JWT required
+- Content-Type: `application/json`
+
+```json
+{
+  "name": "Semester 1"
+}
+```
+
+### Request fields
+
+| Field | Type | Required | Rule |
+|---|---|---|---|
+| `name` | string | Yes | Must not be blank, maximum 100 characters |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Create document folder successfully",
+  "data": {
+    "folderId": 1,
+    "userId": 1,
+    "name": "Semester 1",
+    "createdAt": "2026-06-15T10:30:00Z",
+    "updatedAt": "2026-06-15T10:30:00Z"
+  },
+  "errors": null,
+  "timestamp": "2026-06-15T10:30:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Validation failed` | Missing or invalid name |
+| `400` | `Validation failed` | Folder name already exists for the current user |
+| `401` | `Unauthorized` | Missing or invalid JWT |
+
+---
+
+## 4.3. Get my document folders
+
+Get all folders owned by the authenticated user.
+
+### Request
+
+- Method: `GET`
+- URL: `/api/document-folders`
+- Auth: JWT required
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Get my document folders successfully",
+  "data": [
+    {
+      "folderId": 1,
+      "userId": 1,
+      "name": "Semester 1",
+      "createdAt": "2026-06-15T10:30:00Z",
+      "updatedAt": "2026-06-15T10:30:00Z"
+    }
+  ],
+  "errors": null,
+  "timestamp": "2026-06-15T10:30:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `401` | `Unauthorized` | Missing or invalid JWT |
+
+---
+
+## 4.4. Update document folder
+
+Rename a folder owned by the authenticated user.
+
+### Request
+
+- Method: `PATCH`
+- URL: `/api/document-folders/{folderId}`
+- Auth: JWT required
+- Content-Type: `application/json`
+
+```json
+{
+  "name": "Semester 2"
+}
+```
+
+### Path variables
+
+| Name | Type | Required |
+|---|---|---|
+| `folderId` | number | Yes |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Update document folder successfully",
+  "data": {
+    "folderId": 1,
+    "userId": 1,
+    "name": "Semester 2",
+    "createdAt": "2026-06-15T10:30:00Z",
+    "updatedAt": "2026-06-15T10:40:00Z"
+  },
+  "errors": null,
+  "timestamp": "2026-06-15T10:40:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Validation failed` | Missing or invalid name |
+| `400` | `Validation failed` | Folder name already exists for the current user |
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `404` | `Resource not found` | Folder does not exist or does not belong to the user |
+
+---
+
+## 4.5. Delete document folder
+
+Delete a folder owned by the authenticated user. Documents inside the folder are not deleted; their `folderId` is set to `null`.
+
+### Request
+
+- Method: `DELETE`
+- URL: `/api/document-folders/{folderId}`
+- Auth: JWT required
+
+### Path variables
+
+| Name | Type | Required |
+|---|---|---|
+| `folderId` | number | Yes |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Delete document folder successfully",
+  "data": null,
+  "errors": null,
+  "timestamp": "2026-06-15T10:45:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `404` | `Resource not found` | Folder does not exist or does not belong to the user |
+
+---
+
+## 4.6. Get documents in folder
+
+Get active documents inside an owned folder.
+
+### Request
+
+- Method: `GET`
+- URL: `/api/document-folders/{folderId}/documents`
+- Auth: JWT required
+
+### Path variables
+
+| Name | Type | Required |
+|---|---|---|
+| `folderId` | number | Yes |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Get document folder documents successfully",
+  "data": [
+    {
+      "documentId": 1,
+      "userId": 1,
+      "folderId": 1,
+      "originalFileName": "example.pdf",
+      "s3Key": "documents/1/uuid-example.pdf",
+      "contentType": "application/pdf",
+      "fileSize": 123456,
+      "isPublic": false,
+      "isDeleted": false,
+      "status": "READY",
+      "uploadedAt": "2026-06-15T10:30:00Z",
+      "deletedAt": null
+    }
+  ],
+  "errors": null,
+  "timestamp": "2026-06-15T10:50:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `404` | `Resource not found` | Folder does not exist or does not belong to the user |
+
+---
+
+## 5. Tag APIs
 
 Tag APIs allow users to create custom document tags with custom colors and attach them to documents.
 
@@ -1254,7 +1668,7 @@ Authorization: Bearer <accessToken>
 
 ---
 
-## 4.1. Tag response object
+## 5.1. Tag response object
 
 Tag APIs return a `TagResponse` object:
 
@@ -1280,7 +1694,7 @@ Tag APIs return a `TagResponse` object:
 
 ---
 
-## 4.2. Create tag
+## 5.2. Create tag
 
 Create a new personal tag for the authenticated user.
 
@@ -1335,7 +1749,7 @@ Status: `200 OK`
 
 ---
 
-## 4.3. Get my tags
+## 5.3. Get my tags
 
 Get all tags owned by the authenticated user.
 
@@ -1375,7 +1789,7 @@ Status: `200 OK`
 
 ---
 
-## 4.4. Update tag
+## 5.4. Update tag
 
 Update a tag owned by the authenticated user.
 
@@ -1437,7 +1851,7 @@ Status: `200 OK`
 
 ---
 
-## 4.5. Delete tag
+## 5.5. Delete tag
 
 Delete a tag owned by the authenticated user. Existing document-tag links for that tag are also removed.
 
@@ -1476,7 +1890,7 @@ Status: `200 OK`
 
 ---
 
-## 4.6. Add tag to document
+## 5.6. Add tag to document
 
 Attach an owned tag to an owned active document.
 
@@ -1522,7 +1936,7 @@ Status: `200 OK`
 
 ---
 
-## 4.7. Remove tag from document
+## 5.7. Remove tag from document
 
 Detach a tag from an owned active document.
 
@@ -1562,7 +1976,7 @@ Status: `200 OK`
 
 ---
 
-## 4.8. Get document tags
+## 5.8. Get document tags
 
 Get tags attached to an owned active document.
 
@@ -1609,7 +2023,7 @@ Status: `200 OK`
 
 ---
 
-## 4.9. Get public document tags
+## 5.9. Get public document tags
 
 Get tags attached to a public document.
 
@@ -1655,7 +2069,7 @@ Status: `200 OK`
 
 ---
 
-## 5. Common HTTP status codes
+## 6. Common HTTP status codes
 
 | Status | Description |
 |---|---|
@@ -1670,7 +2084,7 @@ Status: `200 OK`
 
 ---
 
-## 6. Frontend notes
+## 7. Frontend notes
 
 - Private APIs do not require `userId`; the backend reads the current user from JWT.
 - After login or Google login, store both `accessToken` and `refreshToken`.
@@ -1696,3 +2110,4 @@ false
 - There is no ChatBox/RAG API yet.
 - `ResendOtpResponse.mesage` is currently misspelled according to the existing DTO. If the team wants `message`, the DTO/backend should be updated later.
 - Tag colors should be sent as HEX values such as `#8B5CF6`, `#22C55E`, or `#FFF`.
+

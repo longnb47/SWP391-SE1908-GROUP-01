@@ -7,6 +7,7 @@ import com.se1908.group01.entity.Document;
 import com.se1908.group01.entity.DocumentStatus;
 import com.se1908.group01.exception.ResourceNotFoundException;
 import com.se1908.group01.repository.DocumentChunkRepository;
+import com.se1908.group01.repository.DocumentFolderRepository;
 import com.se1908.group01.repository.DocumentRepository;
 import com.se1908.group01.repository.DocumentTagRepository;
 import com.se1908.group01.service.CurrentUserService;
@@ -31,6 +32,7 @@ public class DocumentServiceImpl implements DocumentService {
 	private final S3StorageService s3StorageService;
 	private final S3Properties s3Properties;
 	private final DocumentRepository documentRepository;
+	private final DocumentFolderRepository documentFolderRepository;
 	private final DocumentChunkRepository documentChunkRepository;
 	private final DocumentTagRepository documentTagRepository;
 	private final DocumentIngestionService documentIngestionService;
@@ -41,6 +43,7 @@ public class DocumentServiceImpl implements DocumentService {
 			S3StorageService s3StorageService,
 			S3Properties s3Properties,
 			DocumentRepository documentRepository,
+			DocumentFolderRepository documentFolderRepository,
 			DocumentChunkRepository documentChunkRepository,
 			DocumentTagRepository documentTagRepository,
 			DocumentIngestionService documentIngestionService,
@@ -50,6 +53,7 @@ public class DocumentServiceImpl implements DocumentService {
 		this.s3StorageService = s3StorageService;
 		this.s3Properties = s3Properties;
 		this.documentRepository = documentRepository;
+		this.documentFolderRepository = documentFolderRepository;
 		this.documentChunkRepository = documentChunkRepository;
 		this.documentTagRepository = documentTagRepository;
 		this.documentIngestionService = documentIngestionService;
@@ -125,6 +129,28 @@ public class DocumentServiceImpl implements DocumentService {
 	public DocumentUploadResponse getDocumentDetail(Long documentId) {
 		var userId = currentUserService.getCurrentUserId();
 		return toResponse(findOwnedActiveDocument(userId, documentId));
+	}
+
+	@Transactional
+	@Override
+	public DocumentUploadResponse renameDocument(Long documentId, String originalFileName) {
+		var userId = currentUserService.getCurrentUserId();
+		var doc = findOwnedActiveDocument(userId, documentId);
+		doc.setOriginalFileName(normalizeOriginalFileName(originalFileName));
+		return toResponse(documentRepository.save(doc));
+	}
+
+	@Transactional
+	@Override
+	public DocumentUploadResponse moveDocumentToFolder(Long documentId, Long folderId) {
+		var userId = currentUserService.getCurrentUserId();
+		var doc = findOwnedActiveDocument(userId, documentId);
+		if (folderId != null) {
+			documentFolderRepository.findByFolderIdAndUserId(folderId, userId)
+					.orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
+		}
+		doc.setFolderId(folderId);
+		return toResponse(documentRepository.save(doc));
 	}
 
 	@Transactional(readOnly = true)
@@ -271,6 +297,14 @@ public class DocumentServiceImpl implements DocumentService {
 		}
 	}
 
+	private String normalizeOriginalFileName(String originalFileName) {
+		var sanitized = FilenameSanitizer.sanitize(originalFileName);
+		if (sanitized.length() > 512) {
+			sanitized = sanitized.substring(sanitized.length() - 512);
+		}
+		return sanitized;
+	}
+
 	private FileAccessUrlResponse toFileAccessUrlResponse(Document doc, boolean download) {
 		var expiresAt = Instant.now().plus(Duration.ofMinutes(s3Properties.getPresignedUrlExpirationMinutes()));
 		var url = s3StorageService.createPresignedGetUrl(
@@ -286,6 +320,7 @@ public class DocumentServiceImpl implements DocumentService {
 		var res = new DocumentUploadResponse();
 		res.setDocumentId(doc.getDocumentId());
 		res.setUserId(doc.getUserId());
+		res.setFolderId(doc.getFolderId());
 		res.setOriginalFileName(doc.getOriginalFileName());
 		res.setS3Key(doc.getS3Key());
 		res.setContentType(doc.getContentType());

@@ -7,6 +7,7 @@ public class DocumentUploadResponse {
 
 	private Long documentId;
 	private Long userId;
+	private Long folderId;
 	private String originalFileName;
 	private String s3Key;
 	private String contentType;
@@ -31,6 +32,14 @@ public class DocumentUploadResponse {
 
 	public void setUserId(Long userId) {
 		this.userId = userId;
+	}
+
+	public Long getFolderId() {
+		return folderId;
+	}
+
+	public void setFolderId(Long folderId) {
+		this.folderId = folderId;
 	}
 
 	public String getOriginalFileName() {

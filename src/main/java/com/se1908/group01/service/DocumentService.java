@@ -16,6 +16,10 @@ public interface DocumentService {
 
 	DocumentUploadResponse getDocumentDetail(Long documentId);
 
+	DocumentUploadResponse renameDocument(Long documentId, String originalFileName);
+
+	DocumentUploadResponse moveDocumentToFolder(Long documentId, Long folderId);
+
 	FileAccessUrlResponse getPreviewUrl(Long documentId);
 
 	FileAccessUrlResponse getDownloadUrl(Long documentId);
