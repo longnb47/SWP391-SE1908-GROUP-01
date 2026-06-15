@@ -3,6 +3,7 @@ package com.se1908.group01.controller;
 import com.se1908.group01.dto.*;
 import com.se1908.group01.service.AuthService;
 import com.se1908.group01.service.OtpService;
+import com.se1908.group01.service.PasswordResetService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +18,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final OtpService otpService;
+    private final PasswordResetService passwordResetService;
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<RegisterResponse>> register(
@@ -94,6 +96,36 @@ public class AuthController {
 
         return ResponseEntity.ok(
                 ApiResponse.success("Logged out successfully", null)
+        );
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<ForgotPasswordResponse>> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request) {
+
+        ForgotPasswordResponse response = passwordResetService.forgotPassword(request);
+
+        return ResponseEntity.ok(ApiResponse.success("Forgot password OTP sent successfully", response)
+                );
+    }
+
+    @PostMapping("/verify-forgot-password-otp")
+    public ResponseEntity<ApiResponse<VerifyForgotPasswordOtpResponse>> verifyFrorgotPasswordOtp(
+            @Valid @RequestBody VerifyForgotPasswordOtpRequest request) {
+
+        VerifyForgotPasswordOtpResponse response = passwordResetService.verifyForgotPasswordOtp(request);
+
+        return ResponseEntity.ok(ApiResponse.success("Forgot password OTP verified successfully", response)
+        );
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<ResetPasswordResponse>> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request) {
+
+        ResetPasswordResponse response = passwordResetService.resetPassword(request);
+
+        return ResponseEntity.ok(ApiResponse.success("Password reset sucessfully", response)
         );
     }
 
