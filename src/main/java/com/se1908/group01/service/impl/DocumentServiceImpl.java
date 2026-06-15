@@ -126,6 +126,16 @@ public class DocumentServiceImpl implements DocumentService {
 
 	@Transactional(readOnly = true)
 	@Override
+	public List<DocumentUploadResponse> getStarredDocuments() {
+		var userId = currentUserService.getCurrentUserId();
+		return documentRepository.findByUserIdAndIsStarredTrueAndIsDeletedFalseOrderByUploadedAtDesc(userId)
+				.stream()
+				.map(this::toResponse)
+				.toList();
+	}
+
+	@Transactional(readOnly = true)
+	@Override
 	public DocumentUploadResponse getDocumentDetail(Long documentId) {
 		var userId = currentUserService.getCurrentUserId();
 		return toResponse(findOwnedActiveDocument(userId, documentId));
@@ -208,6 +218,18 @@ public class DocumentServiceImpl implements DocumentService {
 		var userId = currentUserService.getCurrentUserId();
 		var doc = findOwnedActiveDocument(userId, documentId);
 		doc.setIsPublic(isPublic);
+		return toResponse(documentRepository.save(doc));
+	}
+
+	@Transactional
+	@Override
+	public DocumentUploadResponse updateStarred(Long documentId, Boolean isStarred) {
+		if (isStarred == null) {
+			throw new IllegalArgumentException("isStarred is required");
+		}
+		var userId = currentUserService.getCurrentUserId();
+		var doc = findOwnedActiveDocument(userId, documentId);
+		doc.setIsStarred(isStarred);
 		return toResponse(documentRepository.save(doc));
 	}
 
@@ -327,6 +349,7 @@ public class DocumentServiceImpl implements DocumentService {
 		res.setFileSize(doc.getFileSize());
 		res.setIsPublic(doc.getIsPublic());
 		res.setIsDeleted(doc.getIsDeleted());
+		res.setIsStarred(doc.getIsStarred());
 		res.setStatus(doc.getStatus());
 		res.setUploadedAt(doc.getUploadedAt());
 		res.setDeletedAt(doc.getDeletedAt());

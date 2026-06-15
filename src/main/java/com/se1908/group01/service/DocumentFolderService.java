@@ -11,7 +11,11 @@ public interface DocumentFolderService {
 
 	List<DocumentFolderResponse> getMyFolders();
 
+	List<DocumentFolderResponse> getStarredFolders();
+
 	DocumentFolderResponse updateFolder(Long folderId, DocumentFolderRequest request);
+
+	DocumentFolderResponse updateStarred(Long folderId, Boolean isStarred);
 
 	void deleteFolder(Long folderId);
 

@@ -7,6 +7,7 @@ public class DocumentFolderResponse {
 	private Long folderId;
 	private Long userId;
 	private String name;
+	private Boolean isStarred;
 	private Instant createdAt;
 	private Instant updatedAt;
 
@@ -32,6 +33,14 @@ public class DocumentFolderResponse {
 
 	public void setName(String name) {
 		this.name = name;
+	}
+
+	public Boolean getIsStarred() {
+		return isStarred;
+	}
+
+	public void setIsStarred(Boolean isStarred) {
+		this.isStarred = isStarred;
 	}
 
 	public Instant getCreatedAt() {

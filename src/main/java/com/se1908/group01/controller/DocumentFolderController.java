@@ -38,6 +38,12 @@ public class DocumentFolderController {
 		return ApiResponse.success("Get my document folders successfully", response);
 	}
 
+	@GetMapping("/starred")
+	public ApiResponse<List<DocumentFolderResponse>> getStarredFolders() {
+		var response = documentFolderService.getStarredFolders();
+		return ApiResponse.success("Get starred document folders successfully", response);
+	}
+
 	@PatchMapping("/{folderId}")
 	public ApiResponse<DocumentFolderResponse> updateFolder(
 			@PathVariable Long folderId,
@@ -45,6 +51,15 @@ public class DocumentFolderController {
 	) {
 		var response = documentFolderService.updateFolder(folderId, request);
 		return ApiResponse.success("Update document folder successfully", response);
+	}
+
+	@PatchMapping("/{folderId}/star")
+	public ApiResponse<DocumentFolderResponse> updateStarred(
+			@PathVariable Long folderId,
+			@RequestParam("isStarred") Boolean isStarred
+	) {
+		var response = documentFolderService.updateStarred(folderId, isStarred);
+		return ApiResponse.success("Update document folder starred successfully", response);
 	}
 
 	@DeleteMapping("/{folderId}")

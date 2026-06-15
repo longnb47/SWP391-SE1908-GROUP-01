@@ -29,6 +29,9 @@ public class DocumentFolder {
 	@Column(name = "name", nullable = false, length = 100)
 	private String name;
 
+	@Column(name = "is_starred", nullable = false)
+	private Boolean isStarred = Boolean.FALSE;
+
 	@Column(name = "created_at", nullable = false)
 	private Instant createdAt;
 
@@ -43,6 +46,9 @@ public class DocumentFolder {
 		}
 		if (updatedAt == null) {
 			updatedAt = now;
+		}
+		if (isStarred == null) {
+			isStarred = Boolean.FALSE;
 		}
 	}
 
@@ -73,6 +79,14 @@ public class DocumentFolder {
 
 	public void setName(String name) {
 		this.name = name;
+	}
+
+	public Boolean getIsStarred() {
+		return isStarred;
+	}
+
+	public void setIsStarred(Boolean isStarred) {
+		this.isStarred = isStarred;
 	}
 
 	public Instant getCreatedAt() {

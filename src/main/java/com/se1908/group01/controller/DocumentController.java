@@ -55,6 +55,12 @@ public class DocumentController {
 		return ApiResponse.success("Get my documents successfully", response);
 	}
 
+	@GetMapping("/starred")
+	public ApiResponse<List<DocumentUploadResponse>> getStarredDocuments() {
+		var response = documentService.getStarredDocuments();
+		return ApiResponse.success("Get starred documents successfully", response);
+	}
+
 	@GetMapping("/{documentId}")
 	public ApiResponse<DocumentUploadResponse> getDocumentDetail(@PathVariable Long documentId) {
 		var response = documentService.getDocumentDetail(documentId);
@@ -122,6 +128,15 @@ public class DocumentController {
 	) {
 		var response = documentService.updateVisibility(documentId, isPublic);
 		return ApiResponse.success("Update document visibility successfully", response);
+	}
+
+	@PatchMapping("/{documentId}/star")
+	public ApiResponse<DocumentUploadResponse> updateStarred(
+			@PathVariable Long documentId,
+			@RequestParam("isStarred") Boolean isStarred
+	) {
+		var response = documentService.updateStarred(documentId, isStarred);
+		return ApiResponse.success("Update document starred successfully", response);
 	}
 
 	@DeleteMapping("/{documentId}")

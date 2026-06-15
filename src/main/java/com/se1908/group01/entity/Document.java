@@ -44,6 +44,9 @@ public class Document {
 	@Column(name = "is_deleted", nullable = false)
 	private Boolean isDeleted = Boolean.FALSE;
 
+	@Column(name = "is_starred", nullable = false)
+	private Boolean isStarred = Boolean.FALSE;
+
 	@Column(name = "deleted_at")
 	private Instant deletedAt;
 
@@ -64,6 +67,9 @@ public class Document {
 		}
 		if (isDeleted == null) {
 			isDeleted = Boolean.FALSE;
+		}
+		if (isStarred == null) {
+			isStarred = Boolean.FALSE;
 		}
 	}
 
@@ -137,6 +143,14 @@ public class Document {
 
 	public void setIsDeleted(Boolean isDeleted) {
 		this.isDeleted = isDeleted;
+	}
+
+	public Boolean getIsStarred() {
+		return isStarred;
+	}
+
+	public void setIsStarred(Boolean isStarred) {
+		this.isStarred = isStarred;
 	}
 
 	public Instant getDeletedAt() {

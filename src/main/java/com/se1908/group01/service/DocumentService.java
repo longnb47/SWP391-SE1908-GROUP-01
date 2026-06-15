@@ -14,6 +14,8 @@ public interface DocumentService {
 
 	List<DocumentUploadResponse> getMyDocuments();
 
+	List<DocumentUploadResponse> getStarredDocuments();
+
 	DocumentUploadResponse getDocumentDetail(Long documentId);
 
 	DocumentUploadResponse renameDocument(Long documentId, String originalFileName);
@@ -33,6 +35,8 @@ public interface DocumentService {
 	FileAccessUrlResponse getPublicDownloadUrl(Long documentId);
 
 	DocumentUploadResponse updateVisibility(Long documentId, Boolean isPublic);
+
+	DocumentUploadResponse updateStarred(Long documentId, Boolean isStarred);
 
 	List<DocumentUploadResponse> getTrash();
 

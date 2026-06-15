@@ -9,6 +9,8 @@ public interface DocumentFolderRepository extends JpaRepository<DocumentFolder, 
 
 	List<DocumentFolder> findByUserIdOrderByNameAsc(Long userId);
 
+	List<DocumentFolder> findByUserIdAndIsStarredTrueOrderByNameAsc(Long userId);
+
 	Optional<DocumentFolder> findByFolderIdAndUserId(Long folderId, Long userId);
 
 	boolean existsByUserIdAndNameIgnoreCase(Long userId, String name);

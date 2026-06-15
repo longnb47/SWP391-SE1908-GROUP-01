@@ -1,4 +1,4 @@
-﻿# API Contract â€” AI Study Hub Backend
+﻿# API Contract - AI Study Hub Backend
 
 This document describes the currently available backend APIs so the frontend team knows which endpoints exist, what to send, and what each API returns.
 
@@ -41,20 +41,20 @@ Error response:
 
 ### Common fields
 
-| Field | Type | Description |
-|---|---|---|
-| `success` | boolean | `true` for successful requests, `false` for failed requests |
-| `message` | string | General response message |
-| `data` | object / array / null | Response payload |
-| `errors` | array / null | Detailed error list |
-| `timestamp` | string | Response creation time |
+| Field       | Type                  | Description                                                 |
+| ----------- | --------------------- | ----------------------------------------------------------- |
+| `success`   | boolean               | `true` for successful requests, `false` for failed requests |
+| `message`   | string                | General response message                                    |
+| `data`      | object / array / null | Response payload                                            |
+| `errors`    | array / null          | Detailed error list                                         |
+| `timestamp` | string                | Response creation time                                      |
 
 ### Error object
 
-| Field | Type | Description |
-|---|---|---|
-| `field` | string / null | Invalid field, for example `email`, `password`, `authorization` |
-| `message` | string | Error message |
+| Field     | Type          | Description                                                     |
+| --------- | ------------- | --------------------------------------------------------------- |
+| `field`   | string / null | Invalid field, for example `email`, `password`, `authorization` |
+| `message` | string        | Error message                                                   |
 
 ---
 
@@ -85,11 +85,11 @@ Register a new account using email and password.
 
 ### Request fields
 
-| Field | Type | Required | Rule |
-|---|---|---|---|
-| `fullName` | string | Yes | Must not be blank |
-| `email` | string | Yes | Must not be blank, must be a valid email |
-| `password` | string | Yes | Must not be blank, minimum 8 characters |
+| Field      | Type   | Required | Rule                                     |
+| ---------- | ------ | -------- | ---------------------------------------- |
+| `fullName` | string | Yes      | Must not be blank                        |
+| `email`    | string | Yes      | Must not be blank, must be a valid email |
+| `password` | string | Yes      | Must not be blank, minimum 8 characters  |
 
 ### Success response
 
@@ -110,11 +110,11 @@ Status: `200 OK`
 
 ### Error cases
 
-| Status | Message | Reason |
-|---|---|---|
-| `400` | `Validation failed` | Invalid email, password, or fullName |
-| `400` | `Validation failed` | Email already exists |
-| `500` | `Unexpected server error` | Unexpected error, for example mail service failure |
+| Status | Message                   | Reason                                             |
+| ------ | ------------------------- | -------------------------------------------------- |
+| `400`  | `Validation failed`       | Invalid email, password, or fullName               |
+| `400`  | `Validation failed`       | Email already exists                               |
+| `500`  | `Unexpected server error` | Unexpected error, for example mail service failure |
 
 ---
 
@@ -138,10 +138,10 @@ Verify the OTP after registration.
 
 ### Request fields
 
-| Field | Type | Required | Rule |
-|---|---|---|---|
-| `email` | string | Yes | Must not be blank, must be a valid email |
-| `otp` | string | Yes | Exactly 6 characters |
+| Field   | Type   | Required | Rule                                     |
+| ------- | ------ | -------- | ---------------------------------------- |
+| `email` | string | Yes      | Must not be blank, must be a valid email |
+| `otp`   | string | Yes      | Exactly 6 characters                     |
 
 ### Success response
 
@@ -161,13 +161,13 @@ Status: `200 OK`
 
 ### Error cases
 
-| Status | Message | Reason |
-|---|---|---|
-| `400` | `Validation failed` | Invalid email or OTP format |
-| `400` | `Validation failed` | Invalid OTP |
-| `400` | `Validation failed` | OTP has expired |
-| `400` | `Validation failed` | Too many failed attempts |
-| `404` | `Resource not found` | User or OTP not found |
+| Status | Message              | Reason                      |
+| ------ | -------------------- | --------------------------- |
+| `400`  | `Validation failed`  | Invalid email or OTP format |
+| `400`  | `Validation failed`  | Invalid OTP                 |
+| `400`  | `Validation failed`  | OTP has expired             |
+| `400`  | `Validation failed`  | Too many failed attempts    |
+| `404`  | `Resource not found` | User or OTP not found       |
 
 ---
 
@@ -191,10 +191,10 @@ Log in using email and password, then receive an access token and refresh token.
 
 ### Request fields
 
-| Field | Type | Required | Rule |
-|---|---|---|---|
-| `email` | string | Yes | Must not be blank, must be a valid email |
-| `password` | string | Yes | Must not be blank |
+| Field      | Type   | Required | Rule                                     |
+| ---------- | ------ | -------- | ---------------------------------------- |
+| `email`    | string | Yes      | Must not be blank, must be a valid email |
+| `password` | string | Yes      | Must not be blank                        |
 
 ### Success response
 
@@ -231,11 +231,11 @@ Use the refresh token only when calling `/api/auth/refresh` or `/api/auth/logout
 
 ### Error cases
 
-| Status | Message | Reason |
-|---|---|---|
-| `400` | `Validation failed` | Missing or invalid email/password |
-| `400` | `Validation failed` | Invalid email or password |
-| `400` | `Validation failed` | Account has not completed OTP verification |
+| Status | Message             | Reason                                     |
+| ------ | ------------------- | ------------------------------------------ |
+| `400`  | `Validation failed` | Missing or invalid email/password          |
+| `400`  | `Validation failed` | Invalid email or password                  |
+| `400`  | `Validation failed` | Account has not completed OTP verification |
 
 ---
 
@@ -258,9 +258,9 @@ Resend the registration OTP.
 
 ### Request fields
 
-| Field | Type | Required | Rule |
-|---|---|---|---|
-| `email` | string | Yes | Must not be blank, must be a valid email |
+| Field   | Type   | Required | Rule                                     |
+| ------- | ------ | -------- | ---------------------------------------- |
+| `email` | string | Yes      | Must not be blank, must be a valid email |
 
 ### Success response
 
@@ -283,11 +283,11 @@ Status: `200 OK`
 
 ### Error cases
 
-| Status | Message | Reason |
-|---|---|---|
-| `400` | `Validation failed` | Missing or invalid email |
-| `400` | `Validation failed` | Account is already verified |
-| `404` | `Resource not found` | User not found |
+| Status | Message              | Reason                      |
+| ------ | -------------------- | --------------------------- |
+| `400`  | `Validation failed`  | Missing or invalid email    |
+| `400`  | `Validation failed`  | Account is already verified |
+| `404`  | `Resource not found` | User not found              |
 
 ---
 
@@ -313,14 +313,14 @@ http://localhost:5173/oauth2/redirect?token=<accessToken>&refreshToken=<refreshT
 
 ### Success query parameters
 
-| Parameter | Type | Description |
-|---|---|---|
-| `token` | string | JWT access token |
-| `refreshToken` | string | Refresh token |
-| `email` | string | User email |
-| `userId` | number | User ID |
-| `role` | string | User role, for example `USER` |
-| `fullName` | string | Google account display name |
+| Parameter      | Type   | Description                   |
+| -------------- | ------ | ----------------------------- |
+| `token`        | string | JWT access token              |
+| `refreshToken` | string | Refresh token                 |
+| `email`        | string | User email                    |
+| `userId`       | number | User ID                       |
+| `role`         | string | User role, for example `USER` |
+| `fullName`     | string | Google account display name   |
 
 ### Error redirect
 
@@ -370,9 +370,9 @@ Use a refresh token to get a new access token and a new refresh token.
 
 ### Request fields
 
-| Field | Type | Required | Rule |
-|---|---|---|---|
-| `refreshToken` | string | Yes | Must not be blank |
+| Field          | Type   | Required | Rule              |
+| -------------- | ------ | -------- | ----------------- |
+| `refreshToken` | string | Yes      | Must not be blank |
 
 ### Success response
 
@@ -417,12 +417,12 @@ If the frontend uses an old refresh token again, the backend may treat it as ref
 
 ### Error cases
 
-| Status | Message | Reason |
-|---|---|---|
-| `400` | `Validation failed` | Missing refresh token |
-| `400` | `Validation failed` | Invalid refresh token |
-| `400` | `Validation failed` | Refresh token expired |
-| `400` | `Validation failed` | Refresh token was already used |
+| Status | Message             | Reason                         |
+| ------ | ------------------- | ------------------------------ |
+| `400`  | `Validation failed` | Missing refresh token          |
+| `400`  | `Validation failed` | Invalid refresh token          |
+| `400`  | `Validation failed` | Refresh token expired          |
+| `400`  | `Validation failed` | Refresh token was already used |
 
 ---
 
@@ -445,9 +445,9 @@ Logout by revoking the current refresh token.
 
 ### Request fields
 
-| Field | Type | Required | Rule |
-|---|---|---|---|
-| `refreshToken` | string | Yes | Must not be blank |
+| Field          | Type   | Required | Rule              |
+| -------------- | ------ | -------- | ----------------- |
+| `refreshToken` | string | Yes      | Must not be blank |
 
 ### Success response
 
@@ -465,9 +465,9 @@ Status: `200 OK`
 
 ### Error cases
 
-| Status | Message | Reason |
-|---|---|---|
-| `400` | `Validation failed` | Missing refresh token |
+| Status | Message             | Reason                |
+| ------ | ------------------- | --------------------- |
+| `400`  | `Validation failed` | Missing refresh token |
 
 ---
 
@@ -522,6 +522,7 @@ Document APIs usually return a `DocumentUploadResponse` object:
   "fileSize": 123456,
   "isPublic": false,
   "isDeleted": false,
+  "isStarred": false,
   "status": "READY",
   "uploadedAt": "2026-06-14T10:30:00Z",
   "deletedAt": null
@@ -530,30 +531,31 @@ Document APIs usually return a `DocumentUploadResponse` object:
 
 ### Document fields
 
-| Field | Type | Description |
-|---|---|---|
-| `documentId` | number | Document ID |
-| `userId` | number | Owner user ID |
-| `folderId` | number / null | Folder ID if the document is inside a folder |
-| `originalFileName` | string | Sanitized original file name |
-| `s3Key` | string | S3 object key |
-| `contentType` | string | MIME type |
-| `fileSize` | number | File size in bytes |
-| `isPublic` | boolean | Public/private visibility |
-| `isDeleted` | boolean | Soft delete flag |
-| `status` | string | Document processing status |
-| `uploadedAt` | string | Upload time |
-| `deletedAt` | string / null | Soft delete time |
+| Field              | Type          | Description                                  |
+| ------------------ | ------------- | -------------------------------------------- |
+| `documentId`       | number        | Document ID                                  |
+| `userId`           | number        | Owner user ID                                |
+| `folderId`         | number / null | Folder ID if the document is inside a folder |
+| `originalFileName` | string        | Sanitized original file name                 |
+| `s3Key`            | string        | S3 object key                                |
+| `contentType`      | string        | MIME type                                    |
+| `fileSize`         | number        | File size in bytes                           |
+| `isPublic`         | boolean       | Public/private visibility                    |
+| `isDeleted`        | boolean       | Soft delete flag                             |
+| `isStarred`        | boolean       | Whether the document is starred by the owner |
+| `status`           | string        | Document processing status                   |
+| `uploadedAt`       | string        | Upload time                                  |
+| `deletedAt`        | string / null | Soft delete time                             |
 
 ### Document status
 
-| Status | Description |
-|---|---|
-| `UPLOADED` | File was uploaded and metadata was saved |
-| `PARSING` | The system is extracting document text |
-| `INDEXING` | The system is chunking/embedding/indexing |
-| `READY` | The document is ready for future RAG/chat usage |
-| `FAILED` | Parsing or indexing failed |
+| Status     | Description                                     |
+| ---------- | ----------------------------------------------- |
+| `UPLOADED` | File was uploaded and metadata was saved        |
+| `PARSING`  | The system is extracting document text          |
+| `INDEXING` | The system is chunking/embedding/indexing       |
+| `READY`    | The document is ready for future RAG/chat usage |
+| `FAILED`   | Parsing or indexing failed                      |
 
 ---
 
@@ -570,10 +572,10 @@ Upload a file to S3, save metadata, and parse/chunk/embed it if supported.
 
 ### Form-data fields
 
-| Field | Type | Required | Rule |
-|---|---|---|---|
-| `file` | File | Yes | Uploaded file |
-| `isPublic` | boolean | No | `true` or `false`; private by default if omitted |
+| Field      | Type    | Required | Rule                                             |
+| ---------- | ------- | -------- | ------------------------------------------------ |
+| `file`     | File    | Yes      | Uploaded file                                    |
+| `isPublic` | boolean | No       | `true` or `false`; private by default if omitted |
 
 ### Supported files
 
@@ -612,6 +614,7 @@ Status: `200 OK`
     "fileSize": 123456,
     "isPublic": true,
     "isDeleted": false,
+    "isStarred": false,
     "status": "READY",
     "uploadedAt": "2026-06-14T10:30:00Z",
     "deletedAt": null
@@ -623,13 +626,13 @@ Status: `200 OK`
 
 ### Error cases
 
-| Status | Message | Reason |
-|---|---|---|
-| `400` | `Validation failed` | Empty file, missing filename, or unsupported extension |
-| `401` | `Unauthorized` | Missing or invalid JWT |
-| `413` | `File upload failed` | Uploaded file exceeds the size limit |
-| `500` | `File read failed` | Backend failed to read the file |
-| `503` | `S3 upload failed` | S3 upload failed |
+| Status | Message              | Reason                                                 |
+| ------ | -------------------- | ------------------------------------------------------ |
+| `400`  | `Validation failed`  | Empty file, missing filename, or unsupported extension |
+| `401`  | `Unauthorized`       | Missing or invalid JWT                                 |
+| `413`  | `File upload failed` | Uploaded file exceeds the size limit                   |
+| `500`  | `File read failed`   | Backend failed to read the file                        |
+| `503`  | `S3 upload failed`   | S3 upload failed                                       |
 
 ---
 
@@ -662,6 +665,7 @@ Status: `200 OK`
       "fileSize": 123456,
       "isPublic": false,
       "isDeleted": false,
+      "isStarred": false,
       "status": "READY",
       "uploadedAt": "2026-06-14T10:30:00Z",
       "deletedAt": null
@@ -674,9 +678,57 @@ Status: `200 OK`
 
 ### Error cases
 
-| Status | Message | Reason |
-|---|---|---|
-| `401` | `Unauthorized` | Missing or invalid JWT |
+| Status | Message        | Reason                 |
+| ------ | -------------- | ---------------------- |
+| `401`  | `Unauthorized` | Missing or invalid JWT |
+
+---
+
+## 3.3.1. Get starred documents
+
+Get active starred documents of the currently authenticated user.
+
+### Request
+
+- Method: `GET`
+- URL: `/api/documents/starred`
+- Auth: JWT required
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Get starred documents successfully",
+  "data": [
+    {
+      "documentId": 1,
+      "userId": 1,
+      "folderId": null,
+      "originalFileName": "example.pdf",
+      "s3Key": "documents/1/uuid-example.pdf",
+      "contentType": "application/pdf",
+      "fileSize": 123456,
+      "isPublic": false,
+      "isDeleted": false,
+      "isStarred": true,
+      "status": "READY",
+      "uploadedAt": "2026-06-15T10:30:00Z",
+      "deletedAt": null
+    }
+  ],
+  "errors": null,
+  "timestamp": "2026-06-15T10:30:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message        | Reason                 |
+| ------ | -------------- | ---------------------- |
+| `401`  | `Unauthorized` | Missing or invalid JWT |
 
 ---
 
@@ -692,9 +744,9 @@ Get the detail of a document owned by the current user.
 
 ### Path variables
 
-| Name | Type | Required |
-|---|---|---|
-| `documentId` | number | Yes |
+| Name         | Type   | Required |
+| ------------ | ------ | -------- |
+| `documentId` | number | Yes      |
 
 ### Success response
 
@@ -714,6 +766,7 @@ Status: `200 OK`
     "fileSize": 123456,
     "isPublic": false,
     "isDeleted": false,
+    "isStarred": false,
     "status": "READY",
     "uploadedAt": "2026-06-14T10:30:00Z",
     "deletedAt": null
@@ -725,10 +778,10 @@ Status: `200 OK`
 
 ### Error cases
 
-| Status | Message | Reason |
-|---|---|---|
-| `401` | `Unauthorized` | Missing or invalid JWT |
-| `404` | `Resource not found` | Document does not exist, does not belong to the user, or was soft-deleted |
+| Status | Message              | Reason                                                                    |
+| ------ | -------------------- | ------------------------------------------------------------------------- |
+| `401`  | `Unauthorized`       | Missing or invalid JWT                                                    |
+| `404`  | `Resource not found` | Document does not exist, does not belong to the user, or was soft-deleted |
 
 ---
 
@@ -751,9 +804,9 @@ Rename the document metadata field `originalFileName`. This does not rename or m
 
 ### Request fields
 
-| Field | Type | Required | Rule |
-|---|---|---|---|
-| `originalFileName` | string | Yes | Must not be blank, maximum 512 characters |
+| Field              | Type   | Required | Rule                                      |
+| ------------------ | ------ | -------- | ----------------------------------------- |
+| `originalFileName` | string | Yes      | Must not be blank, maximum 512 characters |
 
 ### Success response
 
@@ -773,6 +826,7 @@ Status: `200 OK`
     "fileSize": 123456,
     "isPublic": false,
     "isDeleted": false,
+    "isStarred": false,
     "status": "READY",
     "uploadedAt": "2026-06-14T10:30:00Z",
     "deletedAt": null
@@ -784,11 +838,11 @@ Status: `200 OK`
 
 ### Error cases
 
-| Status | Message | Reason |
-|---|---|---|
-| `400` | `Validation failed` | Missing or invalid originalFileName |
-| `401` | `Unauthorized` | Missing or invalid JWT |
-| `404` | `Resource not found` | Document does not exist, does not belong to the user, or was soft-deleted |
+| Status | Message              | Reason                                                                    |
+| ------ | -------------------- | ------------------------------------------------------------------------- |
+| `400`  | `Validation failed`  | Missing or invalid originalFileName                                       |
+| `401`  | `Unauthorized`       | Missing or invalid JWT                                                    |
+| `404`  | `Resource not found` | Document does not exist, does not belong to the user, or was soft-deleted |
 
 ---
 
@@ -821,9 +875,9 @@ Remove from folder:
 
 ### Request fields
 
-| Field | Type | Required | Rule |
-|---|---|---|---|
-| `folderId` | number / null | No | Must belong to the current user if provided |
+| Field      | Type          | Required | Rule                                        |
+| ---------- | ------------- | -------- | ------------------------------------------- |
+| `folderId` | number / null | No       | Must belong to the current user if provided |
 
 ### Success response
 
@@ -843,6 +897,7 @@ Status: `200 OK`
     "fileSize": 123456,
     "isPublic": false,
     "isDeleted": false,
+    "isStarred": false,
     "status": "READY",
     "uploadedAt": "2026-06-14T10:30:00Z",
     "deletedAt": null
@@ -854,10 +909,10 @@ Status: `200 OK`
 
 ### Error cases
 
-| Status | Message | Reason |
-|---|---|---|
-| `401` | `Unauthorized` | Missing or invalid JWT |
-| `404` | `Resource not found` | Document/folder does not exist or does not belong to the user |
+| Status | Message              | Reason                                                        |
+| ------ | -------------------- | ------------------------------------------------------------- |
+| `401`  | `Unauthorized`       | Missing or invalid JWT                                        |
+| `404`  | `Resource not found` | Document/folder does not exist or does not belong to the user |
 
 ---
 
@@ -873,9 +928,9 @@ Get a temporary pre-signed URL for previewing an owned document.
 
 ### Path variables
 
-| Name | Type | Required |
-|---|---|---|
-| `documentId` | number | Yes |
+| Name         | Type   | Required |
+| ------------ | ------ | -------- |
+| `documentId` | number | Yes      |
 
 ### Success response
 
@@ -898,11 +953,11 @@ Status: `200 OK`
 
 ### Error cases
 
-| Status | Message | Reason |
-|---|---|---|
-| `401` | `Unauthorized` | Missing or invalid JWT |
-| `404` | `Resource not found` | Document does not exist, does not belong to the user, or was soft-deleted |
-| `500` | `Request failed` | S3 pre-signer is not configured |
+| Status | Message              | Reason                                                                    |
+| ------ | -------------------- | ------------------------------------------------------------------------- |
+| `401`  | `Unauthorized`       | Missing or invalid JWT                                                    |
+| `404`  | `Resource not found` | Document does not exist, does not belong to the user, or was soft-deleted |
+| `500`  | `Request failed`     | S3 pre-signer is not configured                                           |
 
 ---
 
@@ -918,9 +973,9 @@ Get a temporary pre-signed URL for downloading an owned document.
 
 ### Path variables
 
-| Name | Type | Required |
-|---|---|---|
-| `documentId` | number | Yes |
+| Name         | Type   | Required |
+| ------------ | ------ | -------- |
+| `documentId` | number | Yes      |
 
 ### Success response
 
@@ -943,11 +998,11 @@ Status: `200 OK`
 
 ### Error cases
 
-| Status | Message | Reason |
-|---|---|---|
-| `401` | `Unauthorized` | Missing or invalid JWT |
-| `404` | `Resource not found` | Document does not exist, does not belong to the user, or was soft-deleted |
-| `500` | `Request failed` | S3 pre-signer is not configured |
+| Status | Message              | Reason                                                                    |
+| ------ | -------------------- | ------------------------------------------------------------------------- |
+| `401`  | `Unauthorized`       | Missing or invalid JWT                                                    |
+| `404`  | `Resource not found` | Document does not exist, does not belong to the user, or was soft-deleted |
+| `500`  | `Request failed`     | S3 pre-signer is not configured                                           |
 
 ---
 
@@ -980,6 +1035,7 @@ Status: `200 OK`
       "fileSize": 123456,
       "isPublic": true,
       "isDeleted": false,
+      "isStarred": false,
       "status": "READY",
       "uploadedAt": "2026-06-14T10:30:00Z",
       "deletedAt": null
@@ -1004,9 +1060,9 @@ Get the detail of a public document.
 
 ### Path variables
 
-| Name | Type | Required |
-|---|---|---|
-| `documentId` | number | Yes |
+| Name         | Type   | Required |
+| ------------ | ------ | -------- |
+| `documentId` | number | Yes      |
 
 ### Success response
 
@@ -1026,6 +1082,7 @@ Status: `200 OK`
     "fileSize": 123456,
     "isPublic": true,
     "isDeleted": false,
+    "isStarred": false,
     "status": "READY",
     "uploadedAt": "2026-06-14T10:30:00Z",
     "deletedAt": null
@@ -1037,9 +1094,9 @@ Status: `200 OK`
 
 ### Error cases
 
-| Status | Message | Reason |
-|---|---|---|
-| `404` | `Resource not found` | Public document does not exist or is not public |
+| Status | Message              | Reason                                          |
+| ------ | -------------------- | ----------------------------------------------- |
+| `404`  | `Resource not found` | Public document does not exist or is not public |
 
 ---
 
@@ -1055,9 +1112,9 @@ Get a temporary pre-signed URL for previewing a public document.
 
 ### Path variables
 
-| Name | Type | Required |
-|---|---|---|
-| `documentId` | number | Yes |
+| Name         | Type   | Required |
+| ------------ | ------ | -------- |
+| `documentId` | number | Yes      |
 
 ### Success response
 
@@ -1080,10 +1137,10 @@ Status: `200 OK`
 
 ### Error cases
 
-| Status | Message | Reason |
-|---|---|---|
-| `404` | `Resource not found` | Public document does not exist or is not public |
-| `500` | `Request failed` | S3 pre-signer is not configured |
+| Status | Message              | Reason                                          |
+| ------ | -------------------- | ----------------------------------------------- |
+| `404`  | `Resource not found` | Public document does not exist or is not public |
+| `500`  | `Request failed`     | S3 pre-signer is not configured                 |
 
 ---
 
@@ -1099,9 +1156,9 @@ Get a temporary pre-signed URL for downloading a public document.
 
 ### Path variables
 
-| Name | Type | Required |
-|---|---|---|
-| `documentId` | number | Yes |
+| Name         | Type   | Required |
+| ------------ | ------ | -------- |
+| `documentId` | number | Yes      |
 
 ### Success response
 
@@ -1124,10 +1181,10 @@ Status: `200 OK`
 
 ### Error cases
 
-| Status | Message | Reason |
-|---|---|---|
-| `404` | `Resource not found` | Public document does not exist or is not public |
-| `500` | `Request failed` | S3 pre-signer is not configured |
+| Status | Message              | Reason                                          |
+| ------ | -------------------- | ----------------------------------------------- |
+| `404`  | `Resource not found` | Public document does not exist or is not public |
+| `500`  | `Request failed`     | S3 pre-signer is not configured                 |
 
 ---
 
@@ -1143,15 +1200,15 @@ Update a document to public or private.
 
 ### Path variables
 
-| Name | Type | Required |
-|---|---|---|
-| `documentId` | number | Yes |
+| Name         | Type   | Required |
+| ------------ | ------ | -------- |
+| `documentId` | number | Yes      |
 
 ### Query params
 
-| Name | Type | Required | Example |
-|---|---|---|---|
-| `isPublic` | boolean | Yes | `true` or `false` |
+| Name       | Type    | Required | Example           |
+| ---------- | ------- | -------- | ----------------- |
+| `isPublic` | boolean | Yes      | `true` or `false` |
 
 ### Success response
 
@@ -1170,6 +1227,7 @@ Status: `200 OK`
     "fileSize": 123456,
     "isPublic": true,
     "isDeleted": false,
+    "isStarred": false,
     "status": "READY",
     "uploadedAt": "2026-06-14T10:30:00Z",
     "deletedAt": null
@@ -1181,11 +1239,71 @@ Status: `200 OK`
 
 ### Error cases
 
-| Status | Message | Reason |
-|---|---|---|
-| `400` | `Validation failed` | Missing `isPublic` |
-| `401` | `Unauthorized` | Missing or invalid JWT |
-| `404` | `Resource not found` | Document does not exist, does not belong to the user, or is in Trash |
+| Status | Message              | Reason                                                               |
+| ------ | -------------------- | -------------------------------------------------------------------- |
+| `400`  | `Validation failed`  | Missing `isPublic`                                                   |
+| `401`  | `Unauthorized`       | Missing or invalid JWT                                               |
+| `404`  | `Resource not found` | Document does not exist, does not belong to the user, or is in Trash |
+
+---
+
+## 3.7.1. Update document starred
+
+Star or unstar an owned active document.
+
+### Request
+
+- Method: `PATCH`
+- URL: `/api/documents/{documentId}/star?isStarred=true`
+- Auth: JWT required
+
+### Path variables
+
+| Name         | Type   | Required |
+| ------------ | ------ | -------- |
+| `documentId` | number | Yes      |
+
+### Query params
+
+| Name        | Type    | Required | Example           |
+| ----------- | ------- | -------- | ----------------- |
+| `isStarred` | boolean | Yes      | `true` or `false` |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Update document starred successfully",
+  "data": {
+    "documentId": 1,
+    "userId": 1,
+    "folderId": null,
+    "originalFileName": "example.pdf",
+    "s3Key": "documents/1/uuid-example.pdf",
+    "contentType": "application/pdf",
+    "fileSize": 123456,
+    "isPublic": false,
+    "isDeleted": false,
+    "isStarred": true,
+    "status": "READY",
+    "uploadedAt": "2026-06-15T10:30:00Z",
+    "deletedAt": null
+  },
+  "errors": null,
+  "timestamp": "2026-06-15T10:30:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message              | Reason                                                               |
+| ------ | -------------------- | -------------------------------------------------------------------- |
+| `400`  | `Validation failed`  | Missing `isStarred`                                                  |
+| `401`  | `Unauthorized`       | Missing or invalid JWT                                               |
+| `404`  | `Resource not found` | Document does not exist, does not belong to the user, or is in Trash |
 
 ---
 
@@ -1201,9 +1319,9 @@ Soft-delete a document. The physical file is not deleted from S3.
 
 ### Path variables
 
-| Name | Type | Required |
-|---|---|---|
-| `documentId` | number | Yes |
+| Name         | Type   | Required |
+| ------------ | ------ | -------- |
+| `documentId` | number | Yes      |
 
 ### Success response
 
@@ -1222,6 +1340,7 @@ Status: `200 OK`
     "fileSize": 123456,
     "isPublic": false,
     "isDeleted": true,
+    "isStarred": false,
     "status": "READY",
     "uploadedAt": "2026-06-14T10:30:00Z",
     "deletedAt": "2026-06-14T10:40:00Z"
@@ -1233,10 +1352,10 @@ Status: `200 OK`
 
 ### Error cases
 
-| Status | Message | Reason |
-|---|---|---|
-| `401` | `Unauthorized` | Missing or invalid JWT |
-| `404` | `Resource not found` | Document does not exist or does not belong to the user |
+| Status | Message              | Reason                                                 |
+| ------ | -------------------- | ------------------------------------------------------ |
+| `401`  | `Unauthorized`       | Missing or invalid JWT                                 |
+| `404`  | `Resource not found` | Document does not exist or does not belong to the user |
 
 ---
 
@@ -1268,6 +1387,7 @@ Status: `200 OK`
       "fileSize": 123456,
       "isPublic": false,
       "isDeleted": true,
+      "isStarred": false,
       "status": "READY",
       "uploadedAt": "2026-06-14T10:30:00Z",
       "deletedAt": "2026-06-14T10:40:00Z"
@@ -1280,9 +1400,9 @@ Status: `200 OK`
 
 ### Error cases
 
-| Status | Message | Reason |
-|---|---|---|
-| `401` | `Unauthorized` | Missing or invalid JWT |
+| Status | Message        | Reason                 |
+| ------ | -------------- | ---------------------- |
+| `401`  | `Unauthorized` | Missing or invalid JWT |
 
 ---
 
@@ -1298,9 +1418,9 @@ Restore a document from Trash.
 
 ### Path variables
 
-| Name | Type | Required |
-|---|---|---|
-| `documentId` | number | Yes |
+| Name         | Type   | Required |
+| ------------ | ------ | -------- |
+| `documentId` | number | Yes      |
 
 ### Success response
 
@@ -1319,6 +1439,7 @@ Status: `200 OK`
     "fileSize": 123456,
     "isPublic": false,
     "isDeleted": false,
+    "isStarred": false,
     "status": "READY",
     "uploadedAt": "2026-06-14T10:30:00Z",
     "deletedAt": null
@@ -1330,10 +1451,10 @@ Status: `200 OK`
 
 ### Error cases
 
-| Status | Message | Reason |
-|---|---|---|
-| `401` | `Unauthorized` | Missing or invalid JWT |
-| `404` | `Resource not found` | Document does not exist or does not belong to the user |
+| Status | Message              | Reason                                                 |
+| ------ | -------------------- | ------------------------------------------------------ |
+| `401`  | `Unauthorized`       | Missing or invalid JWT                                 |
+| `404`  | `Resource not found` | Document does not exist or does not belong to the user |
 
 ---
 
@@ -1349,9 +1470,9 @@ Permanently delete a document. Only documents already in Trash can be permanentl
 
 ### Path variables
 
-| Name | Type | Required |
-|---|---|---|
-| `documentId` | number | Yes |
+| Name         | Type   | Required |
+| ------------ | ------ | -------- |
+| `documentId` | number | Yes      |
 
 ### Success response
 
@@ -1369,12 +1490,12 @@ Status: `200 OK`
 
 ### Error cases
 
-| Status | Message | Reason |
-|---|---|---|
-| `400` | `Validation failed` | Document is not in Trash |
-| `401` | `Unauthorized` | Missing or invalid JWT |
-| `404` | `Resource not found` | Document does not exist or does not belong to the user |
-| `503` | `S3 delete failed` | Failed to delete the file from S3 |
+| Status | Message              | Reason                                                 |
+| ------ | -------------------- | ------------------------------------------------------ |
+| `400`  | `Validation failed`  | Document is not in Trash                               |
+| `401`  | `Unauthorized`       | Missing or invalid JWT                                 |
+| `404`  | `Resource not found` | Document does not exist or does not belong to the user |
+| `503`  | `S3 delete failed`   | Failed to delete the file from S3                      |
 
 ---
 
@@ -1399,6 +1520,7 @@ Folder APIs return a `DocumentFolderResponse` object:
   "folderId": 1,
   "userId": 1,
   "name": "Semester 1",
+  "isStarred": false,
   "createdAt": "2026-06-15T10:30:00Z",
   "updatedAt": "2026-06-15T10:30:00Z"
 }
@@ -1406,13 +1528,14 @@ Folder APIs return a `DocumentFolderResponse` object:
 
 ### Folder fields
 
-| Field | Type | Description |
-|---|---|---|
-| `folderId` | number | Folder ID |
-| `userId` | number | Owner user ID |
-| `name` | string | Folder name |
-| `createdAt` | string | Folder creation time |
-| `updatedAt` | string | Last update time |
+| Field       | Type    | Description                                |
+| ----------- | ------- | ------------------------------------------ |
+| `folderId`  | number  | Folder ID                                  |
+| `userId`    | number  | Owner user ID                              |
+| `name`      | string  | Folder name                                |
+| `isStarred` | boolean | Whether the folder is starred by the owner |
+| `createdAt` | string  | Folder creation time                       |
+| `updatedAt` | string  | Last update time                           |
 
 ---
 
@@ -1435,9 +1558,9 @@ Create a new personal document folder.
 
 ### Request fields
 
-| Field | Type | Required | Rule |
-|---|---|---|---|
-| `name` | string | Yes | Must not be blank, maximum 100 characters |
+| Field  | Type   | Required | Rule                                      |
+| ------ | ------ | -------- | ----------------------------------------- |
+| `name` | string | Yes      | Must not be blank, maximum 100 characters |
 
 ### Success response
 
@@ -1461,11 +1584,11 @@ Status: `200 OK`
 
 ### Error cases
 
-| Status | Message | Reason |
-|---|---|---|
-| `400` | `Validation failed` | Missing or invalid name |
-| `400` | `Validation failed` | Folder name already exists for the current user |
-| `401` | `Unauthorized` | Missing or invalid JWT |
+| Status | Message             | Reason                                          |
+| ------ | ------------------- | ----------------------------------------------- |
+| `400`  | `Validation failed` | Missing or invalid name                         |
+| `400`  | `Validation failed` | Folder name already exists for the current user |
+| `401`  | `Unauthorized`      | Missing or invalid JWT                          |
 
 ---
 
@@ -1492,6 +1615,7 @@ Status: `200 OK`
       "folderId": 1,
       "userId": 1,
       "name": "Semester 1",
+      "isStarred": false,
       "createdAt": "2026-06-15T10:30:00Z",
       "updatedAt": "2026-06-15T10:30:00Z"
     }
@@ -1503,9 +1627,50 @@ Status: `200 OK`
 
 ### Error cases
 
-| Status | Message | Reason |
-|---|---|---|
-| `401` | `Unauthorized` | Missing or invalid JWT |
+| Status | Message        | Reason                 |
+| ------ | -------------- | ---------------------- |
+| `401`  | `Unauthorized` | Missing or invalid JWT |
+
+---
+
+## 4.3.1. Get starred document folders
+
+Get starred folders owned by the authenticated user.
+
+### Request
+
+- Method: `GET`
+- URL: `/api/document-folders/starred`
+- Auth: JWT required
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Get starred document folders successfully",
+  "data": [
+    {
+      "folderId": 1,
+      "userId": 1,
+      "name": "Semester 1",
+      "isStarred": true,
+      "createdAt": "2026-06-15T10:30:00Z",
+      "updatedAt": "2026-06-15T10:30:00Z"
+    }
+  ],
+  "errors": null,
+  "timestamp": "2026-06-15T10:30:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message        | Reason                 |
+| ------ | -------------- | ---------------------- |
+| `401`  | `Unauthorized` | Missing or invalid JWT |
 
 ---
 
@@ -1528,9 +1693,9 @@ Rename a folder owned by the authenticated user.
 
 ### Path variables
 
-| Name | Type | Required |
-|---|---|---|
-| `folderId` | number | Yes |
+| Name       | Type   | Required |
+| ---------- | ------ | -------- |
+| `folderId` | number | Yes      |
 
 ### Success response
 
@@ -1544,6 +1709,7 @@ Status: `200 OK`
     "folderId": 1,
     "userId": 1,
     "name": "Semester 2",
+    "isStarred": false,
     "createdAt": "2026-06-15T10:30:00Z",
     "updatedAt": "2026-06-15T10:40:00Z"
   },
@@ -1554,12 +1720,65 @@ Status: `200 OK`
 
 ### Error cases
 
-| Status | Message | Reason |
-|---|---|---|
-| `400` | `Validation failed` | Missing or invalid name |
-| `400` | `Validation failed` | Folder name already exists for the current user |
-| `401` | `Unauthorized` | Missing or invalid JWT |
-| `404` | `Resource not found` | Folder does not exist or does not belong to the user |
+| Status | Message              | Reason                                               |
+| ------ | -------------------- | ---------------------------------------------------- |
+| `400`  | `Validation failed`  | Missing or invalid name                              |
+| `400`  | `Validation failed`  | Folder name already exists for the current user      |
+| `401`  | `Unauthorized`       | Missing or invalid JWT                               |
+| `404`  | `Resource not found` | Folder does not exist or does not belong to the user |
+
+---
+
+## 4.4.1. Update document folder starred
+
+Star or unstar a folder owned by the authenticated user.
+
+### Request
+
+- Method: `PATCH`
+- URL: `/api/document-folders/{folderId}/star?isStarred=true`
+- Auth: JWT required
+
+### Path variables
+
+| Name       | Type   | Required |
+| ---------- | ------ | -------- |
+| `folderId` | number | Yes      |
+
+### Query params
+
+| Name        | Type    | Required | Example           |
+| ----------- | ------- | -------- | ----------------- |
+| `isStarred` | boolean | Yes      | `true` or `false` |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Update document folder starred successfully",
+  "data": {
+    "folderId": 1,
+    "userId": 1,
+    "name": "Semester 1",
+    "isStarred": true,
+    "createdAt": "2026-06-15T10:30:00Z",
+    "updatedAt": "2026-06-15T10:40:00Z"
+  },
+  "errors": null,
+  "timestamp": "2026-06-15T10:40:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message              | Reason                                               |
+| ------ | -------------------- | ---------------------------------------------------- |
+| `400`  | `Validation failed`  | Missing `isStarred`                                  |
+| `401`  | `Unauthorized`       | Missing or invalid JWT                               |
+| `404`  | `Resource not found` | Folder does not exist or does not belong to the user |
 
 ---
 
@@ -1575,9 +1794,9 @@ Delete a folder owned by the authenticated user. Documents inside the folder are
 
 ### Path variables
 
-| Name | Type | Required |
-|---|---|---|
-| `folderId` | number | Yes |
+| Name       | Type   | Required |
+| ---------- | ------ | -------- |
+| `folderId` | number | Yes      |
 
 ### Success response
 
@@ -1595,10 +1814,10 @@ Status: `200 OK`
 
 ### Error cases
 
-| Status | Message | Reason |
-|---|---|---|
-| `401` | `Unauthorized` | Missing or invalid JWT |
-| `404` | `Resource not found` | Folder does not exist or does not belong to the user |
+| Status | Message              | Reason                                               |
+| ------ | -------------------- | ---------------------------------------------------- |
+| `401`  | `Unauthorized`       | Missing or invalid JWT                               |
+| `404`  | `Resource not found` | Folder does not exist or does not belong to the user |
 
 ---
 
@@ -1614,9 +1833,9 @@ Get active documents inside an owned folder.
 
 ### Path variables
 
-| Name | Type | Required |
-|---|---|---|
-| `folderId` | number | Yes |
+| Name       | Type   | Required |
+| ---------- | ------ | -------- |
+| `folderId` | number | Yes      |
 
 ### Success response
 
@@ -1637,6 +1856,7 @@ Status: `200 OK`
       "fileSize": 123456,
       "isPublic": false,
       "isDeleted": false,
+      "isStarred": false,
       "status": "READY",
       "uploadedAt": "2026-06-15T10:30:00Z",
       "deletedAt": null
@@ -1649,10 +1869,10 @@ Status: `200 OK`
 
 ### Error cases
 
-| Status | Message | Reason |
-|---|---|---|
-| `401` | `Unauthorized` | Missing or invalid JWT |
-| `404` | `Resource not found` | Folder does not exist or does not belong to the user |
+| Status | Message              | Reason                                               |
+| ------ | -------------------- | ---------------------------------------------------- |
+| `401`  | `Unauthorized`       | Missing or invalid JWT                               |
+| `404`  | `Resource not found` | Folder does not exist or does not belong to the user |
 
 ---
 
@@ -1684,13 +1904,13 @@ Tag APIs return a `TagResponse` object:
 
 ### Tag fields
 
-| Field | Type | Description |
-|---|---|---|
-| `tagId` | number | Tag ID |
-| `userId` | number | Owner user ID |
-| `name` | string | Tag name |
-| `color` | string | HEX color, for example `#8B5CF6` |
-| `createdAt` | string | Tag creation time |
+| Field       | Type   | Description                      |
+| ----------- | ------ | -------------------------------- |
+| `tagId`     | number | Tag ID                           |
+| `userId`    | number | Owner user ID                    |
+| `name`      | string | Tag name                         |
+| `color`     | string | HEX color, for example `#8B5CF6` |
+| `createdAt` | string | Tag creation time                |
 
 ---
 
@@ -1714,10 +1934,10 @@ Create a new personal tag for the authenticated user.
 
 ### Request fields
 
-| Field | Type | Required | Rule |
-|---|---|---|---|
-| `name` | string | Yes | Must not be blank, maximum 100 characters |
-| `color` | string | Yes | Must be a valid HEX color, for example `#8B5CF6` or `#FFF` |
+| Field   | Type   | Required | Rule                                                       |
+| ------- | ------ | -------- | ---------------------------------------------------------- |
+| `name`  | string | Yes      | Must not be blank, maximum 100 characters                  |
+| `color` | string | Yes      | Must be a valid HEX color, for example `#8B5CF6` or `#FFF` |
 
 ### Success response
 
@@ -1741,11 +1961,11 @@ Status: `200 OK`
 
 ### Error cases
 
-| Status | Message | Reason |
-|---|---|---|
-| `400` | `Validation failed` | Missing/invalid name or color |
-| `400` | `Validation failed` | Tag name already exists for the current user |
-| `401` | `Unauthorized` | Missing or invalid JWT |
+| Status | Message             | Reason                                       |
+| ------ | ------------------- | -------------------------------------------- |
+| `400`  | `Validation failed` | Missing/invalid name or color                |
+| `400`  | `Validation failed` | Tag name already exists for the current user |
+| `401`  | `Unauthorized`      | Missing or invalid JWT                       |
 
 ---
 
@@ -1783,9 +2003,9 @@ Status: `200 OK`
 
 ### Error cases
 
-| Status | Message | Reason |
-|---|---|---|
-| `401` | `Unauthorized` | Missing or invalid JWT |
+| Status | Message        | Reason                 |
+| ------ | -------------- | ---------------------- |
+| `401`  | `Unauthorized` | Missing or invalid JWT |
 
 ---
 
@@ -1809,16 +2029,16 @@ Update a tag owned by the authenticated user.
 
 ### Path variables
 
-| Name | Type | Required |
-|---|---|---|
-| `tagId` | number | Yes |
+| Name    | Type   | Required |
+| ------- | ------ | -------- |
+| `tagId` | number | Yes      |
 
 ### Request fields
 
-| Field | Type | Required | Rule |
-|---|---|---|---|
-| `name` | string | Yes | Must not be blank, maximum 100 characters |
-| `color` | string | Yes | Must be a valid HEX color |
+| Field   | Type   | Required | Rule                                      |
+| ------- | ------ | -------- | ----------------------------------------- |
+| `name`  | string | Yes      | Must not be blank, maximum 100 characters |
+| `color` | string | Yes      | Must be a valid HEX color                 |
 
 ### Success response
 
@@ -1842,12 +2062,12 @@ Status: `200 OK`
 
 ### Error cases
 
-| Status | Message | Reason |
-|---|---|---|
-| `400` | `Validation failed` | Missing/invalid name or color |
-| `400` | `Validation failed` | Tag name already exists for the current user |
-| `401` | `Unauthorized` | Missing or invalid JWT |
-| `404` | `Resource not found` | Tag does not exist or does not belong to the user |
+| Status | Message              | Reason                                            |
+| ------ | -------------------- | ------------------------------------------------- |
+| `400`  | `Validation failed`  | Missing/invalid name or color                     |
+| `400`  | `Validation failed`  | Tag name already exists for the current user      |
+| `401`  | `Unauthorized`       | Missing or invalid JWT                            |
+| `404`  | `Resource not found` | Tag does not exist or does not belong to the user |
 
 ---
 
@@ -1863,9 +2083,9 @@ Delete a tag owned by the authenticated user. Existing document-tag links for th
 
 ### Path variables
 
-| Name | Type | Required |
-|---|---|---|
-| `tagId` | number | Yes |
+| Name    | Type   | Required |
+| ------- | ------ | -------- |
+| `tagId` | number | Yes      |
 
 ### Success response
 
@@ -1883,10 +2103,10 @@ Status: `200 OK`
 
 ### Error cases
 
-| Status | Message | Reason |
-|---|---|---|
-| `401` | `Unauthorized` | Missing or invalid JWT |
-| `404` | `Resource not found` | Tag does not exist or does not belong to the user |
+| Status | Message              | Reason                                            |
+| ------ | -------------------- | ------------------------------------------------- |
+| `401`  | `Unauthorized`       | Missing or invalid JWT                            |
+| `404`  | `Resource not found` | Tag does not exist or does not belong to the user |
 
 ---
 
@@ -1902,10 +2122,10 @@ Attach an owned tag to an owned active document.
 
 ### Path variables
 
-| Name | Type | Required |
-|---|---|---|
-| `documentId` | number | Yes |
-| `tagId` | number | Yes |
+| Name         | Type   | Required |
+| ------------ | ------ | -------- |
+| `documentId` | number | Yes      |
+| `tagId`      | number | Yes      |
 
 ### Success response
 
@@ -1929,10 +2149,10 @@ Status: `200 OK`
 
 ### Error cases
 
-| Status | Message | Reason |
-|---|---|---|
-| `401` | `Unauthorized` | Missing or invalid JWT |
-| `404` | `Resource not found` | Document/tag does not exist or does not belong to the user |
+| Status | Message              | Reason                                                     |
+| ------ | -------------------- | ---------------------------------------------------------- |
+| `401`  | `Unauthorized`       | Missing or invalid JWT                                     |
+| `404`  | `Resource not found` | Document/tag does not exist or does not belong to the user |
 
 ---
 
@@ -1948,10 +2168,10 @@ Detach a tag from an owned active document.
 
 ### Path variables
 
-| Name | Type | Required |
-|---|---|---|
-| `documentId` | number | Yes |
-| `tagId` | number | Yes |
+| Name         | Type   | Required |
+| ------------ | ------ | -------- |
+| `documentId` | number | Yes      |
+| `tagId`      | number | Yes      |
 
 ### Success response
 
@@ -1969,10 +2189,10 @@ Status: `200 OK`
 
 ### Error cases
 
-| Status | Message | Reason |
-|---|---|---|
-| `401` | `Unauthorized` | Missing or invalid JWT |
-| `404` | `Resource not found` | Document/tag does not exist or does not belong to the user |
+| Status | Message              | Reason                                                     |
+| ------ | -------------------- | ---------------------------------------------------------- |
+| `401`  | `Unauthorized`       | Missing or invalid JWT                                     |
+| `404`  | `Resource not found` | Document/tag does not exist or does not belong to the user |
 
 ---
 
@@ -1988,9 +2208,9 @@ Get tags attached to an owned active document.
 
 ### Path variables
 
-| Name | Type | Required |
-|---|---|---|
-| `documentId` | number | Yes |
+| Name         | Type   | Required |
+| ------------ | ------ | -------- |
+| `documentId` | number | Yes      |
 
 ### Success response
 
@@ -2016,10 +2236,10 @@ Status: `200 OK`
 
 ### Error cases
 
-| Status | Message | Reason |
-|---|---|---|
-| `401` | `Unauthorized` | Missing or invalid JWT |
-| `404` | `Resource not found` | Document does not exist or does not belong to the user |
+| Status | Message              | Reason                                                 |
+| ------ | -------------------- | ------------------------------------------------------ |
+| `401`  | `Unauthorized`       | Missing or invalid JWT                                 |
+| `404`  | `Resource not found` | Document does not exist or does not belong to the user |
 
 ---
 
@@ -2035,9 +2255,9 @@ Get tags attached to a public document.
 
 ### Path variables
 
-| Name | Type | Required |
-|---|---|---|
-| `documentId` | number | Yes |
+| Name         | Type   | Required |
+| ------------ | ------ | -------- |
+| `documentId` | number | Yes      |
 
 ### Success response
 
@@ -2063,24 +2283,24 @@ Status: `200 OK`
 
 ### Error cases
 
-| Status | Message | Reason |
-|---|---|---|
-| `404` | `Resource not found` | Public document does not exist or is not public |
+| Status | Message              | Reason                                          |
+| ------ | -------------------- | ----------------------------------------------- |
+| `404`  | `Resource not found` | Public document does not exist or is not public |
 
 ---
 
 ## 6. Common HTTP status codes
 
-| Status | Description |
-|---|---|
-| `200 OK` | Request succeeded |
-| `400 Bad Request` | Missing or invalid request data |
-| `401 Unauthorized` | Missing, invalid, or expired JWT |
-| `403 Forbidden` | Authenticated but not allowed to access the resource |
-| `404 Not Found` | Resource not found |
-| `413 Payload Too Large` | Uploaded file exceeds the size limit |
-| `500 Internal Server Error` | Unexpected server error |
-| `503 Service Unavailable` | S3 or external service failure |
+| Status                      | Description                                          |
+| --------------------------- | ---------------------------------------------------- |
+| `200 OK`                    | Request succeeded                                    |
+| `400 Bad Request`           | Missing or invalid request data                      |
+| `401 Unauthorized`          | Missing, invalid, or expired JWT                     |
+| `403 Forbidden`             | Authenticated but not allowed to access the resource |
+| `404 Not Found`             | Resource not found                                   |
+| `413 Payload Too Large`     | Uploaded file exceeds the size limit                 |
+| `500 Internal Server Error` | Unexpected server error                              |
+| `503 Service Unavailable`   | S3 or external service failure                       |
 
 ---
 
@@ -2110,4 +2330,3 @@ false
 - There is no ChatBox/RAG API yet.
 - `ResendOtpResponse.mesage` is currently misspelled according to the existing DTO. If the team wants `message`, the DTO/backend should be updated later.
 - Tag colors should be sent as HEX values such as `#8B5CF6`, `#22C55E`, or `#FFF`.
-

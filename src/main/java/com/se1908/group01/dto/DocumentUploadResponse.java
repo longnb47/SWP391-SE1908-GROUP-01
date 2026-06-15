@@ -14,6 +14,7 @@ public class DocumentUploadResponse {
 	private Long fileSize;
 	private Boolean isPublic;
 	private Boolean isDeleted;
+	private Boolean isStarred;
 	private DocumentStatus status;
 	private Instant uploadedAt;
 	private Instant deletedAt;
@@ -88,6 +89,14 @@ public class DocumentUploadResponse {
 
 	public void setIsDeleted(Boolean isDeleted) {
 		this.isDeleted = isDeleted;
+	}
+
+	public Boolean getIsStarred() {
+		return isStarred;
+	}
+
+	public void setIsStarred(Boolean isStarred) {
+		this.isStarred = isStarred;
 	}
 
 	public DocumentStatus getStatus() {

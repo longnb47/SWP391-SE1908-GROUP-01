@@ -57,6 +57,16 @@ public class DocumentFolderServiceImpl implements DocumentFolderService {
 				.toList();
 	}
 
+	@Transactional(readOnly = true)
+	@Override
+	public List<DocumentFolderResponse> getStarredFolders() {
+		var userId = currentUserService.getCurrentUserId();
+		return documentFolderRepository.findByUserIdAndIsStarredTrueOrderByNameAsc(userId)
+				.stream()
+				.map(this::toResponse)
+				.toList();
+	}
+
 	@Transactional
 	@Override
 	public DocumentFolderResponse updateFolder(Long folderId, DocumentFolderRequest request) {
@@ -68,6 +78,18 @@ public class DocumentFolderServiceImpl implements DocumentFolderService {
 		}
 
 		folder.setName(name);
+		return toResponse(documentFolderRepository.save(folder));
+	}
+
+	@Transactional
+	@Override
+	public DocumentFolderResponse updateStarred(Long folderId, Boolean isStarred) {
+		if (isStarred == null) {
+			throw new IllegalArgumentException("isStarred is required");
+		}
+		var userId = currentUserService.getCurrentUserId();
+		var folder = findOwnedFolder(userId, folderId);
+		folder.setIsStarred(isStarred);
 		return toResponse(documentFolderRepository.save(folder));
 	}
 
@@ -114,6 +136,7 @@ public class DocumentFolderServiceImpl implements DocumentFolderService {
 		response.setFolderId(folder.getFolderId());
 		response.setUserId(folder.getUserId());
 		response.setName(folder.getName());
+		response.setIsStarred(folder.getIsStarred());
 		response.setCreatedAt(folder.getCreatedAt());
 		response.setUpdatedAt(folder.getUpdatedAt());
 		return response;
@@ -130,6 +153,7 @@ public class DocumentFolderServiceImpl implements DocumentFolderService {
 		res.setFileSize(doc.getFileSize());
 		res.setIsPublic(doc.getIsPublic());
 		res.setIsDeleted(doc.getIsDeleted());
+		res.setIsStarred(doc.getIsStarred());
 		res.setStatus(doc.getStatus());
 		res.setUploadedAt(doc.getUploadedAt());
 		res.setDeletedAt(doc.getDeletedAt());
