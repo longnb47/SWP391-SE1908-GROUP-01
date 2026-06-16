@@ -8,4 +8,6 @@ public interface AuthService {
     VerifyOtpResponse verifyOtp(VerifyOtpRequest request);
     GoogleLoginResponse loginWithGoogle(String email, String fullName);
     LoginResponse login(LoginRequest request);
+    RefreshResponse refresh(String rawRefreshToken);
+    void logout(String rawRefreshToken);
 }

@@ -58,6 +58,9 @@ public class DocumentParsingService {
 		if (StringUtils.hasText(contentType) && contentType.toLowerCase().startsWith("image/")) {
 			return extractImage(file);
 		}
+		if (StringUtils.hasText(contentType) && contentType.toLowerCase().startsWith("video/")) {
+			return extractVideoPlaceholder(file);
+		}
 		if (!StringUtils.hasText(ext)) {
 			throw new IllegalArgumentException("Cannot detect file extension");
 		}
@@ -69,6 +72,7 @@ public class DocumentParsingService {
 			case "pptx" -> extractPptx(file);
 			case "xlsx", "xls" -> extractExcel(file);
 			case "png", "jpg", "jpeg", "webp", "gif", "bmp", "tif", "tiff" -> extractImage(file);
+			case "mp4", "mov", "avi", "webm" -> extractVideoPlaceholder(file);
 			default -> throw new IllegalArgumentException("Unsupported file extension for parsing: " + ext);
 		};
 	}
@@ -131,6 +135,10 @@ public class DocumentParsingService {
 			return List.of();
 		}
 		return List.of(new TextSegment("[IMAGE OCR]\n" + ocrText.trim(), null));
+	}
+
+	private static List<TextSegment> extractVideoPlaceholder(MultipartFile file) {
+		return List.of(new TextSegment("[VIDEO] Transcript pending. File: " + file.getOriginalFilename(), null));
 	}
 
 	private static int countImages(PDPage page) throws IOException {

@@ -1,8 +1,12 @@
 package com.se1908.group01.controller;
 
 import com.se1908.group01.dto.ApiResponse;
+import com.se1908.group01.dto.DocumentMoveFolderRequest;
+import com.se1908.group01.dto.DocumentRenameRequest;
 import com.se1908.group01.dto.DocumentUploadResponse;
+import com.se1908.group01.dto.FileAccessUrlResponse;
 import com.se1908.group01.service.DocumentService;
+import jakarta.validation.Valid;
 import java.io.IOException;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -12,6 +16,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -50,10 +55,46 @@ public class DocumentController {
 		return ApiResponse.success("Get my documents successfully", response);
 	}
 
+	@GetMapping("/starred")
+	public ApiResponse<List<DocumentUploadResponse>> getStarredDocuments() {
+		var response = documentService.getStarredDocuments();
+		return ApiResponse.success("Get starred documents successfully", response);
+	}
+
 	@GetMapping("/{documentId}")
 	public ApiResponse<DocumentUploadResponse> getDocumentDetail(@PathVariable Long documentId) {
 		var response = documentService.getDocumentDetail(documentId);
 		return ApiResponse.success("Get document detail successfully", response);
+	}
+
+	@PatchMapping("/{documentId}/rename")
+	public ApiResponse<DocumentUploadResponse> renameDocument(
+			@PathVariable Long documentId,
+			@Valid @RequestBody DocumentRenameRequest request
+	) {
+		var response = documentService.renameDocument(documentId, request.getOriginalFileName());
+		return ApiResponse.success("Rename document successfully", response);
+	}
+
+	@PatchMapping("/{documentId}/folder")
+	public ApiResponse<DocumentUploadResponse> moveDocumentToFolder(
+			@PathVariable Long documentId,
+			@RequestBody DocumentMoveFolderRequest request
+	) {
+		var response = documentService.moveDocumentToFolder(documentId, request.getFolderId());
+		return ApiResponse.success("Move document to folder successfully", response);
+	}
+
+	@GetMapping("/{documentId}/preview-url")
+	public ApiResponse<FileAccessUrlResponse> getPreviewUrl(@PathVariable Long documentId) {
+		var response = documentService.getPreviewUrl(documentId);
+		return ApiResponse.success("Get document preview URL successfully", response);
+	}
+
+	@GetMapping("/{documentId}/download-url")
+	public ApiResponse<FileAccessUrlResponse> getDownloadUrl(@PathVariable Long documentId) {
+		var response = documentService.getDownloadUrl(documentId);
+		return ApiResponse.success("Get document download URL successfully", response);
 	}
 
 	@GetMapping("/public")
@@ -68,6 +109,18 @@ public class DocumentController {
 		return ApiResponse.success("Get public document detail successfully", response);
 	}
 
+	@GetMapping("/public/{documentId}/preview-url")
+	public ApiResponse<FileAccessUrlResponse> getPublicPreviewUrl(@PathVariable Long documentId) {
+		var response = documentService.getPublicPreviewUrl(documentId);
+		return ApiResponse.success("Get public document preview URL successfully", response);
+	}
+
+	@GetMapping("/public/{documentId}/download-url")
+	public ApiResponse<FileAccessUrlResponse> getPublicDownloadUrl(@PathVariable Long documentId) {
+		var response = documentService.getPublicDownloadUrl(documentId);
+		return ApiResponse.success("Get public document download URL successfully", response);
+	}
+
 	@PatchMapping("/{documentId}/visibility")
 	public ApiResponse<DocumentUploadResponse> updateVisibility(
 			@PathVariable Long documentId,
@@ -75,6 +128,15 @@ public class DocumentController {
 	) {
 		var response = documentService.updateVisibility(documentId, isPublic);
 		return ApiResponse.success("Update document visibility successfully", response);
+	}
+
+	@PatchMapping("/{documentId}/star")
+	public ApiResponse<DocumentUploadResponse> updateStarred(
+			@PathVariable Long documentId,
+			@RequestParam("isStarred") Boolean isStarred
+	) {
+		var response = documentService.updateStarred(documentId, isStarred);
+		return ApiResponse.success("Update document starred successfully", response);
 	}
 
 	@DeleteMapping("/{documentId}")

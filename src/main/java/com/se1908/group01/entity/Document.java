@@ -23,6 +23,9 @@ public class Document {
 	@Column(name = "user_id", nullable = false)
 	private Long userId;
 
+	@Column(name = "folder_id")
+	private Long folderId;
+
 	@Column(name = "original_file_name", nullable = false, length = 512)
 	private String originalFileName;
 
@@ -40,6 +43,9 @@ public class Document {
 
 	@Column(name = "is_deleted", nullable = false)
 	private Boolean isDeleted = Boolean.FALSE;
+
+	@Column(name = "is_starred", nullable = false)
+	private Boolean isStarred = Boolean.FALSE;
 
 	@Column(name = "deleted_at")
 	private Instant deletedAt;
@@ -62,6 +68,9 @@ public class Document {
 		if (isDeleted == null) {
 			isDeleted = Boolean.FALSE;
 		}
+		if (isStarred == null) {
+			isStarred = Boolean.FALSE;
+		}
 	}
 
 	public Long getDocumentId() {
@@ -78,6 +87,14 @@ public class Document {
 
 	public void setUserId(Long userId) {
 		this.userId = userId;
+	}
+
+	public Long getFolderId() {
+		return folderId;
+	}
+
+	public void setFolderId(Long folderId) {
+		this.folderId = folderId;
 	}
 
 	public String getOriginalFileName() {
@@ -126,6 +143,14 @@ public class Document {
 
 	public void setIsDeleted(Boolean isDeleted) {
 		this.isDeleted = isDeleted;
+	}
+
+	public Boolean getIsStarred() {
+		return isStarred;
+	}
+
+	public void setIsStarred(Boolean isStarred) {
+		this.isStarred = isStarred;
 	}
 
 	public Instant getDeletedAt() {

@@ -2,9 +2,13 @@ server:
   port: 8080
 
 app:
+  frontend-base-url: ${APP_FRONTEND_BASE_URL:http://localhost:5173}
+  upload:
+    max-video-file-size: ${APP_MAX_VIDEO_FILE_SIZE:52428800}
   jwt:
     secret: ${APP_JWT_SECRET:}
     expiration-ms: ${APP_JWT_EXPIRATION_MS:300000}
+    refresh-expiration-ms: ${APP_JWT_REFRESH_EXPIRATION_MS:604800000}
 
 spring:
   application:
@@ -69,10 +73,12 @@ spring:
 
 aws:
   region: ${AWS_REGION:}
+  transcribe-region: ${AWS_TRANSCRIBE_REGION:}
   s3:
     bucket-name: ${AWS_S3_BUCKET_NAME:}
     key-prefix: ${AWS_S3_KEY_PREFIX:}
     endpoint: ${AWS_S3_ENDPOINT:}
+    presigned-url-expiration-minutes: ${AWS_S3_PRESIGNED_URL_EXPIRATION_MINUTES:10}
 
 ocr:
   tesseract:
