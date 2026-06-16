@@ -43,7 +43,7 @@ public class FileValidationService {
 		var isImage = StringUtils.hasText(contentType) && contentType.toLowerCase().startsWith("image/");
 		var isVideo = isVideoFile(ext, contentType);
 
-		if (!StringUtils.hasText(ext) || (!ALLOWED_DOC_EXTENSIONS.contains(ext) && !isImage && !isVideo)) {
+		if (!StringUtils.hasText(ext) || (!ALLOWED_EXTENSIONS.contains(ext) && !isImage && !isVideo)) {
 			throw new IllegalArgumentException("Unsupported file extension: " + ext);
 		}
 
@@ -52,7 +52,7 @@ public class FileValidationService {
 				throw new IllegalArgumentException("Video file exceeds " + (maxVideoFileSize / 1024 / 1024) + "MB limit");
 			}
 		} else {
-			if (file.getSize() > MAX_DOC_BYTES) {
+			if (file.getSize() > MAX_BYTES) {
 				throw new IllegalArgumentException("File exceeds 20MB limit");
 			}
 		}
