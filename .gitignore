@@ -33,7 +33,7 @@ build/
 .vscode/
 
 # Local env secrets
-.env
+.env.example
 
 # Local scratch / temp
 .docx_extract/
