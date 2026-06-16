@@ -46,7 +46,7 @@ public class DocumentIngestionServiceImpl implements DocumentIngestionService {
 		}
 
 		updateStatus(document, DocumentStatus.PARSING);
-		var segments = parsingService.extractSegments(file);
+		var segments = parsingService.extractSegments(file, document);
 		var chunks = chunkingService.chunk(segments);
 
 		// Replace existing chunks for this document (if any).

@@ -9,9 +9,9 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 public class FileValidationService {
 
-	private static final long MAX_BYTES = 20L * 1024L * 1024L;
+	private static final long MAX_DOC_BYTES = 20L * 1024L * 1024L;
 
-	private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
+	private static final Set<String> ALLOWED_DOC_EXTENSIONS = Set.of(
 			"pdf", "doc", "docx", "pptx", "xls", "xlsx", "png"
 	);
 
@@ -43,7 +43,7 @@ public class FileValidationService {
 		var isImage = StringUtils.hasText(contentType) && contentType.toLowerCase().startsWith("image/");
 		var isVideo = isVideoFile(ext, contentType);
 
-		if (!StringUtils.hasText(ext) || (!ALLOWED_EXTENSIONS.contains(ext) && !isImage && !isVideo)) {
+		if (!StringUtils.hasText(ext) || (!ALLOWED_DOC_EXTENSIONS.contains(ext) && !isImage && !isVideo)) {
 			throw new IllegalArgumentException("Unsupported file extension: " + ext);
 		}
 
@@ -52,7 +52,7 @@ public class FileValidationService {
 				throw new IllegalArgumentException("Video file exceeds " + (maxVideoFileSize / 1024 / 1024) + "MB limit");
 			}
 		} else {
-			if (file.getSize() > MAX_BYTES) {
+			if (file.getSize() > MAX_DOC_BYTES) {
 				throw new IllegalArgumentException("File exceeds 20MB limit");
 			}
 		}
