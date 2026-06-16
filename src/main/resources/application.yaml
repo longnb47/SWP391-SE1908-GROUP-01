@@ -19,8 +19,8 @@ spring:
         write-dates-as-timestamps: false
   servlet:
     multipart:
-      max-file-size: 20MB
-      max-request-size: 20MB
+      max-file-size: ${APP_MAX_MULTIPART_FILE_SIZE:50MB}
+      max-request-size: ${APP_MAX_MULTIPART_REQUEST_SIZE:50MB}
   ai:
     model:
       embedding:
