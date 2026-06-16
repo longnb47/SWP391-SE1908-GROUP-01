@@ -471,7 +471,164 @@ Status: `200 OK`
 
 ---
 
-## 2.8. Recommended frontend token flow
+## 2.8. Forgot password
+
+Send a forgot-password OTP to a local email/password account.
+
+### Request
+
+- Method: `POST`
+- URL: `/api/auth/forgot-password`
+- Auth: No JWT required
+- Content-Type: `application/json`
+
+```json
+{
+  "email": "long@example.com"
+}
+```
+
+### Request fields
+
+| Field   | Type   | Required | Rule                                     |
+| ------- | ------ | -------- | ---------------------------------------- |
+| `email` | string | Yes      | Must not be blank, must be a valid email |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Forgot password OTP sent successfully",
+  "data": {
+    "message": "OTP has been sent to your email.",
+    "email": "long@example.com"
+  },
+  "errors": null,
+  "timestamp": "2026-06-16T10:30:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message              | Reason                                               |
+| ------ | -------------------- | ---------------------------------------------------- |
+| `400`  | `Validation failed`  | Missing or invalid email                             |
+| `400`  | `Validation failed`  | Account does not use password login, for example Google account |
+| `404`  | `Resource not found` | User not found                                       |
+| `500`  | `Unexpected server error` | Mail service or unexpected server error          |
+
+---
+
+## 2.9. Verify forgot-password OTP
+
+Verify the OTP before resetting the password.
+
+### Request
+
+- Method: `POST`
+- URL: `/api/auth/verify-forgot-password-otp`
+- Auth: No JWT required
+- Content-Type: `application/json`
+
+```json
+{
+  "email": "long@example.com",
+  "otp": "123456"
+}
+```
+
+### Request fields
+
+| Field   | Type   | Required | Rule                                     |
+| ------- | ------ | -------- | ---------------------------------------- |
+| `email` | string | Yes      | Must not be blank, must be a valid email |
+| `otp`   | string | Yes      | Exactly 6 characters                     |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Forgot password OTP verified successfully",
+  "data": {
+    "message": "OTP verified successfully. You can reset your password."
+  },
+  "errors": null,
+  "timestamp": "2026-06-16T10:35:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message              | Reason                    |
+| ------ | -------------------- | ------------------------- |
+| `400`  | `Validation failed`  | Missing or invalid email/OTP |
+| `400`  | `Validation failed`  | Invalid OTP               |
+| `400`  | `Validation failed`  | OTP has expired           |
+| `400`  | `Validation failed`  | Too many failed attempts  |
+| `404`  | `Resource not found` | User or OTP not found     |
+
+---
+
+## 2.10. Reset password
+
+Reset the password after the forgot-password OTP has been verified.
+
+### Request
+
+- Method: `POST`
+- URL: `/api/auth/reset-password`
+- Auth: No JWT required
+- Content-Type: `application/json`
+
+```json
+{
+  "email": "long@example.com",
+  "newPassword": "newPassword123"
+}
+```
+
+### Request fields
+
+| Field         | Type   | Required | Rule                                     |
+| ------------- | ------ | -------- | ---------------------------------------- |
+| `email`       | string | Yes      | Must not be blank, must be a valid email |
+| `newPassword` | string | Yes      | Must not be blank, minimum 8 characters  |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Password reset sucessfully",
+  "data": {
+    "message": "Password reset successfully."
+  },
+  "errors": null,
+  "timestamp": "2026-06-16T10:40:00Z"
+}
+```
+
+> Note: the top-level message is currently `Password reset sucessfully` because that is the current message in the codebase.
+
+### Error cases
+
+| Status | Message              | Reason                                   |
+| ------ | -------------------- | ---------------------------------------- |
+| `400`  | `Validation failed`  | Missing or invalid email/newPassword     |
+| `400`  | `Validation failed`  | OTP has not been verified                |
+| `404`  | `Resource not found` | User not found or OTP verification missing |
+
+---
+
+## 2.11. Recommended frontend token flow
 
 ```text
 Login or Google login
@@ -581,7 +738,9 @@ Upload a file to S3, save metadata, and parse/chunk/embed it if supported.
 
 Limits:
 
-- Maximum size: `20MB`.
+- Normal document/image maximum size: `20MB`.
+- Video maximum size: controlled by `APP_MAX_VIDEO_FILE_SIZE`, default `52428800` bytes (`50MB`).
+- Backend multipart limit is controlled by `APP_MAX_MULTIPART_FILE_SIZE` and `APP_MAX_MULTIPART_REQUEST_SIZE`, default `50MB`.
 - Empty files are rejected.
 
 Directly supported extensions:
@@ -593,8 +752,21 @@ Directly supported extensions:
 - `xls`
 - `xlsx`
 - `png`
+- `mp4`
+- `mov`
+- `avi`
+- `webm`
 
 Files whose `Content-Type` starts with `image/` are also accepted.
+Files whose `Content-Type` starts with `video/` are also accepted.
+
+### Upload processing behavior
+
+| File type | Storage | Parsing/indexing behavior |
+| --------- | ------- | ------------------------- |
+| PDF / DOC / DOCX / PPTX / XLS / XLSX | Uploaded to private S3 and metadata saved to database | Text is extracted, chunked, embedded, then saved to `document_chunk` |
+| Image files | Uploaded to private S3 and metadata saved to database | OCR can extract text if Tesseract is enabled; otherwise indexing may fail or produce no useful text |
+| Video files | Uploaded to private S3 and metadata saved to database | Current backend stores a placeholder chunk: `[VIDEO] Transcript pending...`; real video transcription is not implemented yet |
 
 ### Success response
 
@@ -2330,3 +2502,5 @@ false
 - There is no ChatBox/RAG API yet.
 - `ResendOtpResponse.mesage` is currently misspelled according to the existing DTO. If the team wants `message`, the DTO/backend should be updated later.
 - Tag colors should be sent as HEX values such as `#8B5CF6`, `#22C55E`, or `#FFF`.
+- Video upload currently supports storing the video file and metadata, but real transcript extraction is not available yet.
+- For video upload above `20MB`, the backend must run with multipart env values such as `APP_MAX_MULTIPART_FILE_SIZE=50MB` and `APP_MAX_MULTIPART_REQUEST_SIZE=50MB`.
