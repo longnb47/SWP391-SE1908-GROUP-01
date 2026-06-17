@@ -7,6 +7,7 @@ import com.se1908.group01.entity.User;
 import com.se1908.group01.exception.ResourceNotFoundException;
 import com.se1908.group01.repository.UserRepository;
 import com.se1908.group01.service.FriendService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -25,15 +26,37 @@ public class FriendController {
     @PostMapping("/request")
     public ResponseEntity<FriendRequestResponse> sendFriendRequest(
             Authentication authentication,
-            @RequestBody SendFriendRequestRequest request
+            @Valid @RequestBody SendFriendRequestRequest request
     ) {
         Long currentUserId = getCurrentUserId(authentication);
 
         return ResponseEntity.ok(
                 friendService.sendFriendRequest(
                         currentUserId,
-                        request.getReceiverId()
+                        request.getEmail()
                 )
+        );
+    }
+
+    @GetMapping("/requests/incoming")
+    public ResponseEntity<List<FriendRequestResponse>> getIncomingRequests(
+            Authentication authentication
+    ) {
+        Long currentUserId = getCurrentUserId(authentication);
+
+        return ResponseEntity.ok(
+                friendService.getIncomingRequests(currentUserId)
+        );
+    }
+
+    @GetMapping("/requests/outgoing")
+    public ResponseEntity<List<FriendRequestResponse>> getOutgoingRequests(
+            Authentication authentication
+    ) {
+        Long currentUserId = getCurrentUserId(authentication);
+
+        return ResponseEntity.ok(
+                friendService.getOutgoingRequests(currentUserId)
         );
     }
 
@@ -61,6 +84,21 @@ public class FriendController {
 
         return ResponseEntity.ok(
                 friendService.rejectFriendRequest(
+                        requestId,
+                        currentUserId
+                )
+        );
+    }
+
+    @DeleteMapping("/requests/{requestId}/cancel")
+    public ResponseEntity<FriendRequestResponse> cancelFriendRequest(
+            Authentication authentication,
+            @PathVariable Long requestId
+    ) {
+        Long currentUserId = getCurrentUserId(authentication);
+
+        return ResponseEntity.ok(
+                friendService.cancelFriendRequest(
                         requestId,
                         currentUserId
                 )

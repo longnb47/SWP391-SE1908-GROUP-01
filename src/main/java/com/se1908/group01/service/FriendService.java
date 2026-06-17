@@ -7,11 +7,17 @@ import java.util.List;
 
 public interface FriendService {
 
-    FriendRequestResponse sendFriendRequest(Long senderId, Long receiverId);
+    FriendRequestResponse sendFriendRequest(Long senderId, String email);
 
     FriendRequestResponse acceptFriendRequest(Long requestId, Long userId);
 
     FriendRequestResponse rejectFriendRequest(Long requestId, Long userId);
+
+    FriendRequestResponse cancelFriendRequest(Long requestId, Long userId);
+
+    List<FriendRequestResponse> getIncomingRequests(Long userId);
+
+    List<FriendRequestResponse> getOutgoingRequests(Long userId);
 
     void unfriend(Long userId, Long friendId);
 

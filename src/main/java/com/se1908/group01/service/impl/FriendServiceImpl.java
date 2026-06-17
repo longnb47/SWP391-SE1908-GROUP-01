@@ -13,12 +13,14 @@ import com.se1908.group01.repository.UserRepository;
 import com.se1908.group01.service.FriendService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class FriendServiceImpl implements FriendService {
 
     private final UserRepository userRepository;
@@ -27,22 +29,24 @@ public class FriendServiceImpl implements FriendService {
 
 
     @Override
-    public FriendRequestResponse sendFriendRequest(Long senderId, Long receiverId) {
+    public FriendRequestResponse sendFriendRequest(Long senderId, String email) {
+        User receiver = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Receiver not found"));
+
+        Long receiverId = receiver.getUserId();
+
         if (senderId.equals(receiverId)) {
-            throw new IllegalArgumentException("You can not sent friend request to yourself");
+            throw new IllegalArgumentException("You cannot send friend request to yourself");
         }
 
         User sender = userRepository.findById(senderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Sender not found"));
 
-        User receiver = userRepository.findById(receiverId)
-                .orElseThrow(() -> new ResourceNotFoundException("Reciever not found"));
-
         Long user1Id = Math.min(senderId, receiverId);
         Long user2Id = Math.max(senderId, receiverId);
 
         if (friendshipRepository.existsByUser_UserIdAndFriend_UserId(user1Id, user2Id)) {
-            throw new IllegalArgumentException("User are already friends");
+            throw new IllegalArgumentException("Users are already friends");
         }
 
         boolean pendingRequestExists = friendRequestRepository
@@ -80,30 +84,19 @@ public class FriendServiceImpl implements FriendService {
 
     @Override
     public FriendRequestResponse acceptFriendRequest(Long requestId, Long userId) {
-        FriendRequest friendRequest = friendRequestRepository.findById(requestId)
-                .orElseThrow(() -> new ResourceNotFoundException("Friend request not found"));
-
-        if (!friendRequest.getReceiver().getUserId().equals(userId)) {
-            throw new IllegalArgumentException("You are not allowed to accept this request");
-        }
-
-        if (friendRequest.getStatus() != FriendRequestStatus.PENDING) {
-            throw new IllegalArgumentException("Friend request is not pending");
-        }
+        FriendRequest friendRequest = getPendingRequestForReceiver(requestId, userId);
 
         Long senderId = friendRequest.getSender().getUserId();
         Long receiverId = friendRequest.getReceiver().getUserId();
-
         Long user1Id = Math.min(senderId, receiverId);
         Long user2Id = Math.max(senderId, receiverId);
 
         if (friendshipRepository.existsByUser_UserIdAndFriend_UserId(user1Id, user2Id)) {
-            throw new IllegalArgumentException("Users are already firends");
+            throw new IllegalArgumentException("Users are already friends");
         }
 
         User user1 = userRepository.findById(user1Id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
         User user2 = userRepository.findById(user2Id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
@@ -117,35 +110,62 @@ public class FriendServiceImpl implements FriendService {
         friendRequest.setStatus(FriendRequestStatus.ACCEPTED);
         friendRequest.setRespondedAt(LocalDateTime.now());
 
-        return mapToFriendRequestResponse(
-                friendRequestRepository.save(friendRequest)
-        );
+        return mapToFriendRequestResponse(friendRequestRepository.save(friendRequest));
     }
 
     @Override
     public FriendRequestResponse rejectFriendRequest(Long requestId, Long userId) {
+        FriendRequest friendRequest = getPendingRequestForReceiver(requestId, userId);
 
+        friendRequest.setStatus(FriendRequestStatus.REJECTED);
+        friendRequest.setRespondedAt(LocalDateTime.now());
+
+        return mapToFriendRequestResponse(friendRequestRepository.save(friendRequest));
+    }
+
+    @Override
+    public FriendRequestResponse cancelFriendRequest(Long requestId, Long userId) {
         FriendRequest friendRequest = friendRequestRepository.findById(requestId)
                 .orElseThrow(() -> new ResourceNotFoundException("Friend request not found"));
 
-        if (!friendRequest.getReceiver().getUserId().equals(userId)) {
-            throw new IllegalArgumentException("You are not allowed to reject this request");
+        if (!friendRequest.getSender().getUserId().equals(userId)) {
+            throw new IllegalArgumentException("You are not allowed to cancel this request");
         }
 
         if (friendRequest.getStatus() != FriendRequestStatus.PENDING) {
             throw new IllegalArgumentException("Friend request is not pending");
         }
 
-        friendRequest.setStatus(FriendRequestStatus.REJECTED);
+        friendRequest.setStatus(FriendRequestStatus.CANCELLED);
         friendRequest.setRespondedAt(LocalDateTime.now());
 
-        return mapToFriendRequestResponse(
-                friendRequestRepository.save(friendRequest)
-        );
+        return mapToFriendRequestResponse(friendRequestRepository.save(friendRequest));
+    }
+
+    @Override
+    public List<FriendRequestResponse> getIncomingRequests(Long userId) {
+        return friendRequestRepository
+                .findByReceiver_UserIdAndStatusOrderByCreatedAtDesc(userId, FriendRequestStatus.PENDING)
+                .stream()
+                .map(this::mapToFriendRequestResponse)
+                .toList();
+    }
+
+    @Override
+    public List<FriendRequestResponse> getOutgoingRequests(Long userId) {
+        return friendRequestRepository
+                .findBySender_UserIdAndStatusOrderByCreatedAtDesc(userId, FriendRequestStatus.PENDING)
+                .stream()
+                .map(this::mapToFriendRequestResponse)
+                .toList();
     }
 
     @Override
     public void unfriend(Long userId, Long friendId) {
+        if (userId.equals(friendId)) {
+            throw new IllegalArgumentException("You cannot unfriend yourself");
+        }
+
         Long user1Id = Math.min(userId, friendId);
         Long user2Id = Math.max(userId, friendId);
 
@@ -178,6 +198,20 @@ public class FriendServiceImpl implements FriendService {
                 .toList();
     }
 
+    private FriendRequest getPendingRequestForReceiver(Long requestId, Long userId) {
+        FriendRequest friendRequest = friendRequestRepository.findById(requestId)
+                .orElseThrow(() -> new ResourceNotFoundException("Friend request not found"));
+
+        if (!friendRequest.getReceiver().getUserId().equals(userId)) {
+            throw new IllegalArgumentException("You are not allowed to respond to this request");
+        }
+
+        if (friendRequest.getStatus() != FriendRequestStatus.PENDING) {
+            throw new IllegalArgumentException("Friend request is not pending");
+        }
+
+        return friendRequest;
+    }
 
     private FriendRequestResponse mapToFriendRequestResponse(FriendRequest friendRequest) {
         return FriendRequestResponse.builder()
