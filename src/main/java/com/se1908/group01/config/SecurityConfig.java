@@ -51,11 +51,11 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**", "/api/auth/refresh", "/api/auth/logout").permitAll()
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                         .requestMatchers("/api/documents/public", "/api/documents/public/**").permitAll()
-                        .requestMatchers(
-                                "/swagger-ui/**",
-                                "/swagger-ui.html",
-                                "/v3/api-docs/**"
-                        ).permitAll()
+                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
+
+                        // THÊM DÒNG NÀY: Mở khóa hoàn toàn API này để test thô không cần token
+                        .requestMatchers("/api/subscription-plans/**").permitAll()
+
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(exception -> exception
