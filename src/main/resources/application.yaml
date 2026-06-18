@@ -73,12 +73,21 @@ spring:
 
 aws:
   region: ${AWS_REGION:}
-  transcribe-region: ${AWS_TRANSCRIBE_REGION:}
   s3:
     bucket-name: ${AWS_S3_BUCKET_NAME:}
     key-prefix: ${AWS_S3_KEY_PREFIX:}
     endpoint: ${AWS_S3_ENDPOINT:}
     presigned-url-expiration-minutes: ${AWS_S3_PRESIGNED_URL_EXPIRATION_MINUTES:10}
+
+google:
+  speech:
+    project-id: ${GOOGLE_CLOUD_PROJECT_ID:}
+    gcs-bucket-name: ${GOOGLE_SPEECH_GCS_BUCKET:}
+    gcs-key-prefix: ${GOOGLE_SPEECH_GCS_KEY_PREFIX:transcribe-temp/}
+    timeout-seconds: ${GOOGLE_SPEECH_TIMEOUT_SECONDS:600}
+    language-codes:
+      - vi-VN
+      - en-US
 
 ocr:
   tesseract:

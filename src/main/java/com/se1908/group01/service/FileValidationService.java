@@ -29,7 +29,7 @@ public class FileValidationService {
 		if (file.isEmpty() || file.getSize() <= 0) {
 			throw new IllegalArgumentException("File is empty");
 		}
-		if (file.getSize() > MAX_BYTES) {
+		if (file.getSize() > MAX_DOC_BYTES) {
 			throw new IllegalArgumentException("File exceeds 20MB limit");
 		}
 
