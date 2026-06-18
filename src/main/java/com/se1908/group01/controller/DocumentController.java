@@ -1,10 +1,13 @@
 package com.se1908.group01.controller;
 
 import com.se1908.group01.dto.ApiResponse;
+import com.se1908.group01.dto.DocumentShareLinkResponse;
+import com.se1908.group01.dto.DocumentShareResponse;
 import com.se1908.group01.dto.DocumentMoveFolderRequest;
 import com.se1908.group01.dto.DocumentRenameRequest;
 import com.se1908.group01.dto.DocumentUploadResponse;
 import com.se1908.group01.dto.FileAccessUrlResponse;
+import com.se1908.group01.dto.ShareDocumentWithUserRequest;
 import com.se1908.group01.service.DocumentService;
 import jakarta.validation.Valid;
 import java.io.IOException;
@@ -61,6 +64,48 @@ public class DocumentController {
 		return ApiResponse.success("Get starred documents successfully", response);
 	}
 
+	@GetMapping("/share-link/{token}")
+	public ApiResponse<DocumentUploadResponse> getDocumentByShareLink(@PathVariable String token) {
+		var response = documentService.getDocumentByShareLink(token);
+		return ApiResponse.success("Get shared document successfully", response);
+	}
+
+	@GetMapping("/share-link/{token}/preview-url")
+	public ApiResponse<FileAccessUrlResponse> getShareLinkPreviewUrl(@PathVariable String token) {
+		var response = documentService.getShareLinkPreviewUrl(token);
+		return ApiResponse.success("Get shared document preview URL successfully", response);
+	}
+
+	@GetMapping("/share-link/{token}/download-url")
+	public ApiResponse<FileAccessUrlResponse> getShareLinkDownloadUrl(@PathVariable String token) {
+		var response = documentService.getShareLinkDownloadUrl(token);
+		return ApiResponse.success("Get shared document download URL successfully", response);
+	}
+
+	@GetMapping("/shared-with-me")
+	public ApiResponse<List<DocumentUploadResponse>> getSharedWithMeDocuments() {
+		var response = documentService.getSharedWithMeDocuments();
+		return ApiResponse.success("Get documents shared with me successfully", response);
+	}
+
+	@GetMapping("/shared-with-me/{documentId}")
+	public ApiResponse<DocumentUploadResponse> getSharedWithMeDocumentDetail(@PathVariable Long documentId) {
+		var response = documentService.getSharedWithMeDocumentDetail(documentId);
+		return ApiResponse.success("Get shared document detail successfully", response);
+	}
+
+	@GetMapping("/shared-with-me/{documentId}/preview-url")
+	public ApiResponse<FileAccessUrlResponse> getSharedWithMePreviewUrl(@PathVariable Long documentId) {
+		var response = documentService.getSharedWithMePreviewUrl(documentId);
+		return ApiResponse.success("Get shared document preview URL successfully", response);
+	}
+
+	@GetMapping("/shared-with-me/{documentId}/download-url")
+	public ApiResponse<FileAccessUrlResponse> getSharedWithMeDownloadUrl(@PathVariable Long documentId) {
+		var response = documentService.getSharedWithMeDownloadUrl(documentId);
+		return ApiResponse.success("Get shared document download URL successfully", response);
+	}
+
 	@GetMapping("/{documentId}")
 	public ApiResponse<DocumentUploadResponse> getDocumentDetail(@PathVariable Long documentId) {
 		var response = documentService.getDocumentDetail(documentId);
@@ -95,6 +140,36 @@ public class DocumentController {
 	public ApiResponse<FileAccessUrlResponse> getDownloadUrl(@PathVariable Long documentId) {
 		var response = documentService.getDownloadUrl(documentId);
 		return ApiResponse.success("Get document download URL successfully", response);
+	}
+
+	@PostMapping("/{documentId}/share-link")
+	public ApiResponse<DocumentShareLinkResponse> createShareLink(@PathVariable Long documentId) {
+		var response = documentService.createShareLink(documentId);
+		return ApiResponse.success("Create document share link successfully", response);
+	}
+
+	@DeleteMapping("/{documentId}/share-link")
+	public ApiResponse<DocumentShareLinkResponse> disableShareLink(@PathVariable Long documentId) {
+		var response = documentService.disableShareLink(documentId);
+		return ApiResponse.success("Disable document share link successfully", response);
+	}
+
+	@PostMapping("/{documentId}/shares/users")
+	public ApiResponse<DocumentShareResponse> shareDocumentWithUser(
+			@PathVariable Long documentId,
+			@Valid @RequestBody ShareDocumentWithUserRequest request
+	) {
+		var response = documentService.shareDocumentWithUser(documentId, request.getEmail());
+		return ApiResponse.success("Share document with user successfully", response);
+	}
+
+	@DeleteMapping("/{documentId}/shares/users/{userId}")
+	public ApiResponse<Void> removeUserShare(
+			@PathVariable Long documentId,
+			@PathVariable Long userId
+	) {
+		documentService.removeUserShare(documentId, userId);
+		return ApiResponse.success("Remove document share successfully", null);
 	}
 
 	@GetMapping("/public")
