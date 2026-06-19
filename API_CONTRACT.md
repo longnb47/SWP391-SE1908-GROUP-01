@@ -2572,7 +2572,463 @@ Important:
 
 ---
 
-## 7. Common HTTP status codes
+## 7. Friend APIs
+
+Friend APIs allow authenticated users to send, manage, and list friendship relationships.
+
+Private friend APIs require:
+
+```text
+Authorization: Bearer <accessToken>
+```
+
+---
+
+## 7.1. Friend request response object
+
+Friend request APIs return a `FriendRequestResponse` object:
+
+```json
+{
+  "requestId": 1,
+  "senderId": 1,
+  "senderName": "Long Nguyen",
+  "senderEmail": "long@example.com",
+  "receiverId": 2,
+  "receiverName": "Teammate",
+  "receiverEmail": "teammate@example.com",
+  "status": "PENDING",
+  "createdAt": "2026-06-19T10:30:00Z",
+  "respondedAt": null
+}
+```
+
+### Friend request fields
+
+| Field | Type | Description |
+|---|---|---|
+| `requestId` | number | Friend request ID |
+| `senderId` | number | User ID of the sender |
+| `senderName` | string | Full name of the sender |
+| `senderEmail` | string | Email of the sender |
+| `receiverId` | number | User ID of the receiver |
+| `receiverName` | string | Full name of the receiver |
+| `receiverEmail` | string | Email of the receiver |
+| `status` | string | `PENDING`, `ACCEPTED`, `REJECTED`, or `CANCELLED` |
+| `createdAt` | string | Request creation time |
+| `respondedAt` | string / null | Time when the request was accepted, rejected, or cancelled |
+
+---
+
+## 7.2. Friend response object
+
+Friend list APIs return a `FriendResponse` object:
+
+```json
+{
+  "friendshipId": 1,
+  "userId": 2,
+  "fullName": "Teammate",
+  "email": "teammate@example.com",
+  "createdAt": "2026-06-19T10:30:00Z"
+}
+```
+
+### Friend fields
+
+| Field | Type | Description |
+|---|---|---|
+| `friendshipId` | number | Friendship ID |
+| `userId` | number | Friend user ID |
+| `fullName` | string | Friend full name |
+| `email` | string | Friend email |
+| `createdAt` | string | Friendship creation time |
+
+---
+
+## 7.3. Send friend request
+
+Send a friend request to another user by email.
+
+### Request
+
+- Method: `POST`
+- URL: `/api/friends/request`
+- Auth: JWT required
+- Content-Type: `application/json`
+
+```json
+{
+  "email": "teammate@example.com"
+}
+```
+
+### Request fields
+
+| Field | Type | Required | Rule |
+|---|---|---|---|
+| `email` | string | Yes | Must not be blank, must be a valid email |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Send friend request successfully",
+  "data": {
+    "requestId": 1,
+    "senderId": 1,
+    "senderName": "Long Nguyen",
+    "senderEmail": "long@example.com",
+    "receiverId": 2,
+    "receiverName": "Teammate",
+    "receiverEmail": "teammate@example.com",
+    "status": "PENDING",
+    "createdAt": "2026-06-19T10:30:00Z",
+    "respondedAt": null
+  },
+  "errors": null,
+  "timestamp": "2026-06-19T10:30:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Validation failed` | Missing or invalid email |
+| `400` | `Validation failed` | Sending request to yourself, already friends, duplicate pending request, or reverse pending request exists |
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `404` | `Resource not found` | Receiver or sender not found |
+
+---
+
+## 7.4. Get incoming friend requests
+
+Get pending friend requests received by the authenticated user.
+
+### Request
+
+- Method: `GET`
+- URL: `/api/friends/requests/incoming`
+- Auth: JWT required
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Get incoming friend requests successfully",
+  "data": [
+    {
+      "requestId": 1,
+      "senderId": 2,
+      "senderName": "Teammate",
+      "senderEmail": "teammate@example.com",
+      "receiverId": 1,
+      "receiverName": "Long Nguyen",
+      "receiverEmail": "long@example.com",
+      "status": "PENDING",
+      "createdAt": "2026-06-19T10:30:00Z",
+      "respondedAt": null
+    }
+  ],
+  "errors": null,
+  "timestamp": "2026-06-19T10:30:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `401` | `Unauthorized` | Missing or invalid JWT |
+
+---
+
+## 7.5. Get outgoing friend requests
+
+Get pending friend requests sent by the authenticated user.
+
+### Request
+
+- Method: `GET`
+- URL: `/api/friends/requests/outgoing`
+- Auth: JWT required
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Get outgoing friend requests successfully",
+  "data": [
+    {
+      "requestId": 1,
+      "senderId": 1,
+      "senderName": "Long Nguyen",
+      "senderEmail": "long@example.com",
+      "receiverId": 2,
+      "receiverName": "Teammate",
+      "receiverEmail": "teammate@example.com",
+      "status": "PENDING",
+      "createdAt": "2026-06-19T10:30:00Z",
+      "respondedAt": null
+    }
+  ],
+  "errors": null,
+  "timestamp": "2026-06-19T10:30:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `401` | `Unauthorized` | Missing or invalid JWT |
+
+---
+
+## 7.6. Accept friend request
+
+Accept a pending friend request received by the authenticated user.
+
+### Request
+
+- Method: `POST`
+- URL: `/api/friends/requests/{requestId}/accept`
+- Auth: JWT required
+
+### Path variables
+
+| Name | Type | Required |
+|---|---|---|
+| `requestId` | number | Yes |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Accept friend request successfully",
+  "data": {
+    "requestId": 1,
+    "senderId": 2,
+    "senderName": "Teammate",
+    "senderEmail": "teammate@example.com",
+    "receiverId": 1,
+    "receiverName": "Long Nguyen",
+    "receiverEmail": "long@example.com",
+    "status": "ACCEPTED",
+    "createdAt": "2026-06-19T10:30:00Z",
+    "respondedAt": "2026-06-19T10:35:00Z"
+  },
+  "errors": null,
+  "timestamp": "2026-06-19T10:35:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Validation failed` | User is not allowed to respond, request is not pending, or users are already friends |
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `404` | `Resource not found` | Friend request or user not found |
+
+---
+
+## 7.7. Reject friend request
+
+Reject a pending friend request received by the authenticated user.
+
+### Request
+
+- Method: `POST`
+- URL: `/api/friends/requests/{requestId}/reject`
+- Auth: JWT required
+
+### Path variables
+
+| Name | Type | Required |
+|---|---|---|
+| `requestId` | number | Yes |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Reject friend request successfully",
+  "data": {
+    "requestId": 1,
+    "senderId": 2,
+    "senderName": "Teammate",
+    "senderEmail": "teammate@example.com",
+    "receiverId": 1,
+    "receiverName": "Long Nguyen",
+    "receiverEmail": "long@example.com",
+    "status": "REJECTED",
+    "createdAt": "2026-06-19T10:30:00Z",
+    "respondedAt": "2026-06-19T10:35:00Z"
+  },
+  "errors": null,
+  "timestamp": "2026-06-19T10:35:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Validation failed` | User is not allowed to respond or request is not pending |
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `404` | `Resource not found` | Friend request not found |
+
+---
+
+## 7.8. Cancel friend request
+
+Cancel a pending friend request sent by the authenticated user.
+
+### Request
+
+- Method: `DELETE`
+- URL: `/api/friends/requests/{requestId}/cancel`
+- Auth: JWT required
+
+### Path variables
+
+| Name | Type | Required |
+|---|---|---|
+| `requestId` | number | Yes |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Cancel friend request successfully",
+  "data": {
+    "requestId": 1,
+    "senderId": 1,
+    "senderName": "Long Nguyen",
+    "senderEmail": "long@example.com",
+    "receiverId": 2,
+    "receiverName": "Teammate",
+    "receiverEmail": "teammate@example.com",
+    "status": "CANCELLED",
+    "createdAt": "2026-06-19T10:30:00Z",
+    "respondedAt": "2026-06-19T10:35:00Z"
+  },
+  "errors": null,
+  "timestamp": "2026-06-19T10:35:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Validation failed` | User is not allowed to cancel or request is not pending |
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `404` | `Resource not found` | Friend request not found |
+
+---
+
+## 7.9. Unfriend
+
+Remove an existing friendship.
+
+### Request
+
+- Method: `DELETE`
+- URL: `/api/friends/{friendId}`
+- Auth: JWT required
+
+### Path variables
+
+| Name | Type | Required |
+|---|---|---|
+| `friendId` | number | Yes |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Unfriend successfully",
+  "data": null,
+  "errors": null,
+  "timestamp": "2026-06-19T10:40:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Validation failed` | User tries to unfriend themselves |
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `404` | `Resource not found` | Friendship not found |
+
+---
+
+## 7.10. Get friends
+
+Get the authenticated user's friend list.
+
+### Request
+
+- Method: `GET`
+- URL: `/api/friends`
+- Auth: JWT required
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Get friends successfully",
+  "data": [
+    {
+      "friendshipId": 1,
+      "userId": 2,
+      "fullName": "Teammate",
+      "email": "teammate@example.com",
+      "createdAt": "2026-06-19T10:30:00Z"
+    }
+  ],
+  "errors": null,
+  "timestamp": "2026-06-19T10:40:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `401` | `Unauthorized` | Missing or invalid JWT |
+
+---
+
+## 8. Common HTTP status codes
 
 | Status                      | Description                                          |
 | --------------------------- | ---------------------------------------------------- |
@@ -2587,7 +3043,7 @@ Important:
 
 ---
 
-## 8. Frontend notes
+## 9. Frontend notes
 
 - Private APIs do not require `userId`; the backend reads the current user from JWT.
 - After login or Google login, store both `accessToken` and `refreshToken`.

@@ -1,16 +1,13 @@
 package com.se1908.group01.controller;
 
+import com.se1908.group01.dto.ApiResponse;
 import com.se1908.group01.dto.FriendRequestResponse;
 import com.se1908.group01.dto.FriendResponse;
 import com.se1908.group01.dto.SendFriendRequestRequest;
-import com.se1908.group01.entity.User;
-import com.se1908.group01.exception.ResourceNotFoundException;
-import com.se1908.group01.repository.UserRepository;
+import com.se1908.group01.service.CurrentUserService;
 import com.se1908.group01.service.FriendService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,121 +18,80 @@ import java.util.List;
 public class FriendController {
 
     private final FriendService friendService;
-    private final UserRepository userRepository;
+    private final CurrentUserService currentUserService;
 
     @PostMapping("/request")
-    public ResponseEntity<FriendRequestResponse> sendFriendRequest(
-            Authentication authentication,
+    public ApiResponse<FriendRequestResponse> sendFriendRequest(
             @Valid @RequestBody SendFriendRequestRequest request
     ) {
-        Long currentUserId = getCurrentUserId(authentication);
+        Long currentUserId = currentUserService.getCurrentUserId();
 
-        return ResponseEntity.ok(
-                friendService.sendFriendRequest(
-                        currentUserId,
-                        request.getEmail()
-                )
-        );
+        var response = friendService.sendFriendRequest(currentUserId, request.getEmail());
+        return ApiResponse.success("Send friend request successfully", response);
     }
 
     @GetMapping("/requests/incoming")
-    public ResponseEntity<List<FriendRequestResponse>> getIncomingRequests(
-            Authentication authentication
-    ) {
-        Long currentUserId = getCurrentUserId(authentication);
+    public ApiResponse<List<FriendRequestResponse>> getIncomingRequests() {
+        Long currentUserId = currentUserService.getCurrentUserId();
 
-        return ResponseEntity.ok(
-                friendService.getIncomingRequests(currentUserId)
-        );
+        var response = friendService.getIncomingRequests(currentUserId);
+        return ApiResponse.success("Get incoming friend requests successfully", response);
     }
 
     @GetMapping("/requests/outgoing")
-    public ResponseEntity<List<FriendRequestResponse>> getOutgoingRequests(
-            Authentication authentication
-    ) {
-        Long currentUserId = getCurrentUserId(authentication);
+    public ApiResponse<List<FriendRequestResponse>> getOutgoingRequests() {
+        Long currentUserId = currentUserService.getCurrentUserId();
 
-        return ResponseEntity.ok(
-                friendService.getOutgoingRequests(currentUserId)
-        );
+        var response = friendService.getOutgoingRequests(currentUserId);
+        return ApiResponse.success("Get outgoing friend requests successfully", response);
     }
 
     @PostMapping("/requests/{requestId}/accept")
-    public ResponseEntity<FriendRequestResponse> acceptFriendRequest(
-            Authentication authentication,
+    public ApiResponse<FriendRequestResponse> acceptFriendRequest(
             @PathVariable Long requestId
     ) {
-        Long currentUserId = getCurrentUserId(authentication);
+        Long currentUserId = currentUserService.getCurrentUserId();
 
-        return ResponseEntity.ok(
-                friendService.acceptFriendRequest(
-                        requestId,
-                        currentUserId
-                )
-        );
+        var response = friendService.acceptFriendRequest(requestId, currentUserId);
+        return ApiResponse.success("Accept friend request successfully", response);
     }
 
     @PostMapping("/requests/{requestId}/reject")
-    public ResponseEntity<FriendRequestResponse> rejectFriendRequest(
-            Authentication authentication,
+    public ApiResponse<FriendRequestResponse> rejectFriendRequest(
             @PathVariable Long requestId
     ) {
-        Long currentUserId = getCurrentUserId(authentication);
+        Long currentUserId = currentUserService.getCurrentUserId();
 
-        return ResponseEntity.ok(
-                friendService.rejectFriendRequest(
-                        requestId,
-                        currentUserId
-                )
-        );
+        var response = friendService.rejectFriendRequest(requestId, currentUserId);
+        return ApiResponse.success("Reject friend request successfully", response);
     }
 
     @DeleteMapping("/requests/{requestId}/cancel")
-    public ResponseEntity<FriendRequestResponse> cancelFriendRequest(
-            Authentication authentication,
+    public ApiResponse<FriendRequestResponse> cancelFriendRequest(
             @PathVariable Long requestId
     ) {
-        Long currentUserId = getCurrentUserId(authentication);
+        Long currentUserId = currentUserService.getCurrentUserId();
 
-        return ResponseEntity.ok(
-                friendService.cancelFriendRequest(
-                        requestId,
-                        currentUserId
-                )
-        );
+        var response = friendService.cancelFriendRequest(requestId, currentUserId);
+        return ApiResponse.success("Cancel friend request successfully", response);
     }
 
     @DeleteMapping("/{friendId}")
-    public ResponseEntity<Void> unfriend(
-            Authentication authentication,
+    public ApiResponse<Void> unfriend(
             @PathVariable Long friendId
     ) {
-        Long currentUserId = getCurrentUserId(authentication);
+        Long currentUserId = currentUserService.getCurrentUserId();
 
         friendService.unfriend(currentUserId, friendId);
 
-        return ResponseEntity.noContent().build();
+        return ApiResponse.success("Unfriend successfully", null);
     }
 
     @GetMapping
-    public ResponseEntity<List<FriendResponse>> getFriends(
-            Authentication authentication
-    ) {
-        Long currentUserId = getCurrentUserId(authentication);
+    public ApiResponse<List<FriendResponse>> getFriends() {
+        Long currentUserId = currentUserService.getCurrentUserId();
 
-        return ResponseEntity.ok(
-                friendService.getFriends(currentUserId)
-        );
-    }
-
-    private Long getCurrentUserId(Authentication authentication) {
-        String email = authentication.getName();
-
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("User not found")
-                );
-
-        return user.getUserId();
+        var response = friendService.getFriends(currentUserId);
+        return ApiResponse.success("Get friends successfully", response);
     }
 }
