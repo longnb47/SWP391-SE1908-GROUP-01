@@ -471,7 +471,164 @@ Status: `200 OK`
 
 ---
 
-## 2.8. Recommended frontend token flow
+## 2.8. Forgot password
+
+Send a forgot-password OTP to a local email/password account.
+
+### Request
+
+- Method: `POST`
+- URL: `/api/auth/forgot-password`
+- Auth: No JWT required
+- Content-Type: `application/json`
+
+```json
+{
+  "email": "long@example.com"
+}
+```
+
+### Request fields
+
+| Field   | Type   | Required | Rule                                     |
+| ------- | ------ | -------- | ---------------------------------------- |
+| `email` | string | Yes      | Must not be blank, must be a valid email |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Forgot password OTP sent successfully",
+  "data": {
+    "message": "OTP has been sent to your email.",
+    "email": "long@example.com"
+  },
+  "errors": null,
+  "timestamp": "2026-06-16T10:30:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message              | Reason                                               |
+| ------ | -------------------- | ---------------------------------------------------- |
+| `400`  | `Validation failed`  | Missing or invalid email                             |
+| `400`  | `Validation failed`  | Account does not use password login, for example Google account |
+| `404`  | `Resource not found` | User not found                                       |
+| `500`  | `Unexpected server error` | Mail service or unexpected server error          |
+
+---
+
+## 2.9. Verify forgot-password OTP
+
+Verify the OTP before resetting the password.
+
+### Request
+
+- Method: `POST`
+- URL: `/api/auth/verify-forgot-password-otp`
+- Auth: No JWT required
+- Content-Type: `application/json`
+
+```json
+{
+  "email": "long@example.com",
+  "otp": "123456"
+}
+```
+
+### Request fields
+
+| Field   | Type   | Required | Rule                                     |
+| ------- | ------ | -------- | ---------------------------------------- |
+| `email` | string | Yes      | Must not be blank, must be a valid email |
+| `otp`   | string | Yes      | Exactly 6 characters                     |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Forgot password OTP verified successfully",
+  "data": {
+    "message": "OTP verified successfully. You can reset your password."
+  },
+  "errors": null,
+  "timestamp": "2026-06-16T10:35:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message              | Reason                    |
+| ------ | -------------------- | ------------------------- |
+| `400`  | `Validation failed`  | Missing or invalid email/OTP |
+| `400`  | `Validation failed`  | Invalid OTP               |
+| `400`  | `Validation failed`  | OTP has expired           |
+| `400`  | `Validation failed`  | Too many failed attempts  |
+| `404`  | `Resource not found` | User or OTP not found     |
+
+---
+
+## 2.10. Reset password
+
+Reset the password after the forgot-password OTP has been verified.
+
+### Request
+
+- Method: `POST`
+- URL: `/api/auth/reset-password`
+- Auth: No JWT required
+- Content-Type: `application/json`
+
+```json
+{
+  "email": "long@example.com",
+  "newPassword": "newPassword123"
+}
+```
+
+### Request fields
+
+| Field         | Type   | Required | Rule                                     |
+| ------------- | ------ | -------- | ---------------------------------------- |
+| `email`       | string | Yes      | Must not be blank, must be a valid email |
+| `newPassword` | string | Yes      | Must not be blank, minimum 8 characters  |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Password reset sucessfully",
+  "data": {
+    "message": "Password reset successfully."
+  },
+  "errors": null,
+  "timestamp": "2026-06-16T10:40:00Z"
+}
+```
+
+> Note: the top-level message is currently `Password reset sucessfully` because that is the current message in the codebase.
+
+### Error cases
+
+| Status | Message              | Reason                                   |
+| ------ | -------------------- | ---------------------------------------- |
+| `400`  | `Validation failed`  | Missing or invalid email/newPassword     |
+| `400`  | `Validation failed`  | OTP has not been verified                |
+| `404`  | `Resource not found` | User not found or OTP verification missing |
+
+---
+
+## 2.11. Recommended frontend token flow
 
 ```text
 Login or Google login
@@ -581,7 +738,9 @@ Upload a file to S3, save metadata, and parse/chunk/embed it if supported.
 
 Limits:
 
-- Maximum size: `20MB`.
+- Normal document/image maximum size: `20MB`.
+- Video maximum size: controlled by `APP_MAX_VIDEO_FILE_SIZE`, default `52428800` bytes (`50MB`).
+- Backend multipart limit is controlled by `APP_MAX_MULTIPART_FILE_SIZE` and `APP_MAX_MULTIPART_REQUEST_SIZE`, default `50MB`.
 - Empty files are rejected.
 
 Directly supported extensions:
@@ -593,8 +752,21 @@ Directly supported extensions:
 - `xls`
 - `xlsx`
 - `png`
+- `mp4`
+- `mov`
+- `avi`
+- `webm`
 
 Files whose `Content-Type` starts with `image/` are also accepted.
+Files whose `Content-Type` starts with `video/` are also accepted.
+
+### Upload processing behavior
+
+| File type | Storage | Parsing/indexing behavior |
+| --------- | ------- | ------------------------- |
+| PDF / DOC / DOCX / PPTX / XLS / XLSX | Uploaded to private S3 and metadata saved to database | Text is extracted, chunked, embedded, then saved to `document_chunk` |
+| Image files | Uploaded to private S3 and metadata saved to database | OCR can extract text if Tesseract is enabled; otherwise indexing may fail or produce no useful text |
+| Video files | Uploaded to private S3 and metadata saved to database | Current backend stores a placeholder chunk: `[VIDEO] Transcript pending...`; real video transcription is not implemented yet |
 
 ### Success response
 
@@ -2289,7 +2461,118 @@ Status: `200 OK`
 
 ---
 
-## 6. Common HTTP status codes
+## 6. AI Chat APIs
+
+AI chat APIs answer questions from the selected document content using the indexed document chunks.
+
+Private chat APIs require:
+
+```text
+Authorization: Bearer <accessToken>
+```
+
+Current scope:
+
+- Chat works on one selected document per request.
+- The selected document must be accessible by the authenticated user.
+- The selected document must have status `READY`.
+- Retrieval is scoped only to chunks of the selected document.
+- The AI is instructed to answer only from the retrieved document context.
+- Chat session/history persistence is not implemented yet.
+
+---
+
+## 6.1. Ask a question about a document
+
+Ask the AI a question using one selected document as context.
+
+### Request
+
+- Method: `POST`
+- URL: `/api/chat/ask`
+- Auth: JWT required
+- Content-Type: `application/json`
+
+```json
+{
+  "documentId": 1,
+  "question": "What is the main idea of this document?"
+}
+```
+
+### Request fields
+
+| Field | Type | Required | Rule |
+|---|---|---|---|
+| `documentId` | number | Yes | Must point to an accessible document |
+| `question` | string | Yes | Must not be blank |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Ask document successfully",
+  "data": {
+    "documentId": 1,
+    "answer": "The main idea of the document is ...",
+    "sources": [
+      {
+        "chunkId": 10,
+        "chunkIndex": 0,
+        "pageNumber": 1,
+        "score": 0.8732
+      }
+    ]
+  },
+  "errors": null,
+  "timestamp": "2026-06-16T10:30:00Z"
+}
+```
+
+### Response fields
+
+| Field | Type | Description |
+|---|---|---|
+| `documentId` | number | The selected document ID |
+| `answer` | string | AI answer grounded by retrieved chunks |
+| `sources` | array | Retrieved chunks used as context |
+| `sources[].chunkId` | number | Source chunk ID |
+| `sources[].chunkIndex` | number | Chunk order in the document |
+| `sources[].pageNumber` | number / null | Source page number if available |
+| `sources[].score` | number | Cosine similarity score |
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Validation failed` | Missing documentId or blank question |
+| `400` | `Validation failed` | Document is not `READY` |
+| `400` | `Validation failed` | Document has no indexed content for chat |
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `404` | `Resource not found` | Document does not exist or is not accessible |
+| `503` | `Spring AI chat model is not configured...` | Missing Spring AI chat configuration |
+| `503` | `AI service is unavailable` | Gemini/Spring AI call failed |
+
+### Frontend usage
+
+1. Let the user select a document.
+2. Only enable chat when the selected document has status `READY`.
+3. Send the selected `documentId` and the user's question to `/api/chat/ask`.
+4. Render `data.answer`.
+5. Optionally show `data.sources` for debugging or future citation UI.
+
+Important:
+
+- Do not send the full document content from the frontend.
+- Do not call Gemini directly from the frontend.
+- The backend handles embedding, vector search, prompt building, and AI calling.
+
+---
+
+## 7. Common HTTP status codes
 
 | Status                      | Description                                          |
 | --------------------------- | ---------------------------------------------------- |
@@ -2304,7 +2587,7 @@ Status: `200 OK`
 
 ---
 
-## 7. Frontend notes
+## 8. Frontend notes
 
 - Private APIs do not require `userId`; the backend reads the current user from JWT.
 - After login or Google login, store both `accessToken` and `refreshToken`.
@@ -2327,6 +2610,10 @@ false
 - Use preview/download URL APIs to access files from private S3 safely.
 - Pre-signed URLs are temporary. If a URL expires, call the backend again to get a new one.
 - Preview rendering and lazy loading pages are frontend responsibilities.
-- There is no ChatBox/RAG API yet.
+- Use `POST /api/chat/ask` for document-grounded AI chat.
+- Chat currently supports one selected document per request and requires document status `READY`.
+- Chat history/session APIs are not implemented yet.
 - `ResendOtpResponse.mesage` is currently misspelled according to the existing DTO. If the team wants `message`, the DTO/backend should be updated later.
 - Tag colors should be sent as HEX values such as `#8B5CF6`, `#22C55E`, or `#FFF`.
+- Video upload currently supports storing the video file and metadata, but real transcript extraction is not available yet.
+- For video upload above `20MB`, the backend must run with multipart env values such as `APP_MAX_MULTIPART_FILE_SIZE=50MB` and `APP_MAX_MULTIPART_REQUEST_SIZE=50MB`.

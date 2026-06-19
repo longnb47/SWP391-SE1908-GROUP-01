@@ -19,14 +19,20 @@ spring:
         write-dates-as-timestamps: false
   servlet:
     multipart:
-      max-file-size: 20MB
-      max-request-size: 20MB
+      max-file-size: ${APP_MAX_MULTIPART_FILE_SIZE:50MB}
+      max-request-size: ${APP_MAX_MULTIPART_REQUEST_SIZE:50MB}
   ai:
     model:
+      chat: ${SPRING_AI_MODEL_CHAT:none}
       embedding:
         text: ${SPRING_AI_MODEL_EMBEDDING_TEXT:none}
     google:
       genai:
+        api-key: ${GEMINI_API_KEY:}
+        chat:
+          options:
+            model: ${GEMINI_CHAT_MODEL:gemini-2.5-flash}
+            temperature: 0.2
         embedding:
           api-key: ${GEMINI_API_KEY:}
           text:

@@ -1,0 +1,43 @@
+package com.se1908.group01.dto;
+
+import java.util.List;
+
+public class ChatAskResponse {
+
+	private Long documentId;
+	private String answer;
+	private List<ChatSourceResponse> sources;
+
+	public ChatAskResponse() {
+	}
+
+	public ChatAskResponse(Long documentId, String answer, List<ChatSourceResponse> sources) {
+		this.documentId = documentId;
+		this.answer = answer;
+		this.sources = sources;
+	}
+
+	public Long getDocumentId() {
+		return documentId;
+	}
+
+	public void setDocumentId(Long documentId) {
+		this.documentId = documentId;
+	}
+
+	public String getAnswer() {
+		return answer;
+	}
+
+	public void setAnswer(String answer) {
+		this.answer = answer;
+	}
+
+	public List<ChatSourceResponse> getSources() {
+		return sources;
+	}
+
+	public void setSources(List<ChatSourceResponse> sources) {
+		this.sources = sources;
+	}
+}
