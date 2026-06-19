@@ -11,6 +11,7 @@ public class DocumentUploadResponse {
 	private String originalFileName;
 	private String s3Key;
 	private String contentType;
+	private String languageCode;
 	private Long fileSize;
 	private Boolean isPublic;
 	private Boolean isDeleted;
@@ -65,6 +66,14 @@ public class DocumentUploadResponse {
 
 	public void setContentType(String contentType) {
 		this.contentType = contentType;
+	}
+
+	public String getLanguageCode() {
+		return languageCode;
+	}
+
+	public void setLanguageCode(String languageCode) {
+		this.languageCode = languageCode;
 	}
 
 	public Long getFileSize() {

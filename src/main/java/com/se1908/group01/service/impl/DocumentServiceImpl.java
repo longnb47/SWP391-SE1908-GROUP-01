@@ -346,6 +346,7 @@ public class DocumentServiceImpl implements DocumentService {
 		res.setOriginalFileName(doc.getOriginalFileName());
 		res.setS3Key(doc.getS3Key());
 		res.setContentType(doc.getContentType());
+		res.setLanguageCode(doc.getLanguageCode());
 		res.setFileSize(doc.getFileSize());
 		res.setIsPublic(doc.getIsPublic());
 		res.setIsDeleted(doc.getIsDeleted());

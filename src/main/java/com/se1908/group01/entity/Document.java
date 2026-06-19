@@ -35,6 +35,9 @@ public class Document {
 	@Column(name = "content_type", length = 255)
 	private String contentType;
 
+	@Column(name = "language_code", length = 16)
+	private String languageCode;
+
 	@Column(name = "file_size")
 	private Long fileSize;
 
@@ -119,6 +122,14 @@ public class Document {
 
 	public void setContentType(String contentType) {
 		this.contentType = contentType;
+	}
+
+	public String getLanguageCode() {
+		return languageCode;
+	}
+
+	public void setLanguageCode(String languageCode) {
+		this.languageCode = languageCode;
 	}
 
 	public Long getFileSize() {
