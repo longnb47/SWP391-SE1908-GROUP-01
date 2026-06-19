@@ -1,6 +1,8 @@
 package com.se1908.group01.service;
 
 import com.se1908.group01.dto.DocumentUploadResponse;
+import com.se1908.group01.dto.DocumentShareLinkResponse;
+import com.se1908.group01.dto.DocumentShareResponse;
 import com.se1908.group01.dto.FileAccessUrlResponse;
 import java.io.IOException;
 import java.util.List;
@@ -33,6 +35,28 @@ public interface DocumentService {
 	FileAccessUrlResponse getPublicPreviewUrl(Long documentId);
 
 	FileAccessUrlResponse getPublicDownloadUrl(Long documentId);
+
+	DocumentShareLinkResponse createShareLink(Long documentId);
+
+	DocumentShareLinkResponse disableShareLink(Long documentId);
+
+	DocumentUploadResponse getDocumentByShareLink(String token);
+
+	FileAccessUrlResponse getShareLinkPreviewUrl(String token);
+
+	FileAccessUrlResponse getShareLinkDownloadUrl(String token);
+
+	DocumentShareResponse shareDocumentWithUser(Long documentId, String email);
+
+	void removeUserShare(Long documentId, Long userId);
+
+	List<DocumentUploadResponse> getSharedWithMeDocuments();
+
+	DocumentUploadResponse getSharedWithMeDocumentDetail(Long documentId);
+
+	FileAccessUrlResponse getSharedWithMePreviewUrl(Long documentId);
+
+	FileAccessUrlResponse getSharedWithMeDownloadUrl(Long documentId);
 
 	DocumentUploadResponse updateVisibility(Long documentId, Boolean isPublic);
 
