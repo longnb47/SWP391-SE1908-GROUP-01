@@ -28,13 +28,13 @@ spring:
         text: ${SPRING_AI_MODEL_EMBEDDING_TEXT:none}
     google:
       genai:
-        api-key: ${GEMINI_API_KEY:}
+        api-key: ${GEMINI_CHAT_API_KEY:}
         chat:
           options:
             model: ${GEMINI_CHAT_MODEL:gemini-2.5-flash}
             temperature: 0.2
         embedding:
-          api-key: ${GEMINI_API_KEY:}
+          api-key: ${GEMINI_EMBEDDING_API_KEY:}
           text:
             options:
               model: gemini-embedding-001

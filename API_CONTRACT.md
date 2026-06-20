@@ -718,7 +718,7 @@ Document APIs usually return a `DocumentUploadResponse` object:
 
 ## 3.2. Upload document
 
-Upload a file to S3, save metadata, and parse/chunk/embed it if supported.
+Upload a file to S3 and save metadata. Parsing, chunking, and embedding run in a background job after the upload request succeeds.
 
 ### Request
 
@@ -768,6 +768,14 @@ Files whose `Content-Type` starts with `video/` are also accepted.
 | Image files | Uploaded to private S3 and metadata saved to database | OCR can extract text if Tesseract is enabled; otherwise indexing may fail or produce no useful text |
 | Video files | Uploaded to private S3 and metadata saved to database | Current backend stores a placeholder chunk: `[VIDEO] Transcript pending...`; real video transcription is not implemented yet |
 
+Important behavior:
+
+- Upload response returns quickly after S3 upload and metadata save.
+- The returned document status is usually `UPLOADED`.
+- Backend continues processing asynchronously: `UPLOADED` -> `PARSING` -> `INDEXING` -> `READY`.
+- If parsing, embedding, or indexing fails, status becomes `FAILED`.
+- Frontend should poll document detail/list APIs and enable AI chat only when status is `READY`.
+
 ### Success response
 
 Status: `200 OK`
@@ -787,7 +795,7 @@ Status: `200 OK`
     "isPublic": true,
     "isDeleted": false,
     "isStarred": false,
-    "status": "READY",
+    "status": "UPLOADED",
     "uploadedAt": "2026-06-14T10:30:00Z",
     "deletedAt": null
   },

@@ -11,18 +11,22 @@ import com.se1908.group01.repository.DocumentFolderRepository;
 import com.se1908.group01.repository.DocumentRepository;
 import com.se1908.group01.repository.DocumentTagRepository;
 import com.se1908.group01.service.CurrentUserService;
-import com.se1908.group01.service.DocumentIngestionService;
+import com.se1908.group01.service.DocumentIngestionJobService;
 import com.se1908.group01.service.DocumentService;
 import com.se1908.group01.service.FileValidationService;
 import com.se1908.group01.service.S3StorageService;
 import com.se1908.group01.util.FilenameSanitizer;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
@@ -35,7 +39,15 @@ public class DocumentServiceImpl implements DocumentService {
 	private final DocumentFolderRepository documentFolderRepository;
 	private final DocumentChunkRepository documentChunkRepository;
 	private final DocumentTagRepository documentTagRepository;
+<<<<<<< feature/ai-chat
 	private final DocumentIngestionService documentIngestionService;
+=======
+	private final DocumentShareLinkRepository documentShareLinkRepository;
+	private final DocumentShareRepository documentShareRepository;
+	private final FriendshipRepository friendshipRepository;
+	private final UserRepository userRepository;
+	private final DocumentIngestionJobService documentIngestionJobService;
+>>>>>>> local
 	private final CurrentUserService currentUserService;
 
 	public DocumentServiceImpl(
@@ -46,7 +58,15 @@ public class DocumentServiceImpl implements DocumentService {
 			DocumentFolderRepository documentFolderRepository,
 			DocumentChunkRepository documentChunkRepository,
 			DocumentTagRepository documentTagRepository,
+<<<<<<< feature/ai-chat
 			DocumentIngestionService documentIngestionService,
+=======
+			DocumentShareLinkRepository documentShareLinkRepository,
+			DocumentShareRepository documentShareRepository,
+			FriendshipRepository friendshipRepository,
+			UserRepository userRepository,
+			DocumentIngestionJobService documentIngestionJobService,
+>>>>>>> local
 			CurrentUserService currentUserService
 	) {
 		this.fileValidationService = fileValidationService;
@@ -56,7 +76,15 @@ public class DocumentServiceImpl implements DocumentService {
 		this.documentFolderRepository = documentFolderRepository;
 		this.documentChunkRepository = documentChunkRepository;
 		this.documentTagRepository = documentTagRepository;
+<<<<<<< feature/ai-chat
 		this.documentIngestionService = documentIngestionService;
+=======
+		this.documentShareLinkRepository = documentShareLinkRepository;
+		this.documentShareRepository = documentShareRepository;
+		this.friendshipRepository = friendshipRepository;
+		this.userRepository = userRepository;
+		this.documentIngestionJobService = documentIngestionJobService;
+>>>>>>> local
 		this.currentUserService = currentUserService;
 	}
 
@@ -72,6 +100,7 @@ public class DocumentServiceImpl implements DocumentService {
 		s3StorageService.uploadPrivate(file, key);
 
 		Document doc;
+		Path ingestionFile = null;
 		try {
 			doc = new Document();
 			doc.setUserId(userId);
@@ -83,18 +112,14 @@ public class DocumentServiceImpl implements DocumentService {
 			doc.setStatus(DocumentStatus.UPLOADED);
 
 			doc = documentRepository.save(doc);
-			try {
-				documentIngestionService.ingest(doc, file);
-			} catch (RuntimeException | IOException ex) {
-				doc.setStatus(DocumentStatus.FAILED);
-				doc = documentRepository.save(doc);
-			}
-		} catch (RuntimeException ex) {
+			ingestionFile = documentIngestionJobService.copyToTempFile(file);
+			registerIngestionAfterCommit(doc.getDocumentId(), ingestionFile, originalName, file.getContentType());
+		} catch (RuntimeException | IOException ex) {
 			try {
 				s3StorageService.delete(key);
 			} catch (RuntimeException ignored) {
-				// best effort cleanup
 			}
+			deleteTempFileQuietly(ingestionFile);
 			throw ex;
 		}
 
@@ -285,6 +310,42 @@ public class DocumentServiceImpl implements DocumentService {
 
 		var uuid = UUID.randomUUID();
 		return prefix + "documents/" + userId + "/" + uuid + "-" + sanitizedFilename;
+	}
+
+	private void registerIngestionAfterCommit(
+			Long documentId,
+			Path ingestionFile,
+			String originalFilename,
+			String contentType
+	) {
+		if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+			documentIngestionJobService.ingestAsync(documentId, ingestionFile, originalFilename, contentType);
+			return;
+		}
+
+		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+			@Override
+			public void afterCommit() {
+				documentIngestionJobService.ingestAsync(documentId, ingestionFile, originalFilename, contentType);
+			}
+
+			@Override
+			public void afterCompletion(int status) {
+				if (status != STATUS_COMMITTED) {
+					deleteTempFileQuietly(ingestionFile);
+				}
+			}
+		});
+	}
+
+	private void deleteTempFileQuietly(Path filePath) {
+		if (filePath == null) {
+			return;
+		}
+		try {
+			Files.deleteIfExists(filePath);
+		} catch (IOException ignored) {
+		}
 	}
 
 	private Document findOwnedDocument(Long userId, Long documentId) {
