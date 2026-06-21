@@ -93,10 +93,7 @@ google:
     project-id: ${GOOGLE_CLOUD_PROJECT_ID:}
     gcs-bucket-name: ${GOOGLE_SPEECH_GCS_BUCKET:}
     gcs-key-prefix: ${GOOGLE_SPEECH_GCS_KEY_PREFIX:transcribe-temp/}
-    timeout-seconds: ${GOOGLE_SPEECH_TIMEOUT_SECONDS:600}
-    language-codes:
-      - vi-VN
-      - en-US
+    timeout-seconds: ${GOOGLE_SPEECH_TIMEOUT_SECONDS:300}
 
 rag:
   user-storage:
