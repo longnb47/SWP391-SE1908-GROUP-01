@@ -142,7 +142,7 @@ public class VideoTranscriptParser {
 
         // No setEncoding — FLAC from GCS is auto-detected by STT v1
         var config = RecognitionConfig.newBuilder()
-                .setLanguageCode("vi-VN")
+                .setLanguageCode("en-US")
                 .build();
 
         var audio = RecognitionAudio.newBuilder()
