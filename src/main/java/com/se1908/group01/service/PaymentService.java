@@ -1,4 +1,5 @@
 package com.se1908.group01.service;
+
 import com.se1908.group01.dto.PurchaseRequest;
 import com.se1908.group01.entity.Payment;
 import com.se1908.group01.entity.SubscriptionPlan;
@@ -20,50 +21,76 @@ public class PaymentService {
     private final SubscriptionPlanRepository planRepository;
 
     public String purchase(
-            Long userId,
+            String email,
             PurchaseRequest request) {
 
-        User user =
-                userRepository.findById(userId)
-                        .orElseThrow();
+        // Tìm user từ email trong JWT
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new RuntimeException("User not found"));
 
-        SubscriptionPlan plan =
-                planRepository.findById(
-                                request.getPlanId())
-                        .orElseThrow();
+        // Tìm gói đăng ký
+        SubscriptionPlan plan = planRepository
+                .findById(request.getPlanId())
+                .orElseThrow(() ->
+                        new RuntimeException("Subscription plan not found"));
 
-        Payment payment =
-                Payment.builder()
-                        .user(user)
-                        .plan(plan)
-                        .amount(plan.getPrice())
-                        .status(
-                                PaymentStatus.PENDING)
-                        .paymentMethod(
-                                PaymentMethod.valueOf(
-                                        request.getPaymentMethod()))
-                        .build();
-
-        paymentRepository.save(payment);
-
-        if (request.getPaymentMethod()
-                .equalsIgnoreCase("VNPAY")) {
-
-            return createVNPayUrl(payment);
+        // Kiểm tra gói còn hoạt động
+        if (!plan.isActive()) {
+            throw new RuntimeException(
+                    "Subscription plan is no longer available.");
         }
 
-        return createMomoUrl(payment);
+        // Chuyển String -> Enum
+        PaymentMethod paymentMethod;
+
+        try {
+            paymentMethod = PaymentMethod.valueOf(
+                    request.getPaymentMethod().toUpperCase());
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Invalid payment method.");
+        }
+
+        // Tạo payment
+        Payment payment = Payment.builder()
+                .user(user)
+                .plan(plan)
+                .amount(plan.getPrice())
+                .status(PaymentStatus.PENDING)
+                .paymentMethod(paymentMethod)
+                .build();
+
+        payment = paymentRepository.save(payment);
+
+        // Chuyển sang cổng thanh toán tương ứng
+        switch (paymentMethod) {
+
+            case VNPAY:
+                return createVNPayUrl(payment);
+
+            case MOMO:
+                return createMomoUrl(payment);
+
+            default:
+                throw new RuntimeException(
+                        "Payment method not supported.");
+        }
     }
 
     private String createVNPayUrl(
             Payment payment) {
 
-        return "https://sandbox.vnpayment.vn/payment?...";
+        // Sau này thay bằng URL VNPay thật
+        return "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?paymentId="
+                + payment.getId();
     }
 
     private String createMomoUrl(
             Payment payment) {
 
-        return "https://test-payment.momo.vn/...";
+        // Sau này thay bằng URL MoMo thật
+        return "https://test-payment.momo.vn/?paymentId="
+                + payment.getId();
     }
 }
