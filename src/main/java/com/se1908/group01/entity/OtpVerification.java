@@ -42,6 +42,9 @@ public class OtpVerification {
     @Column (name = "create_at", nullable = false)
     private LocalDateTime createdAt;
 
+    @Column (name = "verified")
+    private boolean verified;
+
     @PrePersist
     public void prePersist() {
         if (createdAt == null) {
@@ -51,6 +54,8 @@ public class OtpVerification {
         if (attempts == null) {
             attempts = 0;
         }
+
+        verified = false;
     }
 
 }

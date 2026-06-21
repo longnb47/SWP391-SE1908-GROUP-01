@@ -7,12 +7,15 @@ public class DocumentUploadResponse {
 
 	private Long documentId;
 	private Long userId;
+	private Long folderId;
 	private String originalFileName;
 	private String s3Key;
 	private String contentType;
+	private String languageCode;
 	private Long fileSize;
 	private Boolean isPublic;
 	private Boolean isDeleted;
+	private Boolean isStarred;
 	private DocumentStatus status;
 	private Instant uploadedAt;
 	private Instant deletedAt;
@@ -31,6 +34,14 @@ public class DocumentUploadResponse {
 
 	public void setUserId(Long userId) {
 		this.userId = userId;
+	}
+
+	public Long getFolderId() {
+		return folderId;
+	}
+
+	public void setFolderId(Long folderId) {
+		this.folderId = folderId;
 	}
 
 	public String getOriginalFileName() {
@@ -57,6 +68,14 @@ public class DocumentUploadResponse {
 		this.contentType = contentType;
 	}
 
+	public String getLanguageCode() {
+		return languageCode;
+	}
+
+	public void setLanguageCode(String languageCode) {
+		this.languageCode = languageCode;
+	}
+
 	public Long getFileSize() {
 		return fileSize;
 	}
@@ -79,6 +98,14 @@ public class DocumentUploadResponse {
 
 	public void setIsDeleted(Boolean isDeleted) {
 		this.isDeleted = isDeleted;
+	}
+
+	public Boolean getIsStarred() {
+		return isStarred;
+	}
+
+	public void setIsStarred(Boolean isStarred) {
+		this.isStarred = isStarred;
 	}
 
 	public DocumentStatus getStatus() {

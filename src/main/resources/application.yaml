@@ -14,6 +14,8 @@ spring:
 
   autoconfigure:
     exclude:
+      - org.springframework.ai.model.google.genai.autoconfigure.chat.GoogleGenAiChatAutoConfiguration
+      - org.springframework.ai.model.google.genai.autoconfigure.chat.GoogleGenAiChatConnectionAutoConfiguration
       - org.springframework.ai.model.google.genai.autoconfigure.embedding.GoogleGenAiEmbeddingAutoConfiguration
       - org.springframework.ai.model.google.genai.autoconfigure.embedding.GoogleGenAiEmbeddingConnectionAutoConfiguration
 
@@ -29,22 +31,14 @@ spring:
 
   ai:
     model:
+      chat: none
       embedding:
-        text: ${SPRING_AI_MODEL_EMBEDDING_TEXT:none}
-
-    google:
-      genai:
-        embedding:
-          api-key: ${GEMINI_API_KEY:}
-          text:
-            options:
-              model: gemini-embedding-001
-              task-type: RETRIEVAL_DOCUMENT
+        text: none
 
   datasource:
     url: ${SQLSERVER_DATASOURCE_URL:jdbc:sqlserver://localhost:1433;databaseName=lms_ai;encrypt=true;trustServerCertificate=true}
     username: ${SQLSERVER_DATASOURCE_USERNAME:sa}
-    password: ${SQLSERVER_DATASOURCE_PASSWORD:1}
+    password: ${SQLSERVER_DATASOURCE_PASSWORD:}
     driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
 
   jpa:
@@ -58,8 +52,8 @@ spring:
   mail:
     host: smtp.gmail.com
     port: 587
-    username: ${MAIL_USERNAME:fptuniversitys5@gmail.com  }
-    password: ${MAIL_PASSWORD:xdpz kyye nxln nhyn   }
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
     properties:
       mail:
         smtp:

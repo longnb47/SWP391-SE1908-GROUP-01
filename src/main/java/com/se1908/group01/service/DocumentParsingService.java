@@ -2,6 +2,7 @@ package com.se1908.group01.service;
 
 import com.se1908.group01.config.OcrProperties;
 import com.se1908.group01.dto.TextSegment;
+import com.se1908.group01.entity.Document;
 import com.se1908.group01.util.FileExtensionUtil;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -45,18 +46,24 @@ public class DocumentParsingService {
 
 	private final OcrService ocrService;
 	private final OcrProperties ocrProperties;
+	private final VideoTranscriptParser videoTranscriptParser;
 
-	public DocumentParsingService(OcrService ocrService, OcrProperties ocrProperties) {
+	public DocumentParsingService(OcrService ocrService, OcrProperties ocrProperties,
+			VideoTranscriptParser videoTranscriptParser) {
 		this.ocrService = ocrService;
 		this.ocrProperties = ocrProperties;
+		this.videoTranscriptParser = videoTranscriptParser;
 	}
 
-	public List<TextSegment> extractSegments(MultipartFile file) throws IOException {
+	public List<TextSegment> extractSegments(MultipartFile file, Document document) throws IOException {
 		var filename = file.getOriginalFilename();
 		var ext = FileExtensionUtil.getExtensionLower(filename);
 		var contentType = file.getContentType();
 		if (StringUtils.hasText(contentType) && contentType.toLowerCase().startsWith("image/")) {
 			return extractImage(file);
+		}
+		if (StringUtils.hasText(contentType) && contentType.toLowerCase().startsWith("video/")) {
+			return extractVideo(document, contentType);
 		}
 		if (!StringUtils.hasText(ext)) {
 			throw new IllegalArgumentException("Cannot detect file extension");
@@ -69,8 +76,14 @@ public class DocumentParsingService {
 			case "pptx" -> extractPptx(file);
 			case "xlsx", "xls" -> extractExcel(file);
 			case "png", "jpg", "jpeg", "webp", "gif", "bmp", "tif", "tiff" -> extractImage(file);
+			case "mp4", "mov", "avi", "webm" -> extractVideo(document, contentType);
 			default -> throw new IllegalArgumentException("Unsupported file extension for parsing: " + ext);
 		};
+	}
+
+	private List<TextSegment> extractVideo(Document document, String contentType) {
+		var transcript = videoTranscriptParser.parse(document.getDocumentId(), document.getS3Key(), contentType);
+		return List.of(new TextSegment(transcript, null));
 	}
 
 	private List<TextSegment> extractPdf(MultipartFile file) throws IOException {

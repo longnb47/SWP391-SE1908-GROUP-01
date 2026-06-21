@@ -1,6 +1,7 @@
 package com.se1908.group01.service.impl;
 
 import com.se1908.group01.dto.ChunkData;
+import com.se1908.group01.dto.TextSegment;
 import com.se1908.group01.entity.Document;
 import com.se1908.group01.entity.DocumentChunk;
 import com.se1908.group01.entity.DocumentStatus;
@@ -13,12 +14,15 @@ import com.se1908.group01.service.DocumentParsingService;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class DocumentIngestionServiceImpl implements DocumentIngestionService {
 
+	private static final Logger log = LoggerFactory.getLogger(DocumentIngestionServiceImpl.class);
 	private final DocumentParsingService parsingService;
 	private final DocumentChunkingService chunkingService;
 	private final DocumentEmbeddingService embeddingService;
@@ -46,7 +50,7 @@ public class DocumentIngestionServiceImpl implements DocumentIngestionService {
 		}
 
 		updateStatus(document, DocumentStatus.PARSING);
-		var segments = parsingService.extractSegments(file);
+		var segments = parsingService.extractSegments(file, document);
 		var chunks = chunkingService.chunk(segments);
 
 		// Replace existing chunks for this document (if any).

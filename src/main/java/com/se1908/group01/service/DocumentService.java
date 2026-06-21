@@ -1,6 +1,8 @@
 package com.se1908.group01.service;
 
 import com.se1908.group01.dto.DocumentUploadResponse;
+import com.se1908.group01.dto.DocumentShareLinkResponse;
+import com.se1908.group01.dto.DocumentShareResponse;
 import com.se1908.group01.dto.FileAccessUrlResponse;
 import java.io.IOException;
 import java.util.List;
@@ -14,7 +16,13 @@ public interface DocumentService {
 
 	List<DocumentUploadResponse> getMyDocuments();
 
+	List<DocumentUploadResponse> getStarredDocuments();
+
 	DocumentUploadResponse getDocumentDetail(Long documentId);
+
+	DocumentUploadResponse renameDocument(Long documentId, String originalFileName);
+
+	DocumentUploadResponse moveDocumentToFolder(Long documentId, Long folderId);
 
 	FileAccessUrlResponse getPreviewUrl(Long documentId);
 
@@ -28,7 +36,31 @@ public interface DocumentService {
 
 	FileAccessUrlResponse getPublicDownloadUrl(Long documentId);
 
+	DocumentShareLinkResponse createShareLink(Long documentId);
+
+	DocumentShareLinkResponse disableShareLink(Long documentId);
+
+	DocumentUploadResponse getDocumentByShareLink(String token);
+
+	FileAccessUrlResponse getShareLinkPreviewUrl(String token);
+
+	FileAccessUrlResponse getShareLinkDownloadUrl(String token);
+
+	DocumentShareResponse shareDocumentWithUser(Long documentId, String email);
+
+	void removeUserShare(Long documentId, Long userId);
+
+	List<DocumentUploadResponse> getSharedWithMeDocuments();
+
+	DocumentUploadResponse getSharedWithMeDocumentDetail(Long documentId);
+
+	FileAccessUrlResponse getSharedWithMePreviewUrl(Long documentId);
+
+	FileAccessUrlResponse getSharedWithMeDownloadUrl(Long documentId);
+
 	DocumentUploadResponse updateVisibility(Long documentId, Boolean isPublic);
+
+	DocumentUploadResponse updateStarred(Long documentId, Boolean isStarred);
 
 	List<DocumentUploadResponse> getTrash();
 
