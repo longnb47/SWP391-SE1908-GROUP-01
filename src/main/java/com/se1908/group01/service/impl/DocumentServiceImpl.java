@@ -289,6 +289,33 @@ public class DocumentServiceImpl implements DocumentService {
 
 	@Transactional
 	@Override
+	public DocumentShareResponse saveShareLinkToSharedWithMe(String token) {
+		var userId = currentUserService.getCurrentUserId();
+		var doc = findDocumentByShareLink(token);
+
+		if (doc.getUserId().equals(userId)) {
+			throw new IllegalArgumentException("You already own this document");
+		}
+
+		var existingShare = documentShareRepository
+				.findByDocument_DocumentIdAndSharedWithUser_UserId(doc.getDocumentId(), userId);
+		if (existingShare.isPresent()) {
+			return toDocumentShareResponse(existingShare.get());
+		}
+
+		var sharedWithUser = userRepository.findById(userId)
+				.orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+		var documentShare = new DocumentShare();
+		documentShare.setDocument(doc);
+		documentShare.setOwnerId(doc.getUserId());
+		documentShare.setSharedWithUser(sharedWithUser);
+
+		return toDocumentShareResponse(documentShareRepository.save(documentShare));
+	}
+
+	@Transactional
+	@Override
 	public DocumentShareResponse shareDocumentWithUser(Long documentId, String email) {
 		var ownerId = currentUserService.getCurrentUserId();
 		var doc = findOwnedActiveDocument(ownerId, documentId);
