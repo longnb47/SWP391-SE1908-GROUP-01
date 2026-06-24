@@ -33,6 +33,17 @@ public class DocumentEmbeddingService {
 		this.objectMapper = objectMapper;
 	}
 
+	public String embedQuestion(String question) {
+		if (!StringUtils.hasText(question)) {
+			throw new IllegalArgumentException("Question is required");
+		}
+		var results = embedVectors(List.of(question));
+		if (results.isEmpty()) {
+			throw new IllegalStateException("Failed to embed question");
+		}
+		return results.getFirst();
+	}
+
 	public List<String> embedVectors(List<String> texts) {
 		if (texts == null || texts.isEmpty()) {
 			return List.of();
