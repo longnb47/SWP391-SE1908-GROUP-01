@@ -23,13 +23,21 @@ public class Subscription {
     private LocalDate endDate;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private SubscriptionStatus status;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @ManyToOne
-    @JoinColumn(name = "plan_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "plan_id", nullable = false)
     private SubscriptionPlan plan;
+
+    @PrePersist
+    public void prePersist() {
+        if (status == null) {
+            status = SubscriptionStatus.ACTIVE;
+        }
+    }
 }

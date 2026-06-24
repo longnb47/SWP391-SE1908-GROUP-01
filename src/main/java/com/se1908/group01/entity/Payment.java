@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "payment")
@@ -21,26 +22,45 @@ public class Payment {
 
     private Double amount;
 
-    private String transactionId;
+    @Column(unique = true, nullable = false)
+    private String transactionNo;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private PaymentMethod paymentMethod;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private PaymentStatus status;
 
-    private LocalDateTime paymentTime;
+    private LocalDateTime createdAt;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id")
+    private LocalDateTime paidAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @ManyToOne
-    @JoinColumn(name = "plan_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "plan_id", nullable = false)
     private SubscriptionPlan plan;
 
     @PrePersist
     public void prePersist() {
-        paymentTime = LocalDateTime.now();
+
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+
+        if (transactionNo == null || transactionNo.isBlank()) {
+            transactionNo =
+                    UUID.randomUUID()
+                            .toString()
+                            .replace("-", "");
+        }
+
+        if (status == null) {
+            status = PaymentStatus.PENDING;
+        }
     }
 }

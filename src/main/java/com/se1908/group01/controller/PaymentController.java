@@ -23,11 +23,39 @@ public class PaymentController {
 
         String email = authentication.getName();
 
-        String paymentUrl =
-                paymentService.purchase(
-                        email,
-                        request);
+        String paymentUrl = paymentService.purchase(
+                email,
+                request
+        );
 
         return ResponseEntity.ok(paymentUrl);
+    }
+
+    @PostMapping("/fake-success/{paymentId}")
+    public ResponseEntity<?> fakeSuccess(
+            @PathVariable Long paymentId) {
+
+        paymentService.fakeSuccess(paymentId);
+
+        return ResponseEntity.ok(
+                "Payment completed successfully");
+    }
+
+    @GetMapping("/vnpay-return")
+    public ResponseEntity<?> vnPayReturn(
+
+            @RequestParam("vnp_TxnRef")
+            String transactionNo,
+
+            @RequestParam("vnp_ResponseCode")
+            String responseCode) {
+
+        paymentService.handleVNPayCallback(
+                transactionNo,
+                responseCode
+        );
+
+        return ResponseEntity.ok(
+                "VNPay callback processed successfully");
     }
 }
