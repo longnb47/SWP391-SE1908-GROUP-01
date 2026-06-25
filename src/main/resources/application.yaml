@@ -5,7 +5,7 @@ app:
   frontend-base-url: ${APP_FRONTEND_BASE_URL:http://localhost:5173}
   jwt:
     secret: ${APP_JWT_SECRET:}
-    expiration-ms: ${APP_JWT_EXPIRATION_MS:300000}
+    expiration-ms: ${APP_JWT_EXPIRATION_MS:10000000}
     refresh-expiration-ms: ${APP_JWT_REFRESH_EXPIRATION_MS:604800000}
 
 spring:
@@ -89,3 +89,9 @@ ocr:
     timeout-seconds: ${TESSERACT_TIMEOUT_SECONDS:60}
     pdf-dpi: ${TESSERACT_PDF_DPI:200}
     pdf-text-min-characters: ${TESSERACT_PDF_TEXT_MIN_CHARACTERS:20}
+
+vnpay:
+  tmn-code: FSQXKGP6
+  hash-secret: SQMT8UABTGN824KJACU1XGSWMTHER5CK
+  pay-url: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
+  return-url: https://predefine-bribe-resurrect.ngrok-free.dev/api/payments/vnpay-return

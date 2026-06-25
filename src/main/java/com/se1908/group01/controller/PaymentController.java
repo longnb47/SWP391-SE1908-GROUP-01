@@ -21,24 +21,12 @@ public class PaymentController {
             Authentication authentication,
             @RequestBody PurchaseRequest request) {
 
-        String email = authentication.getName();
-
-        String paymentUrl = paymentService.purchase(
-                email,
-                request
-        );
-
-        return ResponseEntity.ok(paymentUrl);
-    }
-
-    @PostMapping("/fake-success/{paymentId}")
-    public ResponseEntity<?> fakeSuccess(
-            @PathVariable Long paymentId) {
-
-        paymentService.fakeSuccess(paymentId);
-
         return ResponseEntity.ok(
-                "Payment completed successfully");
+                paymentService.purchase(
+                        authentication.getName(),
+                        request
+                )
+        );
     }
 
     @GetMapping("/vnpay-return")
@@ -52,10 +40,39 @@ public class PaymentController {
 
         paymentService.handleVNPayCallback(
                 transactionNo,
-                responseCode
-        );
+                responseCode);
 
         return ResponseEntity.ok(
                 "VNPay callback processed successfully");
+    }
+
+    @GetMapping("/history")
+    public ResponseEntity<?> history(
+            Authentication authentication) {
+
+        return ResponseEntity.ok(
+                paymentService.getMyPaymentHistory(
+                        authentication.getName()
+                )
+        );
+    }
+
+    @GetMapping("/revenue")
+    public ResponseEntity<?> revenue() {
+
+        return ResponseEntity.ok(
+                paymentService.getRevenue()
+        );
+    }
+
+    @GetMapping("/my-subscription")
+    public ResponseEntity<?> mySubscription(
+            Authentication authentication) {
+
+        return ResponseEntity.ok(
+                paymentService.getMySubscription(
+                        authentication.getName()
+                )
+        );
     }
 }

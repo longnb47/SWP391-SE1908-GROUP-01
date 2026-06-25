@@ -5,11 +5,20 @@ import com.se1908.group01.enums.PaymentStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "payment")
+@Table(
+        name = "payment",
+        indexes = {
+                @Index(
+                        name = "idx_payment_txn",
+                        columnList = "transactionNo"
+                )
+        }
+)
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -20,10 +29,12 @@ public class Payment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Double amount;
+    private BigDecimal amount;
 
-    @Column(unique = true, nullable = false)
+    @Column(unique = true, nullable = false, length = 50)
     private String transactionNo;
+
+    private String vnpTransactionNo;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -36,6 +47,9 @@ public class Payment {
     private LocalDateTime createdAt;
 
     private LocalDateTime paidAt;
+
+    @Column(length = 500)
+    private String paymentNote;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -53,10 +67,9 @@ public class Payment {
         }
 
         if (transactionNo == null || transactionNo.isBlank()) {
-            transactionNo =
-                    UUID.randomUUID()
-                            .toString()
-                            .replace("-", "");
+            transactionNo = UUID.randomUUID()
+                    .toString()
+                    .replace("-", "");
         }
 
         if (status == null) {
