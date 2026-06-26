@@ -1,6 +1,7 @@
 package com.se1908.group01.repository;
 
 import com.se1908.group01.entity.Document;
+import com.se1908.group01.entity.DocumentStatus;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.Modifying;
@@ -29,4 +30,21 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
 	@Modifying
 	@Query("update Document d set d.folderId = null where d.userId = :userId and d.folderId = :folderId")
 	void clearFolderForUser(@Param("userId") Long userId, @Param("folderId") Long folderId);
+
+	@Query("SELECT d FROM Document d WHERE d.documentId IN :documentIds AND d.isDeleted = false AND d.status = :status AND (d.userId = :userId OR d.isPublic = true)")
+	List<Document> findAccessibleDocumentsByIdsAndStatus(
+			@Param("documentIds") List<Long> documentIds,
+			@Param("userId") Long userId,
+			@Param("status") DocumentStatus status);
+
+	@Query("SELECT d FROM Document d WHERE d.isDeleted = false AND d.status = :status AND (d.userId = :userId OR d.isPublic = true)")
+	List<Document> findAllAccessibleDocumentsByStatus(
+			@Param("userId") Long userId,
+			@Param("status") DocumentStatus status);
+
+	@Query("SELECT d FROM Document d WHERE d.folderId = :folderId AND d.isDeleted = false AND d.status = :status AND (d.userId = :userId OR d.isPublic = true)")
+	List<Document> findAccessibleDocumentsByFolderAndStatus(
+			@Param("userId") Long userId,
+			@Param("folderId") Long folderId,
+			@Param("status") DocumentStatus status);
 }

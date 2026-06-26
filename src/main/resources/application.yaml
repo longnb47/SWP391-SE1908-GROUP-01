@@ -95,6 +95,10 @@ google:
       - vi-VN
       - en-US
 
+rag:
+  user-storage:
+    allow-general-knowledge: false
+
 ocr:
   tesseract:
     enabled: ${TESSERACT_ENABLED:false}

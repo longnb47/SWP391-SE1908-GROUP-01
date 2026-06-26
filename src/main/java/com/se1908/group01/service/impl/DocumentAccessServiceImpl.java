@@ -5,6 +5,8 @@ import com.se1908.group01.entity.DocumentStatus;
 import com.se1908.group01.exception.ResourceNotFoundException;
 import com.se1908.group01.repository.DocumentRepository;
 import com.se1908.group01.service.DocumentAccessService;
+import java.util.List;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -31,5 +33,21 @@ public class DocumentAccessServiceImpl implements DocumentAccessService {
 		}
 
 		return document;
+	}
+
+	@Override
+	public List<Document> getReadyDocumentsForChat(Long userId, List<Long> documentIds) {
+		if (documentIds == null || documentIds.isEmpty()) {
+			throw new IllegalArgumentException("Document IDs are required for SelectedDocuments mode");
+		}
+		return documentRepository.findAccessibleDocumentsByIdsAndStatus(documentIds, userId, DocumentStatus.READY);
+	}
+
+	@Override
+	public List<Document> getAllReadyDocumentsForUser(Long userId, @Nullable Long folderId) {
+		if (folderId != null) {
+			return documentRepository.findAccessibleDocumentsByFolderAndStatus(userId, folderId, DocumentStatus.READY);
+		}
+		return documentRepository.findAllAccessibleDocumentsByStatus(userId, DocumentStatus.READY);
 	}
 }

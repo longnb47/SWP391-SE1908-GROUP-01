@@ -4,10 +4,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.se1908.group01.dto.RetrievedChunk;
 import com.se1908.group01.entity.DocumentChunk;
+import com.se1908.group01.entity.DocumentStatus;
 import com.se1908.group01.repository.DocumentChunkRepository;
 import com.se1908.group01.service.VectorSearchService;
 import java.util.Comparator;
 import java.util.List;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -34,6 +36,40 @@ public class VectorSearchServiceImpl implements VectorSearchService {
 		var queryVector = parseVector(queryEmbeddingVector);
 		return documentChunkRepository.findByDocumentDocumentIdOrderByChunkIndexAsc(documentId)
 				.stream()
+				.map(chunk -> score(chunk, queryVector))
+				.filter(result -> result != null)
+				.sorted(Comparator.comparingDouble(RetrievedChunk::getScore).reversed())
+				.limit(Math.max(1, limit))
+				.toList();
+	}
+
+	@Override
+	public List<RetrievedChunk> search(
+			String queryEmbeddingVector,
+			@Nullable List<Long> documentIds,
+			@Nullable Long userId,
+			@Nullable Long folderId,
+			int limit
+	) {
+		if (!StringUtils.hasText(queryEmbeddingVector)) {
+			throw new IllegalArgumentException("Query embedding vector is required");
+		}
+		if ((documentIds == null || documentIds.isEmpty()) && userId == null) {
+			throw new IllegalArgumentException("Either documentIds or userId must be provided");
+		}
+
+		var queryVector = parseVector(queryEmbeddingVector);
+		List<DocumentChunk> chunks;
+
+		if (documentIds != null && !documentIds.isEmpty()) {
+			chunks = documentChunkRepository.findByDocumentIds(documentIds);
+		} else if (folderId != null) {
+			chunks = documentChunkRepository.findChunksByUserAndFolderAccessible(userId, folderId, DocumentStatus.READY);
+		} else {
+			chunks = documentChunkRepository.findChunksByUserAccessible(userId, DocumentStatus.READY);
+		}
+
+		return chunks.stream()
 				.map(chunk -> score(chunk, queryVector))
 				.filter(result -> result != null)
 				.sorted(Comparator.comparingDouble(RetrievedChunk::getScore).reversed())
