@@ -1,5 +1,6 @@
 package com.se1908.group01.service.impl;
 
+import com.se1908.group01.config.RagProperties;
 import com.se1908.group01.dto.MultiChatAskRequest;
 import com.se1908.group01.dto.MultiChatAskResponse;
 import com.se1908.group01.dto.RetrievedChunk;
@@ -9,6 +10,7 @@ import com.se1908.group01.enums.KnowledgePolicy;
 import com.se1908.group01.service.CurrentUserService;
 import com.se1908.group01.service.DocumentAccessService;
 import com.se1908.group01.service.DocumentEmbeddingService;
+import com.se1908.group01.service.LlmClient;
 import com.se1908.group01.service.MultiChatService;
 import com.se1908.group01.service.PromptBuilderService;
 import com.se1908.group01.service.VectorSearchService;
@@ -25,19 +27,25 @@ public class MultiChatServiceImpl implements MultiChatService {
 	private final DocumentEmbeddingService documentEmbeddingService;
 	private final VectorSearchService vectorSearchService;
 	private final PromptBuilderService promptBuilderService;
+	private final LlmClient llmClient;
+	private final RagProperties ragProperties;
 
 	public MultiChatServiceImpl(
 			DocumentAccessService documentAccessService,
 			CurrentUserService currentUserService,
 			DocumentEmbeddingService documentEmbeddingService,
 			VectorSearchService vectorSearchService,
-			PromptBuilderService promptBuilderService
+			PromptBuilderService promptBuilderService,
+			LlmClient llmClient,
+			RagProperties ragProperties
 	) {
 		this.documentAccessService = documentAccessService;
 		this.currentUserService = currentUserService;
 		this.documentEmbeddingService = documentEmbeddingService;
 		this.vectorSearchService = vectorSearchService;
 		this.promptBuilderService = promptBuilderService;
+		this.llmClient = llmClient;
+		this.ragProperties = ragProperties;
 	}
 
 	@Override
@@ -56,13 +64,15 @@ public class MultiChatServiceImpl implements MultiChatService {
 			documents = documentAccessService.getAllReadyDocumentsForUser(userId, request.getFolderId());
 		}
 
-		if (documents.isEmpty()) {
-			return new MultiChatAskResponse(noContextMessage(chatMode));
-		}
+		var policy = resolveKnowledgePolicy(request, chatMode);
 
 		var resolvedDocumentIds = documents.stream()
 				.map(Document::getDocumentId)
 				.toList();
+
+		if (documents.isEmpty()) {
+			return new MultiChatAskResponse(noContextMessage(chatMode), chatMode.name(), policy, List.of());
+		}
 
 		var questionEmbeddingVector = documentEmbeddingService.embedQuestion(request.getQuestion());
 
@@ -75,16 +85,29 @@ public class MultiChatServiceImpl implements MultiChatService {
 		}
 
 		if (chunks.isEmpty()) {
-			return new MultiChatAskResponse(noContextMessage(chatMode));
+			return new MultiChatAskResponse(noContextMessage(chatMode), chatMode.name(), policy, resolvedDocumentIds);
 		}
 
 		var context = buildContext(chunks);
+		var prompt = promptBuilderService.buildMultiDocumentQuestionPrompt(chatMode, policy, context, request.getQuestion());
+		var answer = llmClient.generateAnswer(prompt);
 
-		// Phase 5 (dev): build prompt and return as answer for inspection — LLM not called yet
-		var prompt = promptBuilderService.buildMultiDocumentQuestionPrompt(
-				chatMode, KnowledgePolicy.DOCUMENTS_ONLY, context, request.getQuestion());
+		var usedDocumentIds = chunks.stream()
+				.map(rc -> rc.getChunk().getDocument().getDocumentId())
+				.distinct()
+				.toList();
 
-		return new MultiChatAskResponse(prompt);
+		return new MultiChatAskResponse(answer, chatMode.name(), policy, usedDocumentIds);
+	}
+
+	private KnowledgePolicy resolveKnowledgePolicy(MultiChatAskRequest request, ChatMode chatMode) {
+		if (chatMode == ChatMode.SELECTED_DOCUMENTS) {
+			return KnowledgePolicy.DOCUMENTS_ONLY;
+		}
+		boolean effective = (request.getUseGeneralKnowledge() != null)
+				? request.getUseGeneralKnowledge()
+				: ragProperties.getUserStorage().isAllowGeneralKnowledge();
+		return effective ? KnowledgePolicy.DOCUMENTS_PLUS_GENERAL : KnowledgePolicy.DOCUMENTS_ONLY;
 	}
 
 	private String noContextMessage(ChatMode mode) {
