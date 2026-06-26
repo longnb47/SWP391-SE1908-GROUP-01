@@ -661,6 +661,9 @@ Current public document APIs:
 
 - `GET /api/documents/public`
 - `GET /api/documents/public/{documentId}`
+- `GET /api/documents/share-link/{token}`
+- `GET /api/documents/share-link/{token}/preview-url`
+- `GET /api/documents/share-link/{token}/download-url`
 
 ---
 
@@ -1679,6 +1682,613 @@ Status: `200 OK`
 
 ---
 
+## 3.12. Share document APIs
+
+Document sharing supports two flows:
+
+1. Share by public token link.
+2. Share directly with another user by email.
+
+Private share management APIs require:
+
+```text
+Authorization: Bearer <accessToken>
+```
+
+Share-link read APIs are public because anyone with the valid token can access the shared document.
+
+---
+
+## 3.12.1. Document share link response object
+
+Share link APIs return a `DocumentShareLinkResponse` object:
+
+```json
+{
+  "shareLinkId": 1,
+  "documentId": 1,
+  "token": "c1a2b3token",
+  "accessPath": "/api/documents/share-link/c1a2b3token",
+  "enabled": true,
+  "expiresAt": null,
+  "createdAt": "2026-06-19T10:30:00Z"
+}
+```
+
+### Share link fields
+
+| Field | Type | Description |
+|---|---|---|
+| `shareLinkId` | number | Share link ID |
+| `documentId` | number | Shared document ID |
+| `token` | string | Random share token |
+| `accessPath` | string | Backend path for opening the shared document |
+| `enabled` | boolean | Whether the share link is currently active |
+| `expiresAt` | string / null | Expiration time; currently may be `null` |
+| `createdAt` | string | Share link creation time |
+
+---
+
+## 3.12.2. Document user share response object
+
+User share APIs return a `DocumentShareResponse` object:
+
+```json
+{
+  "documentShareId": 1,
+  "documentId": 1,
+  "ownerId": 1,
+  "sharedWithUserId": 2,
+  "sharedWithEmail": "friend@example.com",
+  "sharedWithName": "Friend User",
+  "createdAt": "2026-06-19T10:30:00Z"
+}
+```
+
+### User share fields
+
+| Field | Type | Description |
+|---|---|---|
+| `documentShareId` | number | Document share record ID |
+| `documentId` | number | Shared document ID |
+| `ownerId` | number | Owner user ID |
+| `sharedWithUserId` | number | User ID of the receiver |
+| `sharedWithEmail` | string | Email of the receiver |
+| `sharedWithName` | string | Full name of the receiver |
+| `createdAt` | string | Share creation time |
+
+---
+
+## 3.12.3. Create document share link
+
+Create or reuse an active share link for an owned active document.
+
+### Request
+
+- Method: `POST`
+- URL: `/api/documents/{documentId}/share-link`
+- Auth: JWT required
+
+### Path variables
+
+| Name | Type | Required |
+|---|---|---|
+| `documentId` | number | Yes |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Create document share link successfully",
+  "data": {
+    "shareLinkId": 1,
+    "documentId": 1,
+    "token": "c1a2b3token",
+    "accessPath": "/api/documents/share-link/c1a2b3token",
+    "enabled": true,
+    "expiresAt": null,
+    "createdAt": "2026-06-19T10:30:00Z"
+  },
+  "errors": null,
+  "timestamp": "2026-06-19T10:30:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `404` | `Resource not found` | Document does not exist, does not belong to the user, or was soft-deleted |
+
+---
+
+## 3.12.4. Disable document share link
+
+Disable the active share link of an owned active document.
+
+### Request
+
+- Method: `DELETE`
+- URL: `/api/documents/{documentId}/share-link`
+- Auth: JWT required
+
+### Path variables
+
+| Name | Type | Required |
+|---|---|---|
+| `documentId` | number | Yes |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Disable document share link successfully",
+  "data": {
+    "shareLinkId": 1,
+    "documentId": 1,
+    "token": "c1a2b3token",
+    "accessPath": "/api/documents/share-link/c1a2b3token",
+    "enabled": false,
+    "expiresAt": null,
+    "createdAt": "2026-06-19T10:30:00Z"
+  },
+  "errors": null,
+  "timestamp": "2026-06-19T10:35:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `404` | `Resource not found` | Document or active share link not found |
+
+---
+
+## 3.12.5. Get document by share link
+
+Get shared document metadata using a share token.
+
+### Request
+
+- Method: `GET`
+- URL: `/api/documents/share-link/{token}`
+- Auth: Public, no JWT required
+
+### Path variables
+
+| Name | Type | Required |
+|---|---|---|
+| `token` | string | Yes |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Get shared document successfully",
+  "data": {
+    "documentId": 1,
+    "userId": 1,
+    "folderId": null,
+    "originalFileName": "shared-file.pdf",
+    "s3Key": "documents/1/uuid-shared-file.pdf",
+    "contentType": "application/pdf",
+    "fileSize": 123456,
+    "isPublic": false,
+    "isDeleted": false,
+    "isStarred": false,
+    "status": "READY",
+    "uploadedAt": "2026-06-19T10:00:00Z",
+    "deletedAt": null
+  },
+  "errors": null,
+  "timestamp": "2026-06-19T10:40:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Validation failed` | Missing token |
+| `404` | `Resource not found` | Share link not found, disabled, expired, or document was soft-deleted |
+
+---
+
+## 3.12.6. Get share-link preview URL
+
+Get a temporary pre-signed URL for previewing a document by share token.
+
+### Request
+
+- Method: `GET`
+- URL: `/api/documents/share-link/{token}/preview-url`
+- Auth: Public, no JWT required
+
+### Path variables
+
+| Name | Type | Required |
+|---|---|---|
+| `token` | string | Yes |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Get shared document preview URL successfully",
+  "data": {
+    "url": "https://s3-presigned-url",
+    "expiresAt": "2026-06-19T10:50:00Z",
+    "fileName": "shared-file.pdf",
+    "contentType": "application/pdf"
+  },
+  "errors": null,
+  "timestamp": "2026-06-19T10:40:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Validation failed` | Missing token |
+| `404` | `Resource not found` | Share link not found, disabled, expired, or document was soft-deleted |
+| `500` | `Request failed` | S3 pre-signer is not configured |
+
+---
+
+## 3.12.7. Get share-link download URL
+
+Get a temporary pre-signed URL for downloading a document by share token.
+
+### Request
+
+- Method: `GET`
+- URL: `/api/documents/share-link/{token}/download-url`
+- Auth: Public, no JWT required
+
+### Path variables
+
+| Name | Type | Required |
+|---|---|---|
+| `token` | string | Yes |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Get shared document download URL successfully",
+  "data": {
+    "url": "https://s3-presigned-url",
+    "expiresAt": "2026-06-19T10:50:00Z",
+    "fileName": "shared-file.pdf",
+    "contentType": "application/pdf"
+  },
+  "errors": null,
+  "timestamp": "2026-06-19T10:40:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Validation failed` | Missing token |
+| `404` | `Resource not found` | Share link not found, disabled, expired, or document was soft-deleted |
+| `500` | `Request failed` | S3 pre-signer is not configured |
+
+---
+
+## 3.12.8. Share document with user
+
+Share an owned active document with another user by email. The receiver must already be a friend.
+
+### Request
+
+- Method: `POST`
+- URL: `/api/documents/{documentId}/shares/users`
+- Auth: JWT required
+- Content-Type: `application/json`
+
+```json
+{
+  "email": "friend@example.com"
+}
+```
+
+### Path variables
+
+| Name | Type | Required |
+|---|---|---|
+| `documentId` | number | Yes |
+
+### Request fields
+
+| Field | Type | Required | Rule |
+|---|---|---|---|
+| `email` | string | Yes | Must not be blank, must be a valid email |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Share document with user successfully",
+  "data": {
+    "documentShareId": 1,
+    "documentId": 1,
+    "ownerId": 1,
+    "sharedWithUserId": 2,
+    "sharedWithEmail": "friend@example.com",
+    "sharedWithName": "Friend User",
+    "createdAt": "2026-06-19T10:45:00Z"
+  },
+  "errors": null,
+  "timestamp": "2026-06-19T10:45:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Validation failed` | Missing or invalid email |
+| `400` | `Validation failed` | Sharing with yourself, receiver is not a friend, or document already shared with this user |
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `404` | `Resource not found` | Document or receiver user not found |
+
+---
+
+## 3.12.9. Remove user share
+
+Remove a direct document share from a user.
+
+### Request
+
+- Method: `DELETE`
+- URL: `/api/documents/{documentId}/shares/users/{userId}`
+- Auth: JWT required
+
+### Path variables
+
+| Name | Type | Required |
+|---|---|---|
+| `documentId` | number | Yes |
+| `userId` | number | Yes |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Remove document share successfully",
+  "data": null,
+  "errors": null,
+  "timestamp": "2026-06-19T10:50:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `404` | `Resource not found` | Document or document share not found |
+
+---
+
+## 3.12.10. Get documents shared with me
+
+Get active documents directly shared with the authenticated user.
+
+### Request
+
+- Method: `GET`
+- URL: `/api/documents/shared-with-me`
+- Auth: JWT required
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Get documents shared with me successfully",
+  "data": [
+    {
+      "documentId": 1,
+      "userId": 1,
+      "folderId": null,
+      "originalFileName": "shared-file.pdf",
+      "s3Key": "documents/1/uuid-shared-file.pdf",
+      "contentType": "application/pdf",
+      "fileSize": 123456,
+      "isPublic": false,
+      "isDeleted": false,
+      "isStarred": false,
+      "status": "READY",
+      "uploadedAt": "2026-06-19T10:00:00Z",
+      "deletedAt": null
+    }
+  ],
+  "errors": null,
+  "timestamp": "2026-06-19T10:55:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `401` | `Unauthorized` | Missing or invalid JWT |
+
+---
+
+## 3.12.11. Get shared-with-me document detail
+
+Get detail of an active document directly shared with the authenticated user.
+
+### Request
+
+- Method: `GET`
+- URL: `/api/documents/shared-with-me/{documentId}`
+- Auth: JWT required
+
+### Path variables
+
+| Name | Type | Required |
+|---|---|---|
+| `documentId` | number | Yes |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Get shared document detail successfully",
+  "data": {
+    "documentId": 1,
+    "userId": 1,
+    "folderId": null,
+    "originalFileName": "shared-file.pdf",
+    "s3Key": "documents/1/uuid-shared-file.pdf",
+    "contentType": "application/pdf",
+    "fileSize": 123456,
+    "isPublic": false,
+    "isDeleted": false,
+    "isStarred": false,
+    "status": "READY",
+    "uploadedAt": "2026-06-19T10:00:00Z",
+    "deletedAt": null
+  },
+  "errors": null,
+  "timestamp": "2026-06-19T10:55:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `404` | `Resource not found` | Shared document not found or was soft-deleted |
+
+---
+
+## 3.12.12. Get shared-with-me preview URL
+
+Get a temporary pre-signed URL for previewing a document directly shared with the authenticated user.
+
+### Request
+
+- Method: `GET`
+- URL: `/api/documents/shared-with-me/{documentId}/preview-url`
+- Auth: JWT required
+
+### Path variables
+
+| Name | Type | Required |
+|---|---|---|
+| `documentId` | number | Yes |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Get shared document preview URL successfully",
+  "data": {
+    "url": "https://s3-presigned-url",
+    "expiresAt": "2026-06-19T11:05:00Z",
+    "fileName": "shared-file.pdf",
+    "contentType": "application/pdf"
+  },
+  "errors": null,
+  "timestamp": "2026-06-19T10:55:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `404` | `Resource not found` | Shared document not found or was soft-deleted |
+| `500` | `Request failed` | S3 pre-signer is not configured |
+
+---
+
+## 3.12.13. Get shared-with-me download URL
+
+Get a temporary pre-signed URL for downloading a document directly shared with the authenticated user.
+
+### Request
+
+- Method: `GET`
+- URL: `/api/documents/shared-with-me/{documentId}/download-url`
+- Auth: JWT required
+
+### Path variables
+
+| Name | Type | Required |
+|---|---|---|
+| `documentId` | number | Yes |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Get shared document download URL successfully",
+  "data": {
+    "url": "https://s3-presigned-url",
+    "expiresAt": "2026-06-19T11:05:00Z",
+    "fileName": "shared-file.pdf",
+    "contentType": "application/pdf"
+  },
+  "errors": null,
+  "timestamp": "2026-06-19T10:55:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `404` | `Resource not found` | Shared document not found or was soft-deleted |
+| `500` | `Request failed` | S3 pre-signer is not configured |
+
+---
+
 ## 4. Document Folder APIs
 
 Document folder APIs allow users to organize documents into simple personal folders. A folder only has a name. Folders are private and require JWT.
@@ -2580,7 +3190,463 @@ Important:
 
 ---
 
-## 7. Common HTTP status codes
+## 7. Friend APIs
+
+Friend APIs allow authenticated users to send, manage, and list friendship relationships.
+
+Private friend APIs require:
+
+```text
+Authorization: Bearer <accessToken>
+```
+
+---
+
+## 7.1. Friend request response object
+
+Friend request APIs return a `FriendRequestResponse` object:
+
+```json
+{
+  "requestId": 1,
+  "senderId": 1,
+  "senderName": "Long Nguyen",
+  "senderEmail": "long@example.com",
+  "receiverId": 2,
+  "receiverName": "Teammate",
+  "receiverEmail": "teammate@example.com",
+  "status": "PENDING",
+  "createdAt": "2026-06-19T10:30:00Z",
+  "respondedAt": null
+}
+```
+
+### Friend request fields
+
+| Field | Type | Description |
+|---|---|---|
+| `requestId` | number | Friend request ID |
+| `senderId` | number | User ID of the sender |
+| `senderName` | string | Full name of the sender |
+| `senderEmail` | string | Email of the sender |
+| `receiverId` | number | User ID of the receiver |
+| `receiverName` | string | Full name of the receiver |
+| `receiverEmail` | string | Email of the receiver |
+| `status` | string | `PENDING`, `ACCEPTED`, `REJECTED`, or `CANCELLED` |
+| `createdAt` | string | Request creation time |
+| `respondedAt` | string / null | Time when the request was accepted, rejected, or cancelled |
+
+---
+
+## 7.2. Friend response object
+
+Friend list APIs return a `FriendResponse` object:
+
+```json
+{
+  "friendshipId": 1,
+  "userId": 2,
+  "fullName": "Teammate",
+  "email": "teammate@example.com",
+  "createdAt": "2026-06-19T10:30:00Z"
+}
+```
+
+### Friend fields
+
+| Field | Type | Description |
+|---|---|---|
+| `friendshipId` | number | Friendship ID |
+| `userId` | number | Friend user ID |
+| `fullName` | string | Friend full name |
+| `email` | string | Friend email |
+| `createdAt` | string | Friendship creation time |
+
+---
+
+## 7.3. Send friend request
+
+Send a friend request to another user by email.
+
+### Request
+
+- Method: `POST`
+- URL: `/api/friends/request`
+- Auth: JWT required
+- Content-Type: `application/json`
+
+```json
+{
+  "email": "teammate@example.com"
+}
+```
+
+### Request fields
+
+| Field | Type | Required | Rule |
+|---|---|---|---|
+| `email` | string | Yes | Must not be blank, must be a valid email |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Send friend request successfully",
+  "data": {
+    "requestId": 1,
+    "senderId": 1,
+    "senderName": "Long Nguyen",
+    "senderEmail": "long@example.com",
+    "receiverId": 2,
+    "receiverName": "Teammate",
+    "receiverEmail": "teammate@example.com",
+    "status": "PENDING",
+    "createdAt": "2026-06-19T10:30:00Z",
+    "respondedAt": null
+  },
+  "errors": null,
+  "timestamp": "2026-06-19T10:30:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Validation failed` | Missing or invalid email |
+| `400` | `Validation failed` | Sending request to yourself, already friends, duplicate pending request, or reverse pending request exists |
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `404` | `Resource not found` | Receiver or sender not found |
+
+---
+
+## 7.4. Get incoming friend requests
+
+Get pending friend requests received by the authenticated user.
+
+### Request
+
+- Method: `GET`
+- URL: `/api/friends/requests/incoming`
+- Auth: JWT required
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Get incoming friend requests successfully",
+  "data": [
+    {
+      "requestId": 1,
+      "senderId": 2,
+      "senderName": "Teammate",
+      "senderEmail": "teammate@example.com",
+      "receiverId": 1,
+      "receiverName": "Long Nguyen",
+      "receiverEmail": "long@example.com",
+      "status": "PENDING",
+      "createdAt": "2026-06-19T10:30:00Z",
+      "respondedAt": null
+    }
+  ],
+  "errors": null,
+  "timestamp": "2026-06-19T10:30:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `401` | `Unauthorized` | Missing or invalid JWT |
+
+---
+
+## 7.5. Get outgoing friend requests
+
+Get pending friend requests sent by the authenticated user.
+
+### Request
+
+- Method: `GET`
+- URL: `/api/friends/requests/outgoing`
+- Auth: JWT required
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Get outgoing friend requests successfully",
+  "data": [
+    {
+      "requestId": 1,
+      "senderId": 1,
+      "senderName": "Long Nguyen",
+      "senderEmail": "long@example.com",
+      "receiverId": 2,
+      "receiverName": "Teammate",
+      "receiverEmail": "teammate@example.com",
+      "status": "PENDING",
+      "createdAt": "2026-06-19T10:30:00Z",
+      "respondedAt": null
+    }
+  ],
+  "errors": null,
+  "timestamp": "2026-06-19T10:30:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `401` | `Unauthorized` | Missing or invalid JWT |
+
+---
+
+## 7.6. Accept friend request
+
+Accept a pending friend request received by the authenticated user.
+
+### Request
+
+- Method: `POST`
+- URL: `/api/friends/requests/{requestId}/accept`
+- Auth: JWT required
+
+### Path variables
+
+| Name | Type | Required |
+|---|---|---|
+| `requestId` | number | Yes |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Accept friend request successfully",
+  "data": {
+    "requestId": 1,
+    "senderId": 2,
+    "senderName": "Teammate",
+    "senderEmail": "teammate@example.com",
+    "receiverId": 1,
+    "receiverName": "Long Nguyen",
+    "receiverEmail": "long@example.com",
+    "status": "ACCEPTED",
+    "createdAt": "2026-06-19T10:30:00Z",
+    "respondedAt": "2026-06-19T10:35:00Z"
+  },
+  "errors": null,
+  "timestamp": "2026-06-19T10:35:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Validation failed` | User is not allowed to respond, request is not pending, or users are already friends |
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `404` | `Resource not found` | Friend request or user not found |
+
+---
+
+## 7.7. Reject friend request
+
+Reject a pending friend request received by the authenticated user.
+
+### Request
+
+- Method: `POST`
+- URL: `/api/friends/requests/{requestId}/reject`
+- Auth: JWT required
+
+### Path variables
+
+| Name | Type | Required |
+|---|---|---|
+| `requestId` | number | Yes |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Reject friend request successfully",
+  "data": {
+    "requestId": 1,
+    "senderId": 2,
+    "senderName": "Teammate",
+    "senderEmail": "teammate@example.com",
+    "receiverId": 1,
+    "receiverName": "Long Nguyen",
+    "receiverEmail": "long@example.com",
+    "status": "REJECTED",
+    "createdAt": "2026-06-19T10:30:00Z",
+    "respondedAt": "2026-06-19T10:35:00Z"
+  },
+  "errors": null,
+  "timestamp": "2026-06-19T10:35:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Validation failed` | User is not allowed to respond or request is not pending |
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `404` | `Resource not found` | Friend request not found |
+
+---
+
+## 7.8. Cancel friend request
+
+Cancel a pending friend request sent by the authenticated user.
+
+### Request
+
+- Method: `DELETE`
+- URL: `/api/friends/requests/{requestId}/cancel`
+- Auth: JWT required
+
+### Path variables
+
+| Name | Type | Required |
+|---|---|---|
+| `requestId` | number | Yes |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Cancel friend request successfully",
+  "data": {
+    "requestId": 1,
+    "senderId": 1,
+    "senderName": "Long Nguyen",
+    "senderEmail": "long@example.com",
+    "receiverId": 2,
+    "receiverName": "Teammate",
+    "receiverEmail": "teammate@example.com",
+    "status": "CANCELLED",
+    "createdAt": "2026-06-19T10:30:00Z",
+    "respondedAt": "2026-06-19T10:35:00Z"
+  },
+  "errors": null,
+  "timestamp": "2026-06-19T10:35:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Validation failed` | User is not allowed to cancel or request is not pending |
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `404` | `Resource not found` | Friend request not found |
+
+---
+
+## 7.9. Unfriend
+
+Remove an existing friendship.
+
+### Request
+
+- Method: `DELETE`
+- URL: `/api/friends/{friendId}`
+- Auth: JWT required
+
+### Path variables
+
+| Name | Type | Required |
+|---|---|---|
+| `friendId` | number | Yes |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Unfriend successfully",
+  "data": null,
+  "errors": null,
+  "timestamp": "2026-06-19T10:40:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Validation failed` | User tries to unfriend themselves |
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `404` | `Resource not found` | Friendship not found |
+
+---
+
+## 7.10. Get friends
+
+Get the authenticated user's friend list.
+
+### Request
+
+- Method: `GET`
+- URL: `/api/friends`
+- Auth: JWT required
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Get friends successfully",
+  "data": [
+    {
+      "friendshipId": 1,
+      "userId": 2,
+      "fullName": "Teammate",
+      "email": "teammate@example.com",
+      "createdAt": "2026-06-19T10:30:00Z"
+    }
+  ],
+  "errors": null,
+  "timestamp": "2026-06-19T10:40:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `401` | `Unauthorized` | Missing or invalid JWT |
+
+---
+
+## 8. Common HTTP status codes
 
 | Status                      | Description                                          |
 | --------------------------- | ---------------------------------------------------- |
@@ -2595,7 +3661,7 @@ Important:
 
 ---
 
-## 8. Frontend notes
+## 9. Frontend notes
 
 - Private APIs do not require `userId`; the backend reads the current user from JWT.
 - After login or Google login, store both `accessToken` and `refreshToken`.
@@ -2618,8 +3684,12 @@ false
 - Use preview/download URL APIs to access files from private S3 safely.
 - Pre-signed URLs are temporary. If a URL expires, call the backend again to get a new one.
 - Preview rendering and lazy loading pages are frontend responsibilities.
+- Share-link APIs are public by token. Anyone with a valid enabled share token can open the shared document metadata and request preview/download URLs.
+- Direct user sharing requires friendship. The backend rejects sharing with non-friends.
+- Documents in `shared-with-me` can be previewed/downloaded through the shared-with-me URL APIs.
 - Use `POST /api/chat/ask` for document-grounded AI chat.
 - Chat currently supports one selected document per request and requires document status `READY`.
+- Chat currently supports owned documents and public documents; shared-with-me document chat access is not documented as supported yet.
 - Chat history/session APIs are not implemented yet.
 - `ResendOtpResponse.mesage` is currently misspelled according to the existing DTO. If the team wants `message`, the DTO/backend should be updated later.
 - Tag colors should be sent as HEX values such as `#8B5CF6`, `#22C55E`, or `#FFF`.
