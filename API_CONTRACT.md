@@ -3091,10 +3091,11 @@ Authorization: Bearer <accessToken>
 
 Current scope:
 
-- Chat works on one selected document per request.
-- The selected document must be accessible by the authenticated user.
-- The selected document must have status `READY`.
-- Retrieval is scoped only to chunks of the selected document.
+- Chat supports one selected document through `/api/chat/ask`.
+- Chat supports multi-document / storage-based retrieval through `/api/chat/ask-multi`.
+- Documents used for chat must be accessible by the authenticated user.
+- Documents used for chat must have status `READY`.
+- Retrieval is scoped to the selected document(s) or accessible storage scope.
 - The AI is instructed to answer only from the retrieved document context.
 - Chat session/history persistence is not implemented yet.
 
@@ -3187,6 +3188,125 @@ Important:
 - Do not send the full document content from the frontend.
 - Do not call Gemini directly from the frontend.
 - The backend handles embedding, vector search, prompt building, and AI calling.
+
+---
+
+## 6.2. Ask a question using multiple documents or user storage
+
+Ask the AI a question using multiple selected documents, or using the user's accessible document storage.
+
+### Request
+
+- Method: `POST`
+- URL: `/api/chat/ask-multi`
+- Auth: JWT required
+- Content-Type: `application/json`
+
+### Case 1: selected documents
+
+Use this when the user manually selects one or more documents.
+
+```json
+{
+  "mode": "SelectedDocuments",
+  "selectedDocumentIds": [1, 2, 3],
+  "folderId": null,
+  "question": "Summarize the common topic across these documents.",
+  "useGeneralKnowledge": null
+}
+```
+
+### Case 2: user storage
+
+Use this when the user does not manually select documents and wants to ask from their storage scope.
+
+```json
+{
+  "mode": "UserStorage",
+  "selectedDocumentIds": null,
+  "folderId": null,
+  "question": "Which of my documents mention machine learning?",
+  "useGeneralKnowledge": false
+}
+```
+
+### Case 3: user storage with general/community option
+
+Use this when the user does not manually select documents and enables the broader knowledge option.
+
+```json
+{
+  "mode": "UserStorage",
+  "selectedDocumentIds": null,
+  "folderId": null,
+  "question": "Find related material about deep learning.",
+  "useGeneralKnowledge": true
+}
+```
+
+> Current backend note: `useGeneralKnowledge` currently controls the returned policy and prompt path. The strict separation between "My Files only" and "My Files + Community" should be verified/adjusted in backend logic if the frontend depends on that exact behavior.
+
+### Request fields
+
+| Field | Type | Required | Rule |
+|---|---|---|---|
+| `mode` | string | Yes | Must be `SelectedDocuments` or `UserStorage` |
+| `selectedDocumentIds` | array / null | Required for `SelectedDocuments` | List of accessible `READY` document IDs |
+| `folderId` | number / null | No | Optional folder filter for `UserStorage` |
+| `question` | string | Yes | Must not be blank |
+| `useGeneralKnowledge` | boolean / null | No | Mainly used with `UserStorage`; ignored for `SelectedDocuments` |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Ask multi-document chat successfully",
+  "data": {
+    "answer": "The selected documents mainly discuss ...",
+    "mode": "SELECTED_DOCUMENTS",
+    "policy": "DOCUMENTS_ONLY",
+    "usedDocumentIds": [1, 2]
+  },
+  "errors": null,
+  "timestamp": "2026-06-26T10:30:00Z"
+}
+```
+
+### Response fields
+
+| Field | Type | Description |
+|---|---|---|
+| `answer` | string | AI answer grounded by retrieved chunks |
+| `mode` | string | Resolved backend mode, for example `SELECTED_DOCUMENTS` or `USER_STORAGE` |
+| `policy` | string | Resolved knowledge policy, for example `DOCUMENTS_ONLY` or `DOCUMENTS_PLUS_GENERAL` |
+| `usedDocumentIds` | array | Document IDs whose chunks were used as context |
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Validation failed` | Missing/invalid mode or blank question |
+| `400` | `Validation failed` | `selectedDocumentIds` is missing for `SelectedDocuments` mode |
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `404` | `Resource not found` | No accessible/ready document context is available |
+| `503` | `AI service is unavailable` | Gemini/Spring AI call failed |
+
+### Frontend usage
+
+1. If the user selects documents, call `/api/chat/ask-multi` with `mode = "SelectedDocuments"` and `selectedDocumentIds`.
+2. If the user does not select documents, call `/api/chat/ask-multi` with `mode = "UserStorage"`.
+3. Send `useGeneralKnowledge = false/null` for the normal storage mode.
+4. Send `useGeneralKnowledge = true` only when the user enables the broader knowledge/community option.
+5. Render `data.answer` and optionally show `data.usedDocumentIds`.
+
+Important:
+
+- Do not send file content from the frontend.
+- Only send IDs, mode, optional folder filter, and the user's question.
+- The backend handles embedding, retrieval, prompt building, and AI calling.
 
 ---
 
@@ -3687,8 +3807,9 @@ false
 - Share-link APIs are public by token. Anyone with a valid enabled share token can open the shared document metadata and request preview/download URLs.
 - Direct user sharing requires friendship. The backend rejects sharing with non-friends.
 - Documents in `shared-with-me` can be previewed/downloaded through the shared-with-me URL APIs.
-- Use `POST /api/chat/ask` for document-grounded AI chat.
-- Chat currently supports one selected document per request and requires document status `READY`.
+- Use `POST /api/chat/ask` for single-document grounded AI chat.
+- Use `POST /api/chat/ask-multi` for multi-document or user-storage grounded AI chat.
+- Chat requires documents to be accessible and have status `READY`.
 - Chat currently supports owned documents and public documents; shared-with-me document chat access is not documented as supported yet.
 - Chat history/session APIs are not implemented yet.
 - `ResendOtpResponse.mesage` is currently misspelled according to the existing DTO. If the team wants `message`, the DTO/backend should be updated later.
