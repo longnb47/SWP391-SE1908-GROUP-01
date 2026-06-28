@@ -3097,7 +3097,8 @@ Current scope:
 - Documents used for chat must have status `READY`.
 - Retrieval is scoped to the selected document(s) or accessible storage scope.
 - The AI is instructed to answer only from the retrieved document context.
-- Chat session/history persistence is not implemented yet.
+- Persistent chat sessions, messages, and RAG sources are supported through `/api/chat/sessions`.
+- For each new session message, only the latest five completed messages are used as conversational memory.
 
 ---
 
@@ -3380,6 +3381,192 @@ Important:
 - Only send IDs, mode, optional folder filter, and the user's question.
 - The backend handles embedding, retrieval, prompt building, and AI calling.
 - In `SelectedDocuments` mode, do not include documents that are still processing or have status `FAILED`.
+
+---
+
+## 6.3. Persistent chat sessions and history
+
+Session APIs store the complete chat history in the database. When generating a new answer, the backend uses at most the latest five completed messages as Spring AI conversational memory. Document retrieval remains restricted by the session's saved RAG scope.
+
+Private session APIs require:
+
+```text
+Authorization: Bearer <accessToken>
+```
+
+### 6.3.1. Create chat session
+
+- Method: `POST`
+- URL: `/api/chat/sessions`
+- Auth: JWT required
+- Content-Type: `application/json`
+
+Selected documents example:
+
+```json
+{
+  "title": "Spring AI revision",
+  "mode": "SelectedDocuments",
+  "selectedDocumentIds": [1, 2],
+  "folderId": null,
+  "useGeneralKnowledge": null,
+  "model": "gemini-2.5-flash-lite",
+  "temperature": 0.2
+}
+```
+
+User storage example:
+
+```json
+{
+  "title": "My study assistant",
+  "mode": "UserStorage",
+  "selectedDocumentIds": null,
+  "folderId": 3,
+  "useGeneralKnowledge": true,
+  "model": "gemini-3.1-flash-lite",
+  "temperature": 0.3
+}
+```
+
+Rules:
+
+- `title` is optional and defaults to `New chat`; maximum 200 characters.
+- `SelectedDocuments` requires all selected documents to be accessible and `READY`.
+- `folderId` is not accepted in `SelectedDocuments`.
+- `selectedDocumentIds` is not accepted in `UserStorage`.
+- Session model, temperature, retrieval mode, and document scope are fixed when the session is created.
+
+Success data:
+
+```json
+{
+  "sessionId": 10,
+  "title": "Spring AI revision",
+  "mode": "SELECTED_DOCUMENTS",
+  "folderId": null,
+  "policy": "DOCUMENTS_ONLY",
+  "model": "gemini-2.5-flash-lite",
+  "temperature": 0.2,
+  "selectedDocumentIds": [1, 2],
+  "createdAt": "2026-06-28T10:30:00Z",
+  "updatedAt": "2026-06-28T10:30:00Z"
+}
+```
+
+### 6.3.2. Get my chat sessions
+
+- Method: `GET`
+- URL: `/api/chat/sessions`
+- Auth: JWT required
+
+Returns active sessions owned by the authenticated user, ordered by most recently updated.
+
+### 6.3.3. Rename chat session
+
+- Method: `PATCH`
+- URL: `/api/chat/sessions/{sessionId}`
+- Auth: JWT required
+- Content-Type: `application/json`
+
+```json
+{
+  "title": "Updated study session"
+}
+```
+
+The title must not be blank and must not exceed 200 characters.
+
+### 6.3.4. Delete chat session
+
+- Method: `DELETE`
+- URL: `/api/chat/sessions/{sessionId}`
+- Auth: JWT required
+
+The session is soft-deleted. Existing messages remain in the database but the session is no longer accessible through user APIs.
+
+### 6.3.5. Get session messages
+
+- Method: `GET`
+- URL: `/api/chat/sessions/{sessionId}/messages?page=0&size=50`
+- Auth: JWT required
+
+Query parameters:
+
+| Field | Type | Required | Rule |
+|---|---|---|---|
+| `page` | number | No | Default `0`; must be at least `0` |
+| `size` | number | No | Default `50`; must be between `1` and `100` |
+
+Success data:
+
+```json
+{
+  "messages": [
+    {
+      "messageId": 100,
+      "role": "USER",
+      "content": "What is dependency injection?",
+      "status": "COMPLETED",
+      "createdAt": "2026-06-28T10:31:00Z",
+      "sources": []
+    },
+    {
+      "messageId": 101,
+      "role": "ASSISTANT",
+      "content": "According to the selected documents...",
+      "status": "COMPLETED",
+      "createdAt": "2026-06-28T10:31:03Z",
+      "sources": [
+        {
+          "documentId": 1,
+          "chunkId": 25,
+          "pageNumber": 4,
+          "score": 0.9123
+        }
+      ]
+    }
+  ],
+  "page": 0,
+  "size": 50,
+  "totalElements": 2,
+  "totalPages": 1
+}
+```
+
+### 6.3.6. Send message to session
+
+- Method: `POST`
+- URL: `/api/chat/sessions/{sessionId}/messages`
+- Auth: JWT required
+- Content-Type: `application/json`
+
+```json
+{
+  "question": "Can you explain that more simply?"
+}
+```
+
+Flow:
+
+1. Verify the session belongs to the authenticated user.
+2. Load at most the five latest completed messages as Spring AI chat memory.
+3. Save the current user message.
+4. Resolve the session's document scope and retrieve relevant chunks.
+5. Build a grounded prompt containing memory, document context, and the current question.
+6. Call the session's configured Gemini model and temperature.
+7. Save the assistant message and RAG source chunks.
+
+The complete message history remains in the database, but only five recent completed messages are sent as conversational memory. Full private document context is not stored as a chat message.
+
+Error cases:
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Validation failed` | Blank question or invalid session configuration |
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `404` | `Resource not found` | Session does not exist, was deleted, or belongs to another user |
+| `503` | `AI service is unavailable` | Gemini/Spring AI call failed; the failed assistant attempt is recorded with `FAILED` status |
 
 ---
 
@@ -3884,7 +4071,7 @@ false
 - Use `POST /api/chat/ask-multi` for multi-document or user-storage grounded AI chat.
 - Chat requires documents to be accessible and have status `READY`.
 - Chat currently supports owned documents and public documents; shared-with-me document chat access is not documented as supported yet.
-- Chat history/session APIs are not implemented yet.
+- Use `/api/chat/sessions` for persistent chat history; only the latest five completed messages are used as conversational memory for each new answer.
 - `ResendOtpResponse.mesage` is currently misspelled according to the existing DTO. If the team wants `message`, the DTO/backend should be updated later.
 - Tag colors should be sent as HEX values such as `#8B5CF6`, `#22C55E`, or `#FFF`.
 - Video upload currently supports storing the video file and metadata, but real transcript extraction is not available yet.

@@ -11,6 +11,7 @@ import com.se1908.group01.entity.DocumentShareLink;
 import com.se1908.group01.entity.DocumentStatus;
 import com.se1908.group01.entity.User;
 import com.se1908.group01.exception.ResourceNotFoundException;
+import com.se1908.group01.repository.ChatSessionDocumentRepository;
 import com.se1908.group01.repository.DocumentChunkRepository;
 import com.se1908.group01.repository.DocumentFolderRepository;
 import com.se1908.group01.repository.DocumentRepository;
@@ -51,6 +52,7 @@ public class DocumentServiceImpl implements DocumentService {
 	private final UserRepository userRepository;
 	private final DocumentIngestionJobService documentIngestionJobService;
 	private final CurrentUserService currentUserService;
+	private final ChatSessionDocumentRepository chatSessionDocumentRepository;
 
 	public DocumentServiceImpl(
 			FileValidationService fileValidationService,
@@ -66,7 +68,8 @@ public class DocumentServiceImpl implements DocumentService {
 			FriendshipRepository friendshipRepository,
 			UserRepository userRepository,
 			DocumentIngestionJobService documentIngestionJobService,
-			CurrentUserService currentUserService
+			CurrentUserService currentUserService,
+			ChatSessionDocumentRepository chatSessionDocumentRepository
 	) {
 		this.fileValidationService = fileValidationService;
 		this.s3StorageService = s3StorageService;
@@ -82,6 +85,7 @@ public class DocumentServiceImpl implements DocumentService {
 		this.userRepository = userRepository;
 		this.documentIngestionJobService = documentIngestionJobService;
 		this.currentUserService = currentUserService;
+		this.chatSessionDocumentRepository = chatSessionDocumentRepository;
 	}
 
 	@Transactional(rollbackFor = Exception.class)
@@ -426,6 +430,7 @@ public class DocumentServiceImpl implements DocumentService {
 		documentChunkRepository.deleteByDocumentDocumentId(doc.getDocumentId());
 		documentShareRepository.deleteByDocument_DocumentId(doc.getDocumentId());
 		documentShareLinkRepository.deleteByDocument_DocumentId(doc.getDocumentId());
+		chatSessionDocumentRepository.deleteByDocumentDocumentId(doc.getDocumentId());
 		documentRepository.delete(doc);
 	}
 

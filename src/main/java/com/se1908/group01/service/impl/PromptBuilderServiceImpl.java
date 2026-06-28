@@ -5,6 +5,7 @@ import com.se1908.group01.enums.ChatMode;
 import com.se1908.group01.enums.KnowledgePolicy;
 import com.se1908.group01.service.PromptBuilderService;
 import java.util.List;
+import org.springframework.ai.chat.messages.Message;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -61,6 +62,43 @@ public class PromptBuilderServiceImpl implements PromptBuilderService {
 				+ "\n-----------\n"
 				+ "QUESTION:\n"
 				+ question;
+	}
+
+	@Override
+	public String buildSessionQuestionPrompt(
+			ChatMode mode,
+			KnowledgePolicy knowledgePolicy,
+			String context,
+			List<Message> conversationMemory,
+			String question
+	) {
+		var prompt = new StringBuilder();
+		prompt.append("[SYSTEM]\n")
+				.append(resolveSystemMessage(mode, knowledgePolicy))
+				.append("\nConversation history is provided only to understand follow-up questions. ")
+				.append("All factual claims must still be supported by the document context.\n\n");
+
+		if (conversationMemory != null && !conversationMemory.isEmpty()) {
+			prompt.append("[CONVERSATION HISTORY - LAST ")
+					.append(conversationMemory.size())
+					.append(" MESSAGES]\n");
+			for (var message : conversationMemory) {
+				prompt.append("[")
+						.append(message.getMessageType().name())
+						.append("] ")
+						.append(message.getText())
+						.append("\n");
+			}
+			prompt.append("\n");
+		}
+
+		return prompt.append("[DOCUMENT CONTEXT]\n")
+				.append("-----------\n")
+				.append(context)
+				.append("\n-----------\n")
+				.append("[CURRENT QUESTION]\n")
+				.append(question)
+				.toString();
 	}
 
 	private String resolveSystemMessage(ChatMode mode, KnowledgePolicy policy) {
