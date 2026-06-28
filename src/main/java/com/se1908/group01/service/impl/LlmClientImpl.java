@@ -1,5 +1,6 @@
 package com.se1908.group01.service.impl;
 
+import com.se1908.group01.dto.AiGenerationOptions;
 import com.se1908.group01.service.AiChatClientService;
 import com.se1908.group01.service.LlmClient;
 import org.springframework.stereotype.Service;
@@ -14,7 +15,7 @@ public class LlmClientImpl implements LlmClient {
     }
 
     @Override
-    public String generateAnswer(String prompt) {
-        return aiChatClientService.ask(prompt);
+    public String generateAnswer(String prompt, AiGenerationOptions options) {
+        return aiChatClientService.ask(prompt, options);
     }
 }

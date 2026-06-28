@@ -2,6 +2,8 @@ package com.se1908.group01.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Pattern;
 import java.util.List;
 
@@ -19,6 +21,12 @@ public class MultiChatAskRequest {
 	private String question;
 
 	private Boolean useGeneralKnowledge;
+
+	private String model;
+
+	@DecimalMin(value = "0.0", message = "Temperature must be between 0.0 and 1.0")
+	@DecimalMax(value = "1.0", message = "Temperature must be between 0.0 and 1.0")
+	private Double temperature;
 
 	public String getMode() {
 		return mode;
@@ -58,5 +66,21 @@ public class MultiChatAskRequest {
 
 	public void setUseGeneralKnowledge(Boolean useGeneralKnowledge) {
 		this.useGeneralKnowledge = useGeneralKnowledge;
+	}
+
+	public String getModel() {
+		return model;
+	}
+
+	public void setModel(String model) {
+		this.model = model;
+	}
+
+	public Double getTemperature() {
+		return temperature;
+	}
+
+	public void setTemperature(Double temperature) {
+		this.temperature = temperature;
 	}
 }

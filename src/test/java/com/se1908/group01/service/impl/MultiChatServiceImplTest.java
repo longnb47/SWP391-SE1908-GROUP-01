@@ -5,8 +5,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.se1908.group01.config.RagProperties;
+import com.se1908.group01.dto.AiGenerationOptions;
 import com.se1908.group01.dto.MultiChatAskRequest;
 import com.se1908.group01.enums.KnowledgePolicy;
+import com.se1908.group01.enums.SupportedAiModel;
+import com.se1908.group01.service.AiGenerationOptionsService;
 import com.se1908.group01.service.CurrentUserService;
 import com.se1908.group01.service.DocumentAccessService;
 import com.se1908.group01.service.DocumentEmbeddingService;
@@ -41,6 +44,9 @@ class MultiChatServiceImplTest {
 	@Mock
 	private LlmClient llmClient;
 
+	@Mock
+	private AiGenerationOptionsService aiGenerationOptionsService;
+
 	private MultiChatServiceImpl multiChatService;
 
 	@BeforeEach
@@ -52,9 +58,12 @@ class MultiChatServiceImplTest {
 				vectorSearchService,
 				promptBuilderService,
 				llmClient,
-				new RagProperties()
+				new RagProperties(),
+				aiGenerationOptionsService
 		);
 		when(currentUserService.getCurrentUserId()).thenReturn(1L);
+		when(aiGenerationOptionsService.resolve(null, null))
+				.thenReturn(new AiGenerationOptions(SupportedAiModel.GEMINI_2_5_FLASH_LITE, 0.2));
 	}
 
 	@Test
@@ -66,6 +75,8 @@ class MultiChatServiceImplTest {
 		var response = multiChatService.askMulti(request);
 
 		assertEquals(KnowledgePolicy.DOCUMENTS_ONLY, response.getPolicy());
+		assertEquals("gemini-2.5-flash-lite", response.getModel());
+		assertEquals(0.2, response.getTemperature());
 		verify(documentAccessService).getAllReadyDocumentsForUser(1L, null, false);
 	}
 

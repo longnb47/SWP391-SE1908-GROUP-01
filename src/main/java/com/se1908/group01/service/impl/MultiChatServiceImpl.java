@@ -7,6 +7,7 @@ import com.se1908.group01.dto.RetrievedChunk;
 import com.se1908.group01.entity.Document;
 import com.se1908.group01.enums.ChatMode;
 import com.se1908.group01.enums.KnowledgePolicy;
+import com.se1908.group01.service.AiGenerationOptionsService;
 import com.se1908.group01.service.CurrentUserService;
 import com.se1908.group01.service.DocumentAccessService;
 import com.se1908.group01.service.DocumentEmbeddingService;
@@ -29,6 +30,7 @@ public class MultiChatServiceImpl implements MultiChatService {
 	private final PromptBuilderService promptBuilderService;
 	private final LlmClient llmClient;
 	private final RagProperties ragProperties;
+	private final AiGenerationOptionsService aiGenerationOptionsService;
 
 	public MultiChatServiceImpl(
 			DocumentAccessService documentAccessService,
@@ -37,7 +39,8 @@ public class MultiChatServiceImpl implements MultiChatService {
 			VectorSearchService vectorSearchService,
 			PromptBuilderService promptBuilderService,
 			LlmClient llmClient,
-			RagProperties ragProperties
+			RagProperties ragProperties,
+			AiGenerationOptionsService aiGenerationOptionsService
 	) {
 		this.documentAccessService = documentAccessService;
 		this.currentUserService = currentUserService;
@@ -46,6 +49,7 @@ public class MultiChatServiceImpl implements MultiChatService {
 		this.promptBuilderService = promptBuilderService;
 		this.llmClient = llmClient;
 		this.ragProperties = ragProperties;
+		this.aiGenerationOptionsService = aiGenerationOptionsService;
 	}
 
 	@Override
@@ -53,6 +57,10 @@ public class MultiChatServiceImpl implements MultiChatService {
 		validateRequest(request);
 
 		var userId = currentUserService.getCurrentUserId();
+		var generationOptions = aiGenerationOptionsService.resolve(
+				request.getModel(),
+				request.getTemperature()
+		);
 
 		List<Document> documents;
 		ChatMode chatMode;
@@ -76,7 +84,14 @@ public class MultiChatServiceImpl implements MultiChatService {
 				.toList();
 
 		if (documents.isEmpty()) {
-			return new MultiChatAskResponse(noContextMessage(chatMode, policy), chatMode.name(), policy, List.of());
+			return new MultiChatAskResponse(
+					noContextMessage(chatMode, policy),
+					chatMode.name(),
+					policy,
+					generationOptions.modelName(),
+					generationOptions.temperature(),
+					List.of()
+			);
 		}
 
 		var questionEmbeddingVector = documentEmbeddingService.embedQuestion(request.getQuestion());
@@ -94,20 +109,29 @@ public class MultiChatServiceImpl implements MultiChatService {
 					noContextMessage(chatMode, policy),
 					chatMode.name(),
 					policy,
+					generationOptions.modelName(),
+					generationOptions.temperature(),
 					resolvedDocumentIds
 			);
 		}
 
 		var context = buildContext(chunks);
 		var prompt = promptBuilderService.buildMultiDocumentQuestionPrompt(chatMode, policy, context, request.getQuestion());
-		var answer = llmClient.generateAnswer(prompt);
+		var answer = llmClient.generateAnswer(prompt, generationOptions);
 
 		var usedDocumentIds = chunks.stream()
 				.map(rc -> rc.getChunk().getDocument().getDocumentId())
 				.distinct()
 				.toList();
 
-		return new MultiChatAskResponse(answer, chatMode.name(), policy, usedDocumentIds);
+		return new MultiChatAskResponse(
+				answer,
+				chatMode.name(),
+				policy,
+				generationOptions.modelName(),
+				generationOptions.temperature(),
+				usedDocumentIds
+		);
 	}
 
 	private KnowledgePolicy resolveUserStorageKnowledgePolicy(MultiChatAskRequest request) {

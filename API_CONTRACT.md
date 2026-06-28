@@ -3115,7 +3115,9 @@ Ask the AI a question using one selected document as context.
 ```json
 {
   "documentId": 1,
-  "question": "What is the main idea of this document?"
+  "question": "What is the main idea of this document?",
+  "model": "gemini-2.5-flash-lite",
+  "temperature": 0.2
 }
 ```
 
@@ -3125,6 +3127,8 @@ Ask the AI a question using one selected document as context.
 |---|---|---|---|
 | `documentId` | number | Yes | Must point to an accessible document |
 | `question` | string | Yes | Must not be blank |
+| `model` | string / null | No | One of the three supported chat models; backend default if omitted |
+| `temperature` | number / null | No | AI creativity from `0.0` to `1.0`; backend default `0.2` if omitted |
 
 ### Success response
 
@@ -3137,6 +3141,8 @@ Status: `200 OK`
   "data": {
     "documentId": 1,
     "answer": "The main idea of the document is ...",
+    "model": "gemini-2.5-flash-lite",
+    "temperature": 0.2,
     "sources": [
       {
         "chunkId": 10,
@@ -3157,6 +3163,8 @@ Status: `200 OK`
 |---|---|---|
 | `documentId` | number | The selected document ID |
 | `answer` | string | AI answer grounded by retrieved chunks |
+| `model` | string | Model actually used by the backend |
+| `temperature` | number | Temperature actually used by the backend |
 | `sources` | array | Retrieved chunks used as context |
 | `sources[].chunkId` | number | Source chunk ID |
 | `sources[].chunkIndex` | number | Chunk order in the document |
@@ -3168,6 +3176,7 @@ Status: `200 OK`
 | Status | Message | Reason |
 |---|---|---|
 | `400` | `Validation failed` | Missing documentId or blank question |
+| `400` | `Validation failed` | Unsupported model or temperature outside `0.0`–`1.0` |
 | `400` | `Validation failed` | Document is not `READY` |
 | `400` | `Validation failed` | Document has no indexed content for chat |
 | `401` | `Unauthorized` | Missing or invalid JWT |
@@ -3179,7 +3188,7 @@ Status: `200 OK`
 
 1. Let the user select a document.
 2. Only enable chat when the selected document has status `READY`.
-3. Send the selected `documentId` and the user's question to `/api/chat/ask`.
+3. Send the selected `documentId`, question, optional model, and optional temperature to `/api/chat/ask`.
 4. Render `data.answer`.
 5. Optionally show `data.sources` for debugging or future citation UI.
 
@@ -3214,7 +3223,9 @@ The backend searches only the selected document IDs. `useGeneralKnowledge` is ig
   "selectedDocumentIds": [1, 2, 3],
   "folderId": null,
   "question": "Summarize the common topic across these documents.",
-  "useGeneralKnowledge": null
+  "useGeneralKnowledge": null,
+  "model": "gemini-2.5-flash-lite",
+  "temperature": 0.2
 }
 ```
 
@@ -3229,7 +3240,9 @@ Public Community documents are not included.
   "selectedDocumentIds": null,
   "folderId": null,
   "question": "Which of my documents mention machine learning?",
-  "useGeneralKnowledge": false
+  "useGeneralKnowledge": false,
+  "model": "gemini-3.1-flash-lite",
+  "temperature": 0.2
 }
 ```
 
@@ -3244,7 +3257,9 @@ The backend searches the user's own `READY` documents plus all accessible public
   "selectedDocumentIds": null,
   "folderId": null,
   "question": "Find related material about deep learning.",
-  "useGeneralKnowledge": true
+  "useGeneralKnowledge": true,
+  "model": "gemini-3.5-flash",
+  "temperature": 0.4
 }
 ```
 
@@ -3276,6 +3291,35 @@ When `folderId` is supplied:
 | `folderId` | number / null | No | Optional owned folder filter for the user's document scope in `UserStorage` |
 | `question` | string | Yes | Must not be blank |
 | `useGeneralKnowledge` | boolean / null | No | For `UserStorage`: `false` = My Files only, `true` = My Files + public Community; ignored for `SelectedDocuments` |
+| `model` | string / null | No | One of the three supported chat models; backend default if omitted |
+| `temperature` | number / null | No | AI creativity from `0.0` to `1.0`; backend default `0.2` if omitted |
+
+### Supported AI generation options
+
+Supported `model` values:
+
+```text
+gemini-2.5-flash-lite
+gemini-3.1-flash-lite
+gemini-3.5-flash
+```
+
+The frontend may display these as:
+
+```text
+Gemini 2.5 Flash Lite
+Gemini 3.1 Flash Lite
+Gemini 3.5 Flash
+```
+
+Rules:
+
+- `model` and `temperature` are optional.
+- If omitted, the backend uses `GEMINI_CHAT_MODEL` and `GEMINI_CHAT_TEMPERATURE`.
+- The backend defaults are `gemini-2.5-flash-lite` and `0.2`.
+- Temperature `0.0` is the most deterministic; `1.0` allows more variation.
+- Model and temperature affect answer generation only. They do not change parsing, embeddings, cosine similarity, retrieval scope, or access control.
+- The Gemini API key is configured only on the backend and must never be sent by the frontend.
 
 ### Success response
 
@@ -3289,6 +3333,8 @@ Status: `200 OK`
     "answer": "The selected documents mainly discuss ...",
     "mode": "SELECTED_DOCUMENTS",
     "policy": "DOCUMENTS_ONLY",
+    "model": "gemini-2.5-flash-lite",
+    "temperature": 0.2,
     "usedDocumentIds": [1, 2]
   },
   "errors": null,
@@ -3303,6 +3349,8 @@ Status: `200 OK`
 | `answer` | string | AI answer grounded by retrieved chunks |
 | `mode` | string | Resolved backend mode, for example `SELECTED_DOCUMENTS` or `USER_STORAGE` |
 | `policy` | string | Resolved knowledge policy, for example `DOCUMENTS_ONLY` or `DOCUMENTS_PLUS_GENERAL` |
+| `model` | string | Model actually used by the backend |
+| `temperature` | number | Temperature actually used by the backend |
 | `usedDocumentIds` | array | Document IDs whose chunks were used as context |
 
 ### Error cases
@@ -3310,6 +3358,7 @@ Status: `200 OK`
 | Status | Message | Reason |
 |---|---|---|
 | `400` | `Validation failed` | Missing/invalid mode or blank question |
+| `400` | `Validation failed` | Unsupported model or temperature outside `0.0`–`1.0` |
 | `400` | `Validation failed` | `selectedDocumentIds` is missing for `SelectedDocuments` mode |
 | `400` | `Validation failed` | One or more selected documents do not exist, are deleted, are not `READY`, or are not accessible |
 | `401` | `Unauthorized` | Missing or invalid JWT |
@@ -3322,7 +3371,8 @@ Status: `200 OK`
 2. If the user does not select documents, call `/api/chat/ask-multi` with `mode = "UserStorage"`.
 3. Send `useGeneralKnowledge = false/null` to search only My Files.
 4. Send `useGeneralKnowledge = true` only when the user enables public Community document retrieval.
-5. Render `data.answer` and optionally show `data.usedDocumentIds`.
+5. Send one of the supported model IDs and a temperature between `0.0` and `1.0`, or omit them to use backend defaults.
+6. Render `data.answer` and optionally show `data.usedDocumentIds`.
 
 Important:
 

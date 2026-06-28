@@ -8,15 +8,26 @@ public class MultiChatAskResponse {
 	private String answer;
 	private String mode;
 	private KnowledgePolicy policy;
+	private String model;
+	private Double temperature;
 	private List<Long> usedDocumentIds;
 
 	public MultiChatAskResponse() {
 	}
 
-	public MultiChatAskResponse(String answer, String mode, KnowledgePolicy policy, List<Long> usedDocumentIds) {
+	public MultiChatAskResponse(
+			String answer,
+			String mode,
+			KnowledgePolicy policy,
+			String model,
+			Double temperature,
+			List<Long> usedDocumentIds
+	) {
 		this.answer = answer;
 		this.mode = mode;
 		this.policy = policy;
+		this.model = model;
+		this.temperature = temperature;
 		this.usedDocumentIds = usedDocumentIds;
 	}
 
@@ -42,6 +53,22 @@ public class MultiChatAskResponse {
 
 	public void setPolicy(KnowledgePolicy policy) {
 		this.policy = policy;
+	}
+
+	public String getModel() {
+		return model;
+	}
+
+	public void setModel(String model) {
+		this.model = model;
+	}
+
+	public Double getTemperature() {
+		return temperature;
+	}
+
+	public void setTemperature(Double temperature) {
+		this.temperature = temperature;
 	}
 
 	public List<Long> getUsedDocumentIds() {

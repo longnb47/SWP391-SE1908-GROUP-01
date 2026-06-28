@@ -3,6 +3,9 @@ server:
 
 app:
   frontend-base-url: ${APP_FRONTEND_BASE_URL:http://localhost:5173}
+  ai:
+    default-model: ${GEMINI_CHAT_MODEL:gemini-2.5-flash-lite}
+    default-temperature: ${GEMINI_CHAT_TEMPERATURE:0.2}
   upload:
     max-video-file-size: ${APP_MAX_VIDEO_FILE_SIZE:52428800}
   jwt:
@@ -31,8 +34,8 @@ spring:
         api-key: ${GEMINI_CHAT_API_KEY:}
         chat:
           options:
-            model: ${GEMINI_CHAT_MODEL:gemini-2.5-flash}
-            temperature: 0.2
+            model: ${GEMINI_CHAT_MODEL:gemini-2.5-flash-lite}
+            temperature: ${GEMINI_CHAT_TEMPERATURE:0.2}
         embedding:
           api-key: ${GEMINI_EMBEDDING_API_KEY:}
           text:

@@ -6,14 +6,24 @@ public class ChatAskResponse {
 
 	private Long documentId;
 	private String answer;
+	private String model;
+	private Double temperature;
 	private List<ChatSourceResponse> sources;
 
 	public ChatAskResponse() {
 	}
 
-	public ChatAskResponse(Long documentId, String answer, List<ChatSourceResponse> sources) {
+	public ChatAskResponse(
+			Long documentId,
+			String answer,
+			String model,
+			Double temperature,
+			List<ChatSourceResponse> sources
+	) {
 		this.documentId = documentId;
 		this.answer = answer;
+		this.model = model;
+		this.temperature = temperature;
 		this.sources = sources;
 	}
 
@@ -31,6 +41,22 @@ public class ChatAskResponse {
 
 	public void setAnswer(String answer) {
 		this.answer = answer;
+	}
+
+	public String getModel() {
+		return model;
+	}
+
+	public void setModel(String model) {
+		this.model = model;
+	}
+
+	public Double getTemperature() {
+		return temperature;
+	}
+
+	public void setTemperature(Double temperature) {
+		this.temperature = temperature;
 	}
 
 	public List<ChatSourceResponse> getSources() {

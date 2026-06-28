@@ -2,6 +2,8 @@ package com.se1908.group01.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 
 public class ChatAskRequest {
 
@@ -10,6 +12,12 @@ public class ChatAskRequest {
 
 	@NotBlank(message = "Question is required")
 	private String question;
+
+	private String model;
+
+	@DecimalMin(value = "0.0", message = "Temperature must be between 0.0 and 1.0")
+	@DecimalMax(value = "1.0", message = "Temperature must be between 0.0 and 1.0")
+	private Double temperature;
 
 	public Long getDocumentId() {
 		return documentId;
@@ -25,5 +33,21 @@ public class ChatAskRequest {
 
 	public void setQuestion(String question) {
 		this.question = question;
+	}
+
+	public String getModel() {
+		return model;
+	}
+
+	public void setModel(String model) {
+		this.model = model;
+	}
+
+	public Double getTemperature() {
+		return temperature;
+	}
+
+	public void setTemperature(Double temperature) {
+		this.temperature = temperature;
 	}
 }
