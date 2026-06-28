@@ -56,22 +56,27 @@ public class MultiChatServiceImpl implements MultiChatService {
 
 		List<Document> documents;
 		ChatMode chatMode;
+		KnowledgePolicy policy;
 		if ("SelectedDocuments".equals(request.getMode())) {
 			chatMode = ChatMode.SELECTED_DOCUMENTS;
+			policy = KnowledgePolicy.DOCUMENTS_ONLY;
 			documents = documentAccessService.getReadyDocumentsForChat(userId, request.getSelectedDocumentIds());
 		} else {
 			chatMode = ChatMode.USER_STORAGE;
-			documents = documentAccessService.getAllReadyDocumentsForUser(userId, request.getFolderId());
+			policy = resolveUserStorageKnowledgePolicy(request);
+			documents = documentAccessService.getAllReadyDocumentsForUser(
+					userId,
+					request.getFolderId(),
+					policy == KnowledgePolicy.DOCUMENTS_PLUS_GENERAL
+			);
 		}
-
-		var policy = resolveKnowledgePolicy(request, chatMode);
 
 		var resolvedDocumentIds = documents.stream()
 				.map(Document::getDocumentId)
 				.toList();
 
 		if (documents.isEmpty()) {
-			return new MultiChatAskResponse(noContextMessage(chatMode), chatMode.name(), policy, List.of());
+			return new MultiChatAskResponse(noContextMessage(chatMode, policy), chatMode.name(), policy, List.of());
 		}
 
 		var questionEmbeddingVector = documentEmbeddingService.embedQuestion(request.getQuestion());
@@ -85,7 +90,12 @@ public class MultiChatServiceImpl implements MultiChatService {
 		}
 
 		if (chunks.isEmpty()) {
-			return new MultiChatAskResponse(noContextMessage(chatMode), chatMode.name(), policy, resolvedDocumentIds);
+			return new MultiChatAskResponse(
+					noContextMessage(chatMode, policy),
+					chatMode.name(),
+					policy,
+					resolvedDocumentIds
+			);
 		}
 
 		var context = buildContext(chunks);
@@ -100,22 +110,20 @@ public class MultiChatServiceImpl implements MultiChatService {
 		return new MultiChatAskResponse(answer, chatMode.name(), policy, usedDocumentIds);
 	}
 
-	private KnowledgePolicy resolveKnowledgePolicy(MultiChatAskRequest request, ChatMode chatMode) {
-		if (chatMode == ChatMode.SELECTED_DOCUMENTS) {
-			return KnowledgePolicy.DOCUMENTS_ONLY;
-		}
+	private KnowledgePolicy resolveUserStorageKnowledgePolicy(MultiChatAskRequest request) {
 		boolean effective = (request.getUseGeneralKnowledge() != null)
 				? request.getUseGeneralKnowledge()
 				: ragProperties.getUserStorage().isAllowGeneralKnowledge();
 		return effective ? KnowledgePolicy.DOCUMENTS_PLUS_GENERAL : KnowledgePolicy.DOCUMENTS_ONLY;
 	}
 
-	private String noContextMessage(ChatMode mode) {
+	private String noContextMessage(ChatMode mode, KnowledgePolicy policy) {
 		return switch (mode) {
 			case SELECTED_DOCUMENTS ->
 					"I cannot find this information in the documents you selected.";
-			case USER_STORAGE ->
-					"I cannot find sufficient information in your documents (and public documents) to answer this question.";
+			case USER_STORAGE -> policy == KnowledgePolicy.DOCUMENTS_PLUS_GENERAL
+					? "I cannot find sufficient information in your documents or public documents to answer this question."
+					: "I cannot find sufficient information in your documents to answer this question.";
 		};
 	}
 

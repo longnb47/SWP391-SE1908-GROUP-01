@@ -10,5 +10,9 @@ public interface DocumentAccessService {
 
 	List<Document> getReadyDocumentsForChat(Long userId, List<Long> documentIds);
 
-	List<Document> getAllReadyDocumentsForUser(Long userId, @Nullable Long folderId);
+	List<Document> getAllReadyDocumentsForUser(
+			Long userId,
+			@Nullable Long folderId,
+			boolean includePublicDocuments
+	);
 }

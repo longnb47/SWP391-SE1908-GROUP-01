@@ -3205,6 +3205,8 @@ Ask the AI a question using multiple selected documents, or using the user's acc
 ### Case 1: selected documents
 
 Use this when the user manually selects one or more documents.
+Every requested document must exist, be accessible to the current user, not be deleted, and have status `READY`.
+The backend searches only the selected document IDs. `useGeneralKnowledge` is ignored in this mode.
 
 ```json
 {
@@ -3218,7 +3220,8 @@ Use this when the user manually selects one or more documents.
 
 ### Case 2: user storage
 
-Use this when the user does not manually select documents and wants to ask from their storage scope.
+Use this when the user does not manually select documents and wants to search only their own `READY` documents.
+Public Community documents are not included.
 
 ```json
 {
@@ -3232,7 +3235,8 @@ Use this when the user does not manually select documents and wants to ask from 
 
 ### Case 3: user storage with general/community option
 
-Use this when the user does not manually select documents and enables the broader knowledge option.
+Use this when the user does not manually select documents and enables the broader Community scope.
+The backend searches the user's own `READY` documents plus all accessible public `READY` documents.
 
 ```json
 {
@@ -3244,7 +3248,24 @@ Use this when the user does not manually select documents and enables the broade
 }
 ```
 
-> Current backend note: `useGeneralKnowledge` currently controls the returned policy and prompt path. The strict separation between "My Files only" and "My Files + Community" should be verified/adjusted in backend logic if the frontend depends on that exact behavior.
+> Despite its current name, `useGeneralKnowledge` does not allow unrestricted pretrained or external AI knowledge. It controls whether public Community documents are included in retrieval. The AI must still answer only from the retrieved document context.
+
+### Retrieval scope
+
+| Mode | `useGeneralKnowledge` | Documents searched |
+|---|---|---|
+| `SelectedDocuments` | Ignored | Only all requested accessible `READY` documents |
+| `UserStorage` | `false` | Current user's `READY` documents only |
+| `UserStorage` | `null` | Uses backend default; currently My Files only |
+| `UserStorage` | `true` | Current user's `READY` documents plus public Community `READY` documents |
+
+When `folderId` is supplied:
+
+- The folder must belong to the authenticated user.
+- With `useGeneralKnowledge = false/null`, only the user's `READY` documents in that folder are searched.
+- With `useGeneralKnowledge = true`, the user's `READY` documents in that folder and public Community `READY` documents are searched.
+- Documents with `UPLOADED`, `PARSING`, `INDEXING`, `FAILED`, or deleted status are excluded.
+- If no eligible documents or chunks remain, the API returns `200 OK` with a no-context answer and does not call Gemini.
 
 ### Request fields
 
@@ -3252,9 +3273,9 @@ Use this when the user does not manually select documents and enables the broade
 |---|---|---|---|
 | `mode` | string | Yes | Must be `SelectedDocuments` or `UserStorage` |
 | `selectedDocumentIds` | array / null | Required for `SelectedDocuments` | List of accessible `READY` document IDs |
-| `folderId` | number / null | No | Optional folder filter for `UserStorage` |
+| `folderId` | number / null | No | Optional owned folder filter for the user's document scope in `UserStorage` |
 | `question` | string | Yes | Must not be blank |
-| `useGeneralKnowledge` | boolean / null | No | Mainly used with `UserStorage`; ignored for `SelectedDocuments` |
+| `useGeneralKnowledge` | boolean / null | No | For `UserStorage`: `false` = My Files only, `true` = My Files + public Community; ignored for `SelectedDocuments` |
 
 ### Success response
 
@@ -3290,16 +3311,17 @@ Status: `200 OK`
 |---|---|---|
 | `400` | `Validation failed` | Missing/invalid mode or blank question |
 | `400` | `Validation failed` | `selectedDocumentIds` is missing for `SelectedDocuments` mode |
+| `400` | `Validation failed` | One or more selected documents do not exist, are deleted, are not `READY`, or are not accessible |
 | `401` | `Unauthorized` | Missing or invalid JWT |
-| `404` | `Resource not found` | No accessible/ready document context is available |
+| `404` | `Resource not found` | The supplied `folderId` does not belong to the authenticated user |
 | `503` | `AI service is unavailable` | Gemini/Spring AI call failed |
 
 ### Frontend usage
 
 1. If the user selects documents, call `/api/chat/ask-multi` with `mode = "SelectedDocuments"` and `selectedDocumentIds`.
 2. If the user does not select documents, call `/api/chat/ask-multi` with `mode = "UserStorage"`.
-3. Send `useGeneralKnowledge = false/null` for the normal storage mode.
-4. Send `useGeneralKnowledge = true` only when the user enables the broader knowledge/community option.
+3. Send `useGeneralKnowledge = false/null` to search only My Files.
+4. Send `useGeneralKnowledge = true` only when the user enables public Community document retrieval.
 5. Render `data.answer` and optionally show `data.usedDocumentIds`.
 
 Important:
@@ -3307,6 +3329,7 @@ Important:
 - Do not send file content from the frontend.
 - Only send IDs, mode, optional folder filter, and the user's question.
 - The backend handles embedding, retrieval, prompt building, and AI calling.
+- In `SelectedDocuments` mode, do not include documents that are still processing or have status `FAILED`.
 
 ---
 

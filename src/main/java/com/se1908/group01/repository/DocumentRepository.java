@@ -42,8 +42,19 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
 			@Param("userId") Long userId,
 			@Param("status") DocumentStatus status);
 
-	@Query("SELECT d FROM Document d WHERE d.folderId = :folderId AND d.isDeleted = false AND d.status = :status AND (d.userId = :userId OR d.isPublic = true)")
-	List<Document> findAccessibleDocumentsByFolderAndStatus(
+	@Query("SELECT d FROM Document d WHERE d.isDeleted = false AND d.status = :status AND d.userId = :userId")
+	List<Document> findOwnedDocumentsByStatus(
+			@Param("userId") Long userId,
+			@Param("status") DocumentStatus status);
+
+	@Query("SELECT d FROM Document d WHERE d.isDeleted = false AND d.status = :status AND d.userId = :userId AND d.folderId = :folderId")
+	List<Document> findOwnedDocumentsByFolderAndStatus(
+			@Param("userId") Long userId,
+			@Param("folderId") Long folderId,
+			@Param("status") DocumentStatus status);
+
+	@Query("SELECT d FROM Document d WHERE d.isDeleted = false AND d.status = :status AND ((d.userId = :userId AND d.folderId = :folderId) OR d.isPublic = true)")
+	List<Document> findOwnedFolderAndPublicDocumentsByStatus(
 			@Param("userId") Long userId,
 			@Param("folderId") Long folderId,
 			@Param("status") DocumentStatus status);

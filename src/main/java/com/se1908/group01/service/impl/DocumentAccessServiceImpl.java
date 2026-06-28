@@ -3,8 +3,10 @@ package com.se1908.group01.service.impl;
 import com.se1908.group01.entity.Document;
 import com.se1908.group01.entity.DocumentStatus;
 import com.se1908.group01.exception.ResourceNotFoundException;
+import com.se1908.group01.repository.DocumentFolderRepository;
 import com.se1908.group01.repository.DocumentRepository;
 import com.se1908.group01.service.DocumentAccessService;
+import java.util.HashSet;
 import java.util.List;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
@@ -13,9 +15,14 @@ import org.springframework.stereotype.Service;
 public class DocumentAccessServiceImpl implements DocumentAccessService {
 
 	private final DocumentRepository documentRepository;
+	private final DocumentFolderRepository documentFolderRepository;
 
-	public DocumentAccessServiceImpl(DocumentRepository documentRepository) {
+	public DocumentAccessServiceImpl(
+			DocumentRepository documentRepository,
+			DocumentFolderRepository documentFolderRepository
+	) {
 		this.documentRepository = documentRepository;
+		this.documentFolderRepository = documentFolderRepository;
 	}
 
 	@Override
@@ -40,14 +47,48 @@ public class DocumentAccessServiceImpl implements DocumentAccessService {
 		if (documentIds == null || documentIds.isEmpty()) {
 			throw new IllegalArgumentException("Document IDs are required for SelectedDocuments mode");
 		}
-		return documentRepository.findAccessibleDocumentsByIdsAndStatus(documentIds, userId, DocumentStatus.READY);
+		var distinctDocumentIds = documentIds.stream().distinct().toList();
+		var requestedDocumentIds = new HashSet<>(distinctDocumentIds);
+		var documents = documentRepository.findAccessibleDocumentsByIdsAndStatus(
+				distinctDocumentIds,
+				userId,
+				DocumentStatus.READY
+		);
+		var resolvedDocumentIds = documents.stream()
+				.map(Document::getDocumentId)
+				.collect(java.util.stream.Collectors.toSet());
+		if (!resolvedDocumentIds.equals(requestedDocumentIds)) {
+			throw new IllegalArgumentException(
+					"One or more selected documents are unavailable, not ready, or not accessible");
+		}
+		return documents;
 	}
 
 	@Override
-	public List<Document> getAllReadyDocumentsForUser(Long userId, @Nullable Long folderId) {
+	public List<Document> getAllReadyDocumentsForUser(
+			Long userId,
+			@Nullable Long folderId,
+			boolean includePublicDocuments
+	) {
 		if (folderId != null) {
-			return documentRepository.findAccessibleDocumentsByFolderAndStatus(userId, folderId, DocumentStatus.READY);
+			documentFolderRepository.findByFolderIdAndUserId(folderId, userId)
+					.orElseThrow(() -> new ResourceNotFoundException("Document folder not found"));
+			if (includePublicDocuments) {
+				return documentRepository.findOwnedFolderAndPublicDocumentsByStatus(
+						userId,
+						folderId,
+						DocumentStatus.READY
+				);
+			}
+			return documentRepository.findOwnedDocumentsByFolderAndStatus(
+					userId,
+					folderId,
+					DocumentStatus.READY
+			);
 		}
-		return documentRepository.findAllAccessibleDocumentsByStatus(userId, DocumentStatus.READY);
+		if (includePublicDocuments) {
+			return documentRepository.findAllAccessibleDocumentsByStatus(userId, DocumentStatus.READY);
+		}
+		return documentRepository.findOwnedDocumentsByStatus(userId, DocumentStatus.READY);
 	}
 }
