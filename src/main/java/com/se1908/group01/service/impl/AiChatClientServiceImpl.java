@@ -21,7 +21,7 @@ public class AiChatClientServiceImpl implements AiChatClientService {
 		var builder = chatClientBuilderProvider.getIfAvailable();
 		if (builder == null) {
 			throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
-					"Spring AI chat model is not configured. Set SPRING_AI_MODEL_CHAT=google-genai and GEMINI_API_KEY.");
+					"Spring AI chat model is not configured. Set SPRING_AI_MODEL_CHAT=google-genai and GEMINI_CHAT_API_KEY.");
 		}
 
 		try {
