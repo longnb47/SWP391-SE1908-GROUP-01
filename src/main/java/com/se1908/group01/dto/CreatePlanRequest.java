@@ -6,7 +6,22 @@ import lombok.Data;
 public class CreatePlanRequest {
 
     private String name;
+
     private Double price;
+
     private Integer durationDays;
+
     private String description;
+
+    private Integer storageLimitGb;
+
+    private String allowedFormats;
+
+    private Integer maxUploadSizeMb;
+
+    private Boolean multipleDocuments;
+
+    private Boolean videoUpload;
+
+    private Long monthlyTokenLimit;
 }

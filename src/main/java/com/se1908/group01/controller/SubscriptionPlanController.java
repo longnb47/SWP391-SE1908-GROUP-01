@@ -17,9 +17,11 @@ import java.util.List;
 @SecurityRequirement(name = "bearerAuth")
 public class SubscriptionPlanController {
 
-
     private final SubscriptionPlanService service;
 
+    /**
+     * Create new subscription plan
+     */
     @PostMapping
     public ResponseEntity<SubscriptionPlan> create(
             @RequestBody CreatePlanRequest request) {
@@ -29,6 +31,9 @@ public class SubscriptionPlanController {
         );
     }
 
+    /**
+     * Get all active plans
+     */
     @GetMapping
     public ResponseEntity<List<SubscriptionPlan>> getAll() {
 
@@ -37,6 +42,9 @@ public class SubscriptionPlanController {
         );
     }
 
+    /**
+     * Get plan by id
+     */
     @GetMapping("/{id}")
     public ResponseEntity<SubscriptionPlan> getById(
             @PathVariable Long id) {
@@ -46,6 +54,9 @@ public class SubscriptionPlanController {
         );
     }
 
+    /**
+     * Update plan
+     */
     @PutMapping("/{id}")
     public ResponseEntity<SubscriptionPlan> update(
             @PathVariable Long id,
@@ -56,6 +67,9 @@ public class SubscriptionPlanController {
         );
     }
 
+    /**
+     * Soft delete plan
+     */
     @DeleteMapping("/{id}")
     public ResponseEntity<String> delete(
             @PathVariable Long id) {
@@ -66,6 +80,4 @@ public class SubscriptionPlanController {
                 "Subscription plan deleted successfully"
         );
     }
-
-
 }

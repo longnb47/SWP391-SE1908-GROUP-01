@@ -16,15 +16,15 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class PaymentHistoryResponse {
 
-    private Long id;
+    private Long paymentId;
+
+    private String planName;
 
     private BigDecimal amount;
 
     private PaymentMethod paymentMethod;
 
     private PaymentStatus status;
-
-    private LocalDateTime createdAt;
 
     private LocalDateTime paidAt;
 }

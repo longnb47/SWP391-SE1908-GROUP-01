@@ -34,7 +34,10 @@ public class Payment {
     @Column(unique = true, nullable = false, length = 50)
     private String transactionNo;
 
-    private String vnpTransactionNo;
+
+    // Mã phản hồi VNPay
+    @Column(length = 10)
+    private String responseCode;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -48,8 +51,6 @@ public class Payment {
 
     private LocalDateTime paidAt;
 
-    @Column(length = 500)
-    private String paymentNote;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)

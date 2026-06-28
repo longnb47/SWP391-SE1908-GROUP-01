@@ -18,11 +18,8 @@ public class SubscriptionPlanService {
     // CREATE
     public SubscriptionPlan create(CreatePlanRequest request) {
 
-        if (repository.existsByNameAndActiveTrue(
-                request.getName())) {
-
-            throw new RuntimeException(
-                    "Subscription plan name already exists.");
+        if (repository.existsByNameAndActiveTrue(request.getName())) {
+            throw new RuntimeException("Subscription plan name already exists.");
         }
 
         SubscriptionPlan plan = SubscriptionPlan.builder()
@@ -30,6 +27,14 @@ public class SubscriptionPlanService {
                 .price(request.getPrice())
                 .durationDays(request.getDurationDays())
                 .description(request.getDescription())
+
+                // ===== STORAGE =====
+                .storageLimitGb(request.getStorageLimitGb())
+                .allowedFormats(request.getAllowedFormats())
+                .maxUploadSizeMb(request.getMaxUploadSizeMb())
+                .multipleDocuments(request.getMultipleDocuments())
+                .videoUpload(request.getVideoUpload())
+                .monthlyTokenLimit(request.getMonthlyTokenLimit())
                 .active(true)
                 .build();
 
@@ -41,17 +46,15 @@ public class SubscriptionPlanService {
         return repository.findByActiveTrue();
     }
 
-    // GET BY ID
+    // GET PLAN BY ID
     public SubscriptionPlan getById(Long id) {
 
         SubscriptionPlan plan = repository.findById(id)
                 .orElseThrow(() ->
-                        new RuntimeException(
-                                "Subscription plan not found."));
+                        new RuntimeException("Subscription plan not found."));
 
         if (!plan.isActive()) {
-            throw new RuntimeException(
-                    "Subscription plan has been deleted.");
+            throw new RuntimeException("Subscription plan has been deleted.");
         }
 
         return plan;
@@ -64,13 +67,10 @@ public class SubscriptionPlanService {
 
         SubscriptionPlan plan = getById(id);
 
-        // Chỉ kiểm tra trùng tên khi người dùng đổi tên
         if (!plan.getName().equalsIgnoreCase(request.getName())
-                && repository.existsByNameAndActiveTrue(
-                request.getName())) {
+                && repository.existsByNameAndActiveTrue(request.getName())) {
 
-            throw new RuntimeException(
-                    "Subscription plan name already exists.");
+            throw new RuntimeException("Subscription plan name already exists.");
         }
 
         plan.setName(request.getName());
@@ -78,6 +78,15 @@ public class SubscriptionPlanService {
         plan.setDurationDays(request.getDurationDays());
         plan.setDescription(request.getDescription());
 
+        // ===== STORAGE =====
+        plan.setStorageLimitGb(request.getStorageLimitGb());
+        plan.setAllowedFormats(request.getAllowedFormats());
+        plan.setMaxUploadSizeMb(request.getMaxUploadSizeMb());
+        plan.setMultipleDocuments(request.getMultipleDocuments());
+        plan.setVideoUpload(request.getVideoUpload());
+        plan.setMonthlyTokenLimit(
+                request.getMonthlyTokenLimit()
+        );
         return repository.save(plan);
     }
 
@@ -86,12 +95,10 @@ public class SubscriptionPlanService {
 
         SubscriptionPlan plan = repository.findById(id)
                 .orElseThrow(() ->
-                        new RuntimeException(
-                                "Subscription plan not found."));
+                        new RuntimeException("Subscription plan not found."));
 
         if (!plan.isActive()) {
-            throw new RuntimeException(
-                    "Subscription plan already deleted.");
+            throw new RuntimeException("Subscription plan already deleted.");
         }
 
         plan.setActive(false);
