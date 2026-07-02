@@ -443,7 +443,7 @@ public class DocumentServiceImpl implements DocumentService {
 
 	@Transactional(readOnly = true)
 	@Override
-	public DocumentPageResponse searchMyDocuments(
+	public DocumentPageResponse filterMyDocuments(
 			List<Long> tagIds,
 			String contentType,
 			Instant createdFrom,

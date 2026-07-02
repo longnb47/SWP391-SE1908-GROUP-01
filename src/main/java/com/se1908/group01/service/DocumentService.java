@@ -70,7 +70,7 @@ public interface DocumentService {
 
 	void deletePermanently(Long documentId);
 
-	DocumentPageResponse searchMyDocuments(
+	DocumentPageResponse filterMyDocuments(
 			List<Long> tagIds,
 			String contentType,
 			Instant createdFrom,

@@ -40,8 +40,8 @@ public class DocumentController {
 		this.documentService = documentService;
 	}
 
-	@GetMapping
-	public ApiResponse<DocumentPageResponse> searchMyDocuments(
+	@GetMapping("/filter")
+	public ApiResponse<DocumentPageResponse> filterMyDocuments(
 			@RequestParam(required = false) List<Long> tagIds,
 			@RequestParam(required = false) String contentType,
 			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant createdFrom,
@@ -50,8 +50,8 @@ public class DocumentController {
 			@RequestParam(defaultValue = "0") int page,
 			@RequestParam(defaultValue = "20") int size
 	) {
-		var response = documentService.searchMyDocuments(tagIds, contentType, createdFrom, createdTo, sort, page, size);
-		return ApiResponse.success("Search documents successfully", response);
+		var response = documentService.filterMyDocuments(tagIds, contentType, createdFrom, createdTo, sort, page, size);
+		return ApiResponse.success("Filter documents successfully", response);
 	}
 
 	@PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
