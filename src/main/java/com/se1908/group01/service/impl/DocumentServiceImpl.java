@@ -1,6 +1,7 @@
 package com.se1908.group01.service.impl;
 
 import com.se1908.group01.config.S3Properties;
+import com.se1908.group01.dto.DocumentPageResponse;
 import com.se1908.group01.dto.DocumentShareLinkResponse;
 import com.se1908.group01.dto.DocumentShareResponse;
 import com.se1908.group01.dto.DocumentUploadResponse;
@@ -29,14 +30,20 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class DocumentServiceImpl implements DocumentService {
+
+	private static final int MAX_PAGE_SIZE = 100;
 
 	private final FileValidationService fileValidationService;
 	private final S3StorageService s3StorageService;
@@ -432,6 +439,77 @@ public class DocumentServiceImpl implements DocumentService {
 		documentShareLinkRepository.deleteByDocument_DocumentId(doc.getDocumentId());
 		chatSessionDocumentRepository.deleteByDocumentDocumentId(doc.getDocumentId());
 		documentRepository.delete(doc);
+	}
+
+	@Transactional(readOnly = true)
+	@Override
+	public DocumentPageResponse searchMyDocuments(
+			List<Long> tagIds,
+			String contentType,
+			Instant createdFrom,
+			Instant createdTo,
+			String sort,
+			int page,
+			int size
+	) {
+		validatePageParams(page, size);
+		var userId = currentUserService.getCurrentUserId();
+
+		Specification<Document> spec = (root, query, cb) -> cb.and(
+				cb.equal(root.get("userId"), userId),
+				cb.isFalse(root.get("isDeleted"))
+		);
+
+		if (tagIds != null && !tagIds.isEmpty()) {
+			var matchingDocumentIds = documentTagRepository.findDocumentIdsByTagIdIn(tagIds);
+			if (matchingDocumentIds.isEmpty()) {
+				return new DocumentPageResponse(List.of(), page, size, 0, 0);
+			}
+			spec = spec.and((root, query, cb) -> root.get("documentId").in(matchingDocumentIds));
+		}
+
+		if (StringUtils.hasText(contentType)) {
+			spec = spec.and((root, query, cb) -> cb.equal(root.get("contentType"), contentType));
+		}
+
+		if (createdFrom != null) {
+			spec = spec.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("uploadedAt"), createdFrom));
+		}
+
+		if (createdTo != null) {
+			spec = spec.and((root, query, cb) -> cb.lessThanOrEqualTo(root.get("uploadedAt"), createdTo));
+		}
+
+		var pageable = PageRequest.of(page, size, Sort.by(resolveSortDirection(sort), "uploadedAt"));
+		var resultPage = documentRepository.findAll(spec, pageable);
+		var documents = resultPage.getContent().stream().map(this::toResponse).toList();
+
+		return new DocumentPageResponse(
+				documents,
+				resultPage.getNumber(),
+				resultPage.getSize(),
+				resultPage.getTotalElements(),
+				resultPage.getTotalPages()
+		);
+	}
+
+	private Sort.Direction resolveSortDirection(String sort) {
+		if (!StringUtils.hasText(sort) || "NEWEST".equalsIgnoreCase(sort)) {
+			return Sort.Direction.DESC;
+		}
+		if ("OLDEST".equalsIgnoreCase(sort)) {
+			return Sort.Direction.ASC;
+		}
+		throw new IllegalArgumentException("sort must be one of: NEWEST, OLDEST");
+	}
+
+	private void validatePageParams(int page, int size) {
+		if (page < 0) {
+			throw new IllegalArgumentException("Page must be greater than or equal to 0");
+		}
+		if (size < 1 || size > MAX_PAGE_SIZE) {
+			throw new IllegalArgumentException("Size must be between 1 and " + MAX_PAGE_SIZE);
+		}
 	}
 
 	private String buildObjectKey(Long userId, String sanitizedFilename) {

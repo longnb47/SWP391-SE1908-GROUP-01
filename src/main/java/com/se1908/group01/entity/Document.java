@@ -7,12 +7,19 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
-@Table(name = "document")
+@Table(
+		name = "document",
+		indexes = {
+				@Index(name = "idx_document_user_deleted_uploaded", columnList = "user_id, is_deleted, uploaded_at"),
+				@Index(name = "idx_document_content_type", columnList = "content_type")
+		}
+)
 public class Document {
 
 	@Id

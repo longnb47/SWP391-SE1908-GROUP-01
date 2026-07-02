@@ -1,6 +1,7 @@
 package com.se1908.group01.controller;
 
 import com.se1908.group01.dto.ApiResponse;
+import com.se1908.group01.dto.DocumentPageResponse;
 import com.se1908.group01.dto.DocumentShareLinkResponse;
 import com.se1908.group01.dto.DocumentShareResponse;
 import com.se1908.group01.dto.DocumentMoveFolderRequest;
@@ -11,7 +12,9 @@ import com.se1908.group01.dto.ShareDocumentWithUserRequest;
 import com.se1908.group01.service.DocumentService;
 import jakarta.validation.Valid;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.List;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -35,6 +38,20 @@ public class DocumentController {
 
 	public DocumentController(DocumentService documentService) {
 		this.documentService = documentService;
+	}
+
+	@GetMapping
+	public ApiResponse<DocumentPageResponse> searchMyDocuments(
+			@RequestParam(required = false) List<Long> tagIds,
+			@RequestParam(required = false) String contentType,
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant createdFrom,
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant createdTo,
+			@RequestParam(defaultValue = "NEWEST") String sort,
+			@RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "20") int size
+	) {
+		var response = documentService.searchMyDocuments(tagIds, contentType, createdFrom, createdTo, sort, page, size);
+		return ApiResponse.success("Search documents successfully", response);
 	}
 
 	@PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
