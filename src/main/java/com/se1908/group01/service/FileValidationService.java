@@ -19,8 +19,15 @@ public class FileValidationService {
 			"mp4", "mov", "avi", "webm"
 	);
 
+	private static final Set<String> ALLOWED_AVATAR_EXTENSIONS = Set.of(
+			"png", "jpg", "jpeg", "webp"
+	);
+
 	@Value("${app.upload.max-video-file-size:52428800}")
 	private long maxVideoFileSize;
+
+	@Value("${app.upload.max-avatar-file-size:5242880}")
+	private long maxAvatarFileSize;
 
 	public void validateForUpload(MultipartFile file) {
 		if (file == null) {
@@ -52,6 +59,32 @@ public class FileValidationService {
 			if (file.getSize() > MAX_DOC_BYTES) {
 				throw new IllegalArgumentException("File exceeds 20MB limit");
 			}
+		}
+	}
+
+	public void validateForAvatarUpload(MultipartFile file) {
+		if (file == null) {
+			throw new IllegalArgumentException("File is required");
+		}
+		if (file.isEmpty() || file.getSize() <= 0) {
+			throw new IllegalArgumentException("File is empty");
+		}
+
+		var originalFilename = file.getOriginalFilename();
+		if (!StringUtils.hasText(originalFilename)) {
+			throw new IllegalArgumentException("Original filename is required");
+		}
+
+		var ext = getExtensionLower(originalFilename);
+		var contentType = file.getContentType();
+		var isImage = StringUtils.hasText(contentType) && contentType.toLowerCase().startsWith("image/");
+
+		if (!ALLOWED_AVATAR_EXTENSIONS.contains(ext) || !isImage) {
+			throw new IllegalArgumentException("Unsupported avatar file type: " + ext);
+		}
+
+		if (file.getSize() > maxAvatarFileSize) {
+			throw new IllegalArgumentException("Avatar file exceeds " + (maxAvatarFileSize / 1024 / 1024) + "MB limit");
 		}
 	}
 

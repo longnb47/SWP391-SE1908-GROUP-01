@@ -52,11 +52,25 @@ public class User {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createAt;
 
+    @Column(name = "bio", length = 500)
+    private String bio;
+
+    @Column(name = "avatar_s3_key", length = 1024)
+    private String avatarS3Key;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
 
     @PrePersist
     public void prePersist() {
         if (createAt == null) {
             createAt = LocalDateTime.now();
         }
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        updatedAt = LocalDateTime.now();
     }
 }
