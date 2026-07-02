@@ -1,6 +1,7 @@
 package com.se1908.group01.controller;
 
 import com.se1908.group01.dto.ApiResponse;
+import com.se1908.group01.dto.ChangePasswordRequest;
 import com.se1908.group01.dto.UpdateUserProfileRequest;
 import com.se1908.group01.dto.UserProfileResponse;
 import com.se1908.group01.service.UserProfileService;
@@ -37,6 +38,12 @@ public class UserProfileController {
 	public ApiResponse<UserProfileResponse> updateMyProfile(@Valid @RequestBody UpdateUserProfileRequest request) {
 		var response = userProfileService.updateMyProfile(request);
 		return ApiResponse.success("Update profile successfully", response);
+	}
+
+	@PatchMapping("/password")
+	public ApiResponse<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+		userProfileService.changePassword(request);
+		return ApiResponse.success("Change password successfully", null);
 	}
 
 	@PostMapping(value = "/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

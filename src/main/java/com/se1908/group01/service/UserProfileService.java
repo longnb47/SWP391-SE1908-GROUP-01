@@ -1,5 +1,6 @@
 package com.se1908.group01.service;
 
+import com.se1908.group01.dto.ChangePasswordRequest;
 import com.se1908.group01.dto.UpdateUserProfileRequest;
 import com.se1908.group01.dto.UserProfileResponse;
 import java.io.IOException;
@@ -12,4 +13,6 @@ public interface UserProfileService {
 	UserProfileResponse updateMyProfile(UpdateUserProfileRequest request);
 
 	UserProfileResponse updateAvatar(MultipartFile file) throws IOException;
+
+	void changePassword(ChangePasswordRequest request);
 }

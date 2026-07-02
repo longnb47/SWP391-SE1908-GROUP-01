@@ -1,6 +1,7 @@
 package com.se1908.group01.service.impl;
 
 import com.se1908.group01.config.S3Properties;
+import com.se1908.group01.dto.ChangePasswordRequest;
 import com.se1908.group01.dto.UpdateUserProfileRequest;
 import com.se1908.group01.dto.UserProfileResponse;
 import com.se1908.group01.entity.User;
@@ -14,6 +15,7 @@ import com.se1908.group01.util.FilenameSanitizer;
 import java.io.IOException;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -28,6 +30,7 @@ public class UserProfileServiceImpl implements UserProfileService {
 	private final FileValidationService fileValidationService;
 	private final S3StorageService s3StorageService;
 	private final S3Properties s3Properties;
+	private final PasswordEncoder passwordEncoder;
 
 	@Override
 	@Transactional(readOnly = true)
@@ -82,6 +85,22 @@ public class UserProfileServiceImpl implements UserProfileService {
 		}
 
 		return toResponse(user);
+	}
+
+	@Override
+	@Transactional
+	public void changePassword(ChangePasswordRequest request) {
+		var user = findCurrentUser();
+
+		if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash())) {
+			throw new IllegalArgumentException("Current password is incorrect");
+		}
+		if (!request.getNewPassword().equals(request.getConfirmNewPassword())) {
+			throw new IllegalArgumentException("New password and confirm password do not match");
+		}
+
+		user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+		userRepository.save(user);
 	}
 
 	private String buildAvatarObjectKey(Long userId, String sanitizedFilename) {
