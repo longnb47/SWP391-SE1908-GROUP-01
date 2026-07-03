@@ -1,6 +1,8 @@
 package com.se1908.group01.service;
 
 import com.se1908.group01.config.VNPayConfig;
+import com.se1908.group01.dto.AdminPaymentListResponse;
+import com.se1908.group01.dto.AdminPaymentResponse;
 import com.se1908.group01.dto.PaymentCallbackResponse;
 import com.se1908.group01.dto.PaymentHistoryResponse;
 import com.se1908.group01.dto.PaymentPurchaseResponse;
@@ -19,6 +21,9 @@ import com.se1908.group01.repository.SubscriptionPlanRepository;
 import com.se1908.group01.repository.UserRepository;
 import com.se1908.group01.util.VNPayUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -34,6 +39,8 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class PaymentService {
+
+    private static final int MAX_PAGE_SIZE = 100;
 
     private final UserRepository userRepository;
     private final PaymentRepository paymentRepository;
@@ -160,6 +167,45 @@ public class PaymentService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public AdminPaymentListResponse getAllPayments(
+            String status,
+            int page,
+            int size) {
+
+        validatePagination(page, size);
+
+        var pageable = PageRequest.of(
+                page,
+                size,
+                Sort.by(Sort.Direction.DESC, "createdAt")
+        );
+
+        Page<Payment> paymentPage;
+        if (StringUtils.hasText(status)) {
+            paymentPage = paymentRepository.findByStatus(
+                    parsePaymentStatus(status),
+                    pageable
+            );
+        } else {
+            paymentPage = paymentRepository.findAll(pageable);
+        }
+
+        List<AdminPaymentResponse> payments = paymentPage
+                .getContent()
+                .stream()
+                .map(this::toAdminPaymentResponse)
+                .toList();
+
+        return new AdminPaymentListResponse(
+                payments,
+                paymentPage.getNumber(),
+                paymentPage.getSize(),
+                paymentPage.getTotalElements(),
+                paymentPage.getTotalPages()
+        );
+    }
+
     public RevenueResponse getRevenue() {
         return RevenueResponse.builder()
                 .totalRevenue(paymentRepository.getTotalRevenue())
@@ -208,6 +254,47 @@ public class PaymentService {
             throw new IllegalArgumentException(
                     "Invalid payment method");
         }
+    }
+
+    private PaymentStatus parsePaymentStatus(String status) {
+        try {
+            return PaymentStatus.valueOf(
+                    status.trim().toUpperCase(Locale.ROOT));
+        } catch (RuntimeException exception) {
+            throw new IllegalArgumentException(
+                    "Payment status must be PENDING, SUCCESS, or FAILED");
+        }
+    }
+
+    private void validatePagination(int page, int size) {
+        if (page < 0) {
+            throw new IllegalArgumentException(
+                    "Page must be greater than or equal to 0");
+        }
+
+        if (size < 1 || size > MAX_PAGE_SIZE) {
+            throw new IllegalArgumentException(
+                    "Size must be between 1 and " + MAX_PAGE_SIZE);
+        }
+    }
+
+    private AdminPaymentResponse toAdminPaymentResponse(
+            Payment payment) {
+
+        return AdminPaymentResponse.builder()
+                .paymentId(payment.getId())
+                .transactionNo(payment.getTransactionNo())
+                .userId(payment.getUser().getUserId())
+                .userEmail(payment.getUser().getEmail())
+                .planId(payment.getPlan().getId())
+                .planName(payment.getPlan().getName())
+                .amount(payment.getAmount())
+                .paymentMethod(payment.getPaymentMethod())
+                .status(payment.getStatus())
+                .responseCode(payment.getResponseCode())
+                .createdAt(payment.getCreatedAt())
+                .paidAt(payment.getPaidAt())
+                .build();
     }
 
     private String createVNPayUrl(Payment payment) {

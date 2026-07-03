@@ -17,9 +17,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -27,6 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -234,6 +240,79 @@ class PaymentServiceTest {
         assertEquals(true, response.isAlreadyProcessed());
         verify(subscriptionLifecycleService, never())
                 .activatePaidSubscription(any(), any());
+    }
+
+    @Test
+    void getAllPaymentsReturnsPagedAdminResponse() {
+        Payment payment = payment(PaymentStatus.SUCCESS);
+        payment.setResponseCode("00");
+        payment.setCreatedAt(LocalDateTime.of(2026, 7, 3, 10, 0));
+        payment.setPaidAt(LocalDateTime.of(2026, 7, 3, 10, 5));
+
+        PageRequest pageable = PageRequest.of(0, 20);
+        when(paymentRepository.findAll(any(Pageable.class)))
+                .thenReturn(new PageImpl<>(
+                        List.of(payment),
+                        pageable,
+                        1
+                ));
+
+        var response = service.getAllPayments(null, 0, 20);
+
+        assertEquals(0, response.page());
+        assertEquals(20, response.size());
+        assertEquals(1, response.totalElements());
+        assertEquals(1, response.totalPages());
+        assertEquals(1, response.payments().size());
+        assertEquals(
+                "user@example.com",
+                response.payments().get(0).getUserEmail()
+        );
+        assertEquals(
+                "PLUS",
+                response.payments().get(0).getPlanName()
+        );
+        assertEquals(
+                PaymentStatus.SUCCESS,
+                response.payments().get(0).getStatus()
+        );
+    }
+
+    @Test
+    void getAllPaymentsFiltersByStatusIgnoringCase() {
+        PageRequest pageable = PageRequest.of(0, 10);
+        when(paymentRepository.findByStatus(
+                eq(PaymentStatus.SUCCESS),
+                any(Pageable.class)
+        )).thenReturn(new PageImpl<>(
+                List.of(),
+                pageable,
+                0
+        ));
+
+        var response = service.getAllPayments("success", 0, 10);
+
+        assertTrue(response.payments().isEmpty());
+        verify(paymentRepository).findByStatus(
+                eq(PaymentStatus.SUCCESS),
+                any(Pageable.class)
+        );
+    }
+
+    @Test
+    void getAllPaymentsRejectsInvalidPaginationAndStatus() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.getAllPayments(null, -1, 20)
+        );
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.getAllPayments(null, 0, 101)
+        );
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.getAllPayments("UNKNOWN", 0, 20)
+        );
     }
 
     private PurchaseRequest purchaseRequest() {

@@ -4507,7 +4507,72 @@ Status: `200 OK`
 
 ---
 
-## 9.4. Get payment revenue
+## 9.4. Get all payments
+
+Get a paginated list of all payments in the system. Results are ordered by `createdAt` descending.
+
+### Request
+
+- Method: `GET`
+- URL: `/api/payments?page=0&size=20&status=SUCCESS`
+- Auth: JWT with `ADMIN` role required
+
+### Query parameters
+
+| Parameter | Type | Required | Default | Rule |
+|---|---|---|---|---|
+| `page` | number | No | `0` | Greater than or equal to `0` |
+| `size` | number | No | `20` | Between `1` and `100` |
+| `status` | string | No | All statuses | `PENDING`, `SUCCESS`, or `FAILED` |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Get all payments successfully",
+  "data": {
+    "payments": [
+      {
+        "paymentId": 1,
+        "transactionNo": "c0b1527ca7a847be9c32d19f45eb8d89",
+        "userId": 2,
+        "userEmail": "user@example.com",
+        "planId": 1,
+        "planName": "PLUS",
+        "amount": 99000,
+        "paymentMethod": "VNPAY",
+        "status": "SUCCESS",
+        "responseCode": "00",
+        "createdAt": "2026-07-03T10:30:00",
+        "paidAt": "2026-07-03T10:35:00"
+      }
+    ],
+    "page": 0,
+    "size": 20,
+    "totalElements": 1,
+    "totalPages": 1
+  },
+  "errors": null,
+  "timestamp": "2026-07-03T10:40:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Page must be greater than or equal to 0` | Negative page number |
+| `400` | `Size must be between 1 and 100` | Invalid page size |
+| `400` | `Payment status must be PENDING, SUCCESS, or FAILED` | Invalid status filter |
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `403` | `Forbidden` | Authenticated user does not have the `ADMIN` role |
+
+---
+
+## 9.5. Get payment revenue
 
 Return total successful payment revenue and transaction count.
 
@@ -4543,7 +4608,7 @@ Status: `200 OK`
 
 ---
 
-## 9.5. Get my active subscription
+## 9.6. Get my active subscription
 
 Two equivalent endpoints currently expose the authenticated user's active subscription:
 
