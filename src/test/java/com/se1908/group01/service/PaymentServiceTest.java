@@ -3,7 +3,6 @@ package com.se1908.group01.service;
 import com.se1908.group01.config.VNPayConfig;
 import com.se1908.group01.dto.PurchaseRequest;
 import com.se1908.group01.entity.Payment;
-import com.se1908.group01.entity.Subscription;
 import com.se1908.group01.entity.SubscriptionPlan;
 import com.se1908.group01.entity.User;
 import com.se1908.group01.enums.PaymentMethod;
@@ -11,7 +10,6 @@ import com.se1908.group01.enums.PaymentStatus;
 import com.se1908.group01.exception.ResourceNotFoundException;
 import com.se1908.group01.repository.PaymentRepository;
 import com.se1908.group01.repository.SubscriptionPlanRepository;
-import com.se1908.group01.repository.SubscriptionRepository;
 import com.se1908.group01.repository.UserRepository;
 import com.se1908.group01.util.VNPayUtil;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,7 +44,7 @@ class PaymentServiceTest {
     private SubscriptionPlanRepository planRepository;
 
     @Mock
-    private SubscriptionRepository subscriptionRepository;
+    private SubscriptionLifecycleService subscriptionLifecycleService;
 
     private VNPayConfig vnPayConfig;
     private PaymentService service;
@@ -63,7 +61,7 @@ class PaymentServiceTest {
                 userRepository,
                 paymentRepository,
                 planRepository,
-                subscriptionRepository,
+                subscriptionLifecycleService,
                 vnPayConfig
         );
     }
@@ -138,6 +136,29 @@ class PaymentServiceTest {
     }
 
     @Test
+    void purchaseRejectsFreePlan() {
+        User user = User.builder()
+                .userId(1L)
+                .email("user@example.com")
+                .build();
+        SubscriptionPlan freePlan = plan(true);
+        freePlan.setName("FREE");
+        freePlan.setPrice(0D);
+
+        when(userRepository.findByEmail("user@example.com"))
+                .thenReturn(Optional.of(user));
+        when(planRepository.findById(1L))
+                .thenReturn(Optional.of(freePlan));
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.purchase(
+                        "user@example.com",
+                        purchaseRequest())
+        );
+    }
+
+    @Test
     void purchaseRejectsIncompleteVNPayConfiguration() {
         vnPayConfig.setHashSecret("");
 
@@ -156,17 +177,15 @@ class PaymentServiceTest {
 
         when(paymentRepository.findByTransactionNoForUpdate("txn-001"))
                 .thenReturn(Optional.of(payment));
-        when(subscriptionRepository.findByUserAndStatus(
-                any(User.class),
-                any()))
-                .thenReturn(Optional.empty());
-
         var response = service.handleVNPayCallback(params);
 
         assertEquals(PaymentStatus.SUCCESS, response.getStatus());
         assertEquals(false, response.isAlreadyProcessed());
         verify(paymentRepository).save(payment);
-        verify(subscriptionRepository).save(any(Subscription.class));
+        verify(subscriptionLifecycleService)
+                .activatePaidSubscription(
+                        payment.getUser(),
+                        payment.getPlan());
     }
 
     @Test
@@ -197,7 +216,8 @@ class PaymentServiceTest {
         );
 
         verify(paymentRepository, never()).save(any(Payment.class));
-        verify(subscriptionRepository, never()).save(any(Subscription.class));
+        verify(subscriptionLifecycleService, never())
+                .activatePaidSubscription(any(), any());
     }
 
     @Test
@@ -212,7 +232,8 @@ class PaymentServiceTest {
 
         assertEquals(PaymentStatus.SUCCESS, response.getStatus());
         assertEquals(true, response.isAlreadyProcessed());
-        verify(subscriptionRepository, never()).save(any(Subscription.class));
+        verify(subscriptionLifecycleService, never())
+                .activatePaidSubscription(any(), any());
     }
 
     private PurchaseRequest purchaseRequest() {

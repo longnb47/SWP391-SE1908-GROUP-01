@@ -4037,6 +4037,8 @@ Access rules:
 - Plan names are trimmed and compared without case sensitivity.
 - Only one active plan may use a given name.
 - After a plan is soft-deleted, its name may be reused by a new plan.
+- The `FREE` plan must have price `0` and cannot be renamed or deleted.
+- An active `FREE` plan must be configured before new users complete account activation.
 
 ---
 
@@ -4118,6 +4120,8 @@ Create a new active subscription plan.
 | `multipleDocuments` | boolean | Yes | `true` or `false` |
 | `videoUpload` | boolean | Yes | `true` or `false` |
 | `monthlyTokenLimit` | number | Yes | Greater than or equal to `0` |
+
+If `name` is `FREE`, `price` must be `0`.
 
 ### Success response
 
@@ -4288,6 +4292,8 @@ The response uses the standard `ApiResponse` format and returns the updated subs
 | Status | Message | Reason |
 |---|---|---|
 | `400` | `Validation failed` | Missing or invalid plan data |
+| `400` | `FREE subscription plan cannot be renamed` | Attempted to rename the default FREE plan |
+| `400` | `FREE subscription plan price must be 0` | FREE plan was assigned a non-zero price |
 | `401` | `Unauthorized` | Missing or invalid JWT |
 | `403` | `Forbidden` | Authenticated user does not have the `ADMIN` role |
 | `404` | `Subscription plan not found` | Plan does not exist or was soft-deleted |
@@ -4325,6 +4331,7 @@ Status: `200 OK`
 |---|---|---|
 | `401` | `Unauthorized` | Missing or invalid JWT |
 | `403` | `Forbidden` | Authenticated user does not have the `ADMIN` role |
+| `400` | `FREE subscription plan cannot be deleted` | Attempted to delete the default FREE plan |
 | `404` | `Subscription plan not found` | Plan does not exist |
 | `409` | `Subscription plan is already deleted` | Plan was previously soft-deleted |
 
@@ -4395,6 +4402,7 @@ The frontend should redirect the browser to `data.paymentUrl`.
 |---|---|---|
 | `400` | `Validation failed` | Missing/invalid plan ID or payment method |
 | `400` | `Subscription plan is no longer available` | Plan was soft-deleted |
+| `400` | `FREE subscription plan does not require payment` | Attempted to purchase the default FREE plan |
 | `401` | `Unauthorized` | Missing or invalid JWT |
 | `404` | `Subscription plan not found` | Plan does not exist |
 | `500` | `VNPay configuration is incomplete` | Required VNPay environment variables are missing |
@@ -4541,6 +4549,8 @@ GET /api/subscriptions/me
 
 - Auth: JWT required
 
+If the user has no active subscription, the backend assigns the active `FREE` plan automatically. If a paid subscription has passed its `endDate`, it is marked `EXPIRED` and the user falls back to `FREE`.
+
 ### Success response
 
 Status: `200 OK`
@@ -4574,7 +4584,7 @@ Status: `200 OK`
 | Status | Message | Reason |
 |---|---|---|
 | `401` | `Unauthorized` | Missing or invalid JWT |
-| `404` | `No active subscription` | User currently has no active subscription |
+| `500` | `Active FREE subscription plan is not configured` | The system has no active FREE plan |
 
 ---
 
@@ -4627,6 +4637,8 @@ false
 - Use `/api/chat/sessions` for persistent chat history; only the latest five completed messages are used as conversational memory for each new answer.
 - Subscription plan listing and detail APIs are public; plan management APIs require an `ADMIN` JWT.
 - Only active plans are returned. If a plan is soft-deleted, refresh the plan list instead of continuing to display it.
+- Every activated user receives the `FREE` plan. Local accounts receive it after OTP verification; Google accounts receive it during Google login.
+- Paid subscriptions fall back to `FREE` after expiration. The FREE plan has no end date and does not go through VNPay.
 - Redirect the browser to the `paymentUrl` returned by the purchase API; do not call the VNPay return endpoint manually.
 - VNPay return query parameters are signed. Changing the amount, transaction reference, merchant code, or signature causes the backend to reject the callback.
 - `ResendOtpResponse.mesage` is currently misspelled according to the existing DTO. If the team wants `message`, the DTO/backend should be updated later.

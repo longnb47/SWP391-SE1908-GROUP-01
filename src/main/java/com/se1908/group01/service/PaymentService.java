@@ -13,11 +13,9 @@ import com.se1908.group01.entity.SubscriptionPlan;
 import com.se1908.group01.entity.User;
 import com.se1908.group01.enums.PaymentMethod;
 import com.se1908.group01.enums.PaymentStatus;
-import com.se1908.group01.enums.SubscriptionStatus;
 import com.se1908.group01.exception.ResourceNotFoundException;
 import com.se1908.group01.repository.PaymentRepository;
 import com.se1908.group01.repository.SubscriptionPlanRepository;
-import com.se1908.group01.repository.SubscriptionRepository;
 import com.se1908.group01.repository.UserRepository;
 import com.se1908.group01.util.VNPayUtil;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
@@ -41,7 +38,7 @@ public class PaymentService {
     private final UserRepository userRepository;
     private final PaymentRepository paymentRepository;
     private final SubscriptionPlanRepository planRepository;
-    private final SubscriptionRepository subscriptionRepository;
+    private final SubscriptionLifecycleService subscriptionLifecycleService;
     private final VNPayConfig vnPayConfig;
 
     public PaymentPurchaseResponse purchase(
@@ -61,6 +58,12 @@ public class PaymentService {
         if (!plan.isActive()) {
             throw new IllegalArgumentException(
                     "Subscription plan is no longer available");
+        }
+
+        if (SubscriptionLifecycleService.FREE_PLAN_NAME
+                .equalsIgnoreCase(plan.getName())) {
+            throw new IllegalArgumentException(
+                    "FREE subscription plan does not require payment");
         }
 
         PaymentMethod paymentMethod = parsePaymentMethod(
@@ -127,7 +130,10 @@ public class PaymentService {
             payment.setStatus(PaymentStatus.SUCCESS);
             payment.setPaidAt(LocalDateTime.now());
             paymentRepository.save(payment);
-            createSubscription(payment);
+            subscriptionLifecycleService.activatePaidSubscription(
+                    payment.getUser(),
+                    payment.getPlan()
+            );
         } else {
             payment.setStatus(PaymentStatus.FAILED);
             paymentRepository.save(payment);
@@ -166,10 +172,8 @@ public class PaymentService {
     public SubscriptionResponse getMySubscription(String email) {
         User user = findUser(email);
 
-        Subscription subscription = subscriptionRepository
-                .findByUserAndStatus(user, SubscriptionStatus.ACTIVE)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "No active subscription"));
+        Subscription subscription = subscriptionLifecycleService
+                .getOrCreateActiveSubscription(user);
 
         SubscriptionPlan plan = subscription.getPlan();
 
@@ -204,32 +208,6 @@ public class PaymentService {
             throw new IllegalArgumentException(
                     "Invalid payment method");
         }
-    }
-
-    private void createSubscription(Payment payment) {
-        Subscription activeSubscription = subscriptionRepository
-                .findByUserAndStatus(
-                        payment.getUser(),
-                        SubscriptionStatus.ACTIVE)
-                .orElse(null);
-
-        if (activeSubscription != null) {
-            activeSubscription.setStatus(SubscriptionStatus.EXPIRED);
-            activeSubscription.setEndDate(LocalDate.now());
-            subscriptionRepository.save(activeSubscription);
-        }
-
-        Subscription newSubscription = Subscription.builder()
-                .user(payment.getUser())
-                .plan(payment.getPlan())
-                .startDate(LocalDate.now())
-                .endDate(
-                        LocalDate.now().plusDays(
-                                payment.getPlan().getDurationDays()))
-                .status(SubscriptionStatus.ACTIVE)
-                .build();
-
-        subscriptionRepository.save(newSubscription);
     }
 
     private String createVNPayUrl(Payment payment) {

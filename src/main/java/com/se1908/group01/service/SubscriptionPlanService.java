@@ -22,6 +22,7 @@ public class SubscriptionPlanService {
 
     public SubscriptionPlanResponse create(CreatePlanRequest request) {
         String normalizedName = normalizeName(request.getName());
+        validateFreePlanPrice(normalizedName, request.getPrice());
 
         if (repository.existsByNameIgnoreCaseAndActiveTrue(normalizedName)) {
             throw new ConflictException("An active subscription plan with this name already exists");
@@ -64,6 +65,14 @@ public class SubscriptionPlanService {
         SubscriptionPlan plan = findActivePlan(id);
         String normalizedName = normalizeName(request.getName());
 
+        if (isFreePlan(plan.getName())
+                && !isFreePlan(normalizedName)) {
+            throw new IllegalArgumentException(
+                    "FREE subscription plan cannot be renamed");
+        }
+
+        validateFreePlanPrice(normalizedName, request.getPrice());
+
         if (repository.existsByNameIgnoreCaseAndActiveTrueAndIdNot(
                 normalizedName,
                 id)) {
@@ -93,6 +102,11 @@ public class SubscriptionPlanService {
             throw new ConflictException("Subscription plan is already deleted");
         }
 
+        if (isFreePlan(plan.getName())) {
+            throw new IllegalArgumentException(
+                    "FREE subscription plan cannot be deleted");
+        }
+
         plan.setActive(false);
         repository.save(plan);
     }
@@ -110,7 +124,10 @@ public class SubscriptionPlanService {
     }
 
     private String normalizeName(String name) {
-        return name.trim();
+        String normalized = name.trim();
+        return isFreePlan(normalized)
+                ? SubscriptionLifecycleService.FREE_PLAN_NAME
+                : normalized;
     }
 
     private String normalizeOptionalText(String value) {
@@ -137,5 +154,21 @@ public class SubscriptionPlanService {
                 .monthlyTokenLimit(plan.getMonthlyTokenLimit())
                 .active(plan.isActive())
                 .build();
+    }
+
+    private boolean isFreePlan(String name) {
+        return SubscriptionLifecycleService.FREE_PLAN_NAME
+                .equalsIgnoreCase(name);
+    }
+
+    private void validateFreePlanPrice(
+            String name,
+            Double price) {
+
+        if (isFreePlan(name)
+                && Double.compare(price, 0D) != 0) {
+            throw new IllegalArgumentException(
+                    "FREE subscription plan price must be 0");
+        }
     }
 }

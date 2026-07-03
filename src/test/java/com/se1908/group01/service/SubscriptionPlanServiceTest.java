@@ -81,6 +81,29 @@ class SubscriptionPlanServiceTest {
         verify(repository).save(plan);
     }
 
+    @Test
+    void createRequiresFreePlanPriceToBeZero() {
+        CreatePlanRequest request = createRequest("FREE");
+        request.setPrice(1000D);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.create(request)
+        );
+    }
+
+    @Test
+    void deleteRejectsFreePlan() {
+        SubscriptionPlan plan = plan(1L, "FREE", true);
+        when(repository.findById(1L))
+                .thenReturn(java.util.Optional.of(plan));
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.delete(1L)
+        );
+    }
+
     private CreatePlanRequest createRequest(String name) {
         CreatePlanRequest request = new CreatePlanRequest();
         request.setName(name);
