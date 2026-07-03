@@ -4,10 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.se1908.group01.config.RagProperties;
 import com.se1908.group01.dto.AiGenerationOptions;
 import com.se1908.group01.dto.MultiChatAskRequest;
-import com.se1908.group01.enums.KnowledgePolicy;
 import com.se1908.group01.enums.SupportedAiModel;
 import com.se1908.group01.service.AiGenerationOptionsService;
 import com.se1908.group01.service.CurrentUserService;
@@ -58,7 +56,6 @@ class MultiChatServiceImplTest {
 				vectorSearchService,
 				promptBuilderService,
 				llmClient,
-				new RagProperties(),
 				aiGenerationOptionsService
 		);
 		when(currentUserService.getCurrentUserId()).thenReturn(1L);
@@ -67,49 +64,60 @@ class MultiChatServiceImplTest {
 	}
 
 	@Test
-	void userStorageExcludesPublicDocumentsWhenGeneralKnowledgeIsDisabled() {
-		var request = request("UserStorage", false);
+	void userStorageSearchesOwnedDocumentsOnlyWhenNoFolderProvided() {
+		var request = request("UserStorage", null);
 		when(documentAccessService.getAllReadyDocumentsForUser(1L, null, false))
 				.thenReturn(List.of());
 
 		var response = multiChatService.askMulti(request);
 
-		assertEquals(KnowledgePolicy.DOCUMENTS_ONLY, response.getPolicy());
+		assertEquals("USER_STORAGE", response.getMode());
 		assertEquals("gemini-2.5-flash-lite", response.getModel());
 		assertEquals(0.2, response.getTemperature());
+		assertEquals(
+				"I cannot find sufficient information in your documents to answer this question.",
+				response.getAnswer()
+		);
 		verify(documentAccessService).getAllReadyDocumentsForUser(1L, null, false);
 	}
 
 	@Test
-	void userStorageIncludesPublicDocumentsWhenGeneralKnowledgeIsEnabled() {
-		var request = request("UserStorage", true);
-		when(documentAccessService.getAllReadyDocumentsForUser(1L, null, true))
+	void userStorageScopesToFolderWhenFolderIdProvided() {
+		var request = request("UserStorage", 42L);
+		when(documentAccessService.getAllReadyDocumentsForUser(1L, 42L, false))
 				.thenReturn(List.of());
 
 		var response = multiChatService.askMulti(request);
 
-		assertEquals(KnowledgePolicy.DOCUMENTS_PLUS_GENERAL, response.getPolicy());
-		verify(documentAccessService).getAllReadyDocumentsForUser(1L, null, true);
+		assertEquals(
+				"I cannot find sufficient information in this folder to answer this question.",
+				response.getAnswer()
+		);
+		verify(documentAccessService).getAllReadyDocumentsForUser(1L, 42L, false);
 	}
 
 	@Test
-	void selectedDocumentsAlwaysUseDocumentsOnlyPolicy() {
-		var request = request("SelectedDocuments", true);
+	void selectedDocumentsResolvesScopeBySelectedIdsOnly() {
+		var request = request("SelectedDocuments", null);
 		request.setSelectedDocumentIds(List.of(10L, 20L));
 		when(documentAccessService.getReadyDocumentsForChat(1L, request.getSelectedDocumentIds()))
 				.thenReturn(List.of());
 
 		var response = multiChatService.askMulti(request);
 
-		assertEquals(KnowledgePolicy.DOCUMENTS_ONLY, response.getPolicy());
+		assertEquals("SELECTED_DOCUMENTS", response.getMode());
+		assertEquals(
+				"I cannot find this information in the documents you selected.",
+				response.getAnswer()
+		);
 		verify(documentAccessService).getReadyDocumentsForChat(1L, List.of(10L, 20L));
 	}
 
-	private MultiChatAskRequest request(String mode, Boolean useGeneralKnowledge) {
+	private MultiChatAskRequest request(String mode, Long folderId) {
 		var request = new MultiChatAskRequest();
 		request.setMode(mode);
 		request.setQuestion("What is this about?");
-		request.setUseGeneralKnowledge(useGeneralKnowledge);
+		request.setFolderId(folderId);
 		return request;
 	}
 }
