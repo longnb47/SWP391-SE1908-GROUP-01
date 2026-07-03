@@ -10,5 +10,9 @@ public interface SubscriptionPlanRepository
 
     List<SubscriptionPlan> findByActiveTrue();
 
-    boolean existsByNameAndActiveTrue(String name);
+    boolean existsByNameIgnoreCaseAndActiveTrue(String name);
+
+    boolean existsByNameIgnoreCaseAndActiveTrueAndIdNot(
+            String name,
+            Long id);
 }

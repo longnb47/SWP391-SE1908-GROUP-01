@@ -4026,7 +4026,311 @@ Status: `200 OK`
 
 ---
 
-## 8. Common HTTP status codes
+## 8. Subscription Plan APIs
+
+Subscription Plan APIs define the available plans and their upload, storage, video, multi-document chat, and monthly token limits.
+
+Access rules:
+
+- `GET /api/subscription-plans` and `GET /api/subscription-plans/{id}` are public.
+- Creating, updating, and deleting plans require an authenticated user with the `ADMIN` role.
+- Plan names are trimmed and compared without case sensitivity.
+- Only one active plan may use a given name.
+- After a plan is soft-deleted, its name may be reused by a new plan.
+
+---
+
+## 8.1. Subscription plan response object
+
+```json
+{
+  "id": 1,
+  "name": "PLUS",
+  "price": 99000,
+  "durationDays": 30,
+  "description": "Plan for advanced study features",
+  "storageLimitGb": 10,
+  "allowedFormats": "pdf,doc,docx,pptx,xls,xlsx,png,mp4",
+  "maxUploadSizeMb": 50,
+  "multipleDocuments": true,
+  "videoUpload": true,
+  "monthlyTokenLimit": 100000,
+  "active": true
+}
+```
+
+### Subscription plan fields
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | number | Subscription plan ID |
+| `name` | string | Unique name among active plans |
+| `price` | number | Plan price; greater than or equal to `0` |
+| `durationDays` | number | Subscription duration in days |
+| `description` | string / null | Plan description |
+| `storageLimitGb` | number | Total storage limit in GB |
+| `allowedFormats` | string | Comma-separated supported file formats |
+| `maxUploadSizeMb` | number | Maximum size of one uploaded file in MB |
+| `multipleDocuments` | boolean | Whether multi-document chat is enabled |
+| `videoUpload` | boolean | Whether video upload is enabled |
+| `monthlyTokenLimit` | number | Monthly AI token limit; may be `0` |
+| `active` | boolean | Whether the plan is currently available |
+
+---
+
+## 8.2. Create subscription plan
+
+Create a new active subscription plan.
+
+### Request
+
+- Method: `POST`
+- URL: `/api/subscription-plans`
+- Auth: JWT with `ADMIN` role required
+- Content-Type: `application/json`
+
+```json
+{
+  "name": "PLUS",
+  "price": 99000,
+  "durationDays": 30,
+  "description": "Plan for advanced study features",
+  "storageLimitGb": 10,
+  "allowedFormats": "pdf,doc,docx,pptx,xls,xlsx,png,mp4",
+  "maxUploadSizeMb": 50,
+  "multipleDocuments": true,
+  "videoUpload": true,
+  "monthlyTokenLimit": 100000
+}
+```
+
+### Request fields
+
+| Field | Type | Required | Rule |
+|---|---|---|---|
+| `name` | string | Yes | Not blank, maximum 100 characters |
+| `price` | number | Yes | Greater than or equal to `0` |
+| `durationDays` | number | Yes | Greater than `0` |
+| `description` | string | No | Maximum 2000 characters |
+| `storageLimitGb` | number | Yes | Greater than `0` |
+| `allowedFormats` | string | Yes | Not blank, maximum 500 characters |
+| `maxUploadSizeMb` | number | Yes | Greater than `0` |
+| `multipleDocuments` | boolean | Yes | `true` or `false` |
+| `videoUpload` | boolean | Yes | `true` or `false` |
+| `monthlyTokenLimit` | number | Yes | Greater than or equal to `0` |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Create subscription plan successfully",
+  "data": {
+    "id": 1,
+    "name": "PLUS",
+    "price": 99000,
+    "durationDays": 30,
+    "description": "Plan for advanced study features",
+    "storageLimitGb": 10,
+    "allowedFormats": "pdf,doc,docx,pptx,xls,xlsx,png,mp4",
+    "maxUploadSizeMb": 50,
+    "multipleDocuments": true,
+    "videoUpload": true,
+    "monthlyTokenLimit": 100000,
+    "active": true
+  },
+  "errors": null,
+  "timestamp": "2026-07-03T10:30:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Validation failed` | Missing or invalid plan data |
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `403` | `Forbidden` | Authenticated user does not have the `ADMIN` role |
+| `409` | `An active subscription plan with this name already exists` | Another active plan has the same name |
+
+---
+
+## 8.3. Get active subscription plans
+
+Get all active plans for the pricing or subscription selection page.
+
+### Request
+
+- Method: `GET`
+- URL: `/api/subscription-plans`
+- Auth: Public, no JWT required
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Get subscription plans successfully",
+  "data": [
+    {
+      "id": 1,
+      "name": "PLUS",
+      "price": 99000,
+      "durationDays": 30,
+      "description": "Plan for advanced study features",
+      "storageLimitGb": 10,
+      "allowedFormats": "pdf,doc,docx,pptx,xls,xlsx,png,mp4",
+      "maxUploadSizeMb": 50,
+      "multipleDocuments": true,
+      "videoUpload": true,
+      "monthlyTokenLimit": 100000,
+      "active": true
+    }
+  ],
+  "errors": null,
+  "timestamp": "2026-07-03T10:30:00Z"
+}
+```
+
+---
+
+## 8.4. Get subscription plan detail
+
+Get one active subscription plan by ID.
+
+### Request
+
+- Method: `GET`
+- URL: `/api/subscription-plans/{id}`
+- Auth: Public, no JWT required
+
+### Path variables
+
+| Name | Type | Required |
+|---|---|---|
+| `id` | number | Yes |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Get subscription plan successfully",
+  "data": {
+    "id": 1,
+    "name": "PLUS",
+    "price": 99000,
+    "durationDays": 30,
+    "description": "Plan for advanced study features",
+    "storageLimitGb": 10,
+    "allowedFormats": "pdf,doc,docx,pptx,xls,xlsx,png,mp4",
+    "maxUploadSizeMb": 50,
+    "multipleDocuments": true,
+    "videoUpload": true,
+    "monthlyTokenLimit": 100000,
+    "active": true
+  },
+  "errors": null,
+  "timestamp": "2026-07-03T10:30:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `404` | `Subscription plan not found` | Plan does not exist or was soft-deleted |
+
+---
+
+## 8.5. Update subscription plan
+
+Replace the configurable fields of an active subscription plan.
+
+### Request
+
+- Method: `PUT`
+- URL: `/api/subscription-plans/{id}`
+- Auth: JWT with `ADMIN` role required
+- Content-Type: `application/json`
+
+The request body uses the same fields and validation rules as the create API. All fields except `description` are required.
+
+```json
+{
+  "name": "PLUS",
+  "price": 129000,
+  "durationDays": 30,
+  "description": "Updated PLUS plan",
+  "storageLimitGb": 20,
+  "allowedFormats": "pdf,doc,docx,pptx,xls,xlsx,png,mp4",
+  "maxUploadSizeMb": 100,
+  "multipleDocuments": true,
+  "videoUpload": true,
+  "monthlyTokenLimit": 200000
+}
+```
+
+### Success response
+
+Status: `200 OK`
+
+The response uses the standard `ApiResponse` format and returns the updated subscription plan in `data`.
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Validation failed` | Missing or invalid plan data |
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `403` | `Forbidden` | Authenticated user does not have the `ADMIN` role |
+| `404` | `Subscription plan not found` | Plan does not exist or was soft-deleted |
+| `409` | `An active subscription plan with this name already exists` | Another active plan has the same name |
+
+---
+
+## 8.6. Delete subscription plan
+
+Soft-delete an active subscription plan. Existing payment and subscription history is preserved. The deleted plan's name can be reused for a new plan.
+
+### Request
+
+- Method: `DELETE`
+- URL: `/api/subscription-plans/{id}`
+- Auth: JWT with `ADMIN` role required
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Delete subscription plan successfully",
+  "data": null,
+  "errors": null,
+  "timestamp": "2026-07-03T10:30:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `403` | `Forbidden` | Authenticated user does not have the `ADMIN` role |
+| `404` | `Subscription plan not found` | Plan does not exist |
+| `409` | `Subscription plan is already deleted` | Plan was previously soft-deleted |
+
+---
+
+## 9. Common HTTP status codes
 
 | Status                      | Description                                          |
 | --------------------------- | ---------------------------------------------------- |
@@ -4035,13 +4339,14 @@ Status: `200 OK`
 | `401 Unauthorized`          | Missing, invalid, or expired JWT                     |
 | `403 Forbidden`             | Authenticated but not allowed to access the resource |
 | `404 Not Found`             | Resource not found                                   |
+| `409 Conflict`              | Request conflicts with the current resource state    |
 | `413 Payload Too Large`     | Uploaded file exceeds the size limit                 |
 | `500 Internal Server Error` | Unexpected server error                              |
 | `503 Service Unavailable`   | S3 or external service failure                       |
 
 ---
 
-## 9. Frontend notes
+## 10. Frontend notes
 
 - Private APIs do not require `userId`; the backend reads the current user from JWT.
 - After login or Google login, store both `accessToken` and `refreshToken`.
@@ -4072,6 +4377,8 @@ false
 - Chat requires documents to be accessible and have status `READY`.
 - Chat currently supports owned documents and public documents; shared-with-me document chat access is not documented as supported yet.
 - Use `/api/chat/sessions` for persistent chat history; only the latest five completed messages are used as conversational memory for each new answer.
+- Subscription plan listing and detail APIs are public; plan management APIs require an `ADMIN` JWT.
+- Only active plans are returned. If a plan is soft-deleted, refresh the plan list instead of continuing to display it.
 - `ResendOtpResponse.mesage` is currently misspelled according to the existing DTO. If the team wants `message`, the DTO/backend should be updated later.
 - Tag colors should be sent as HEX values such as `#8B5CF6`, `#22C55E`, or `#FFF`.
 - Video upload currently supports storing the video file and metadata, but real transcript extraction is not available yet.

@@ -1,12 +1,13 @@
 package com.se1908.group01.controller;
 
 import com.se1908.group01.dto.CreatePlanRequest;
+import com.se1908.group01.dto.ApiResponse;
+import com.se1908.group01.dto.SubscriptionPlanResponse;
 import com.se1908.group01.dto.UpdatePlanRequest;
-import com.se1908.group01.entity.SubscriptionPlan;
 import com.se1908.group01.service.SubscriptionPlanService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -14,70 +15,56 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/subscription-plans")
 @RequiredArgsConstructor
-@SecurityRequirement(name = "bearerAuth")
 public class SubscriptionPlanController {
 
     private final SubscriptionPlanService service;
 
-    /**
-     * Create new subscription plan
-     */
     @PostMapping
-    public ResponseEntity<SubscriptionPlan> create(
-            @RequestBody CreatePlanRequest request) {
-
-        return ResponseEntity.ok(
+    @SecurityRequirement(name = "bearerAuth")
+    public ApiResponse<SubscriptionPlanResponse> create(
+            @Valid @RequestBody CreatePlanRequest request) {
+        return ApiResponse.success(
+                "Create subscription plan successfully",
                 service.create(request)
         );
     }
 
-    /**
-     * Get all active plans
-     */
     @GetMapping
-    public ResponseEntity<List<SubscriptionPlan>> getAll() {
-
-        return ResponseEntity.ok(
+    public ApiResponse<List<SubscriptionPlanResponse>> getAll() {
+        return ApiResponse.success(
+                "Get subscription plans successfully",
                 service.getAll()
         );
     }
 
-    /**
-     * Get plan by id
-     */
     @GetMapping("/{id}")
-    public ResponseEntity<SubscriptionPlan> getById(
+    public ApiResponse<SubscriptionPlanResponse> getById(
             @PathVariable Long id) {
-
-        return ResponseEntity.ok(
+        return ApiResponse.success(
+                "Get subscription plan successfully",
                 service.getById(id)
         );
     }
 
-    /**
-     * Update plan
-     */
     @PutMapping("/{id}")
-    public ResponseEntity<SubscriptionPlan> update(
+    @SecurityRequirement(name = "bearerAuth")
+    public ApiResponse<SubscriptionPlanResponse> update(
             @PathVariable Long id,
-            @RequestBody UpdatePlanRequest request) {
-
-        return ResponseEntity.ok(
+            @Valid @RequestBody UpdatePlanRequest request) {
+        return ApiResponse.success(
+                "Update subscription plan successfully",
                 service.update(id, request)
         );
     }
 
-    /**
-     * Soft delete plan
-     */
     @DeleteMapping("/{id}")
-    public ResponseEntity<String> delete(
+    @SecurityRequirement(name = "bearerAuth")
+    public ApiResponse<Void> delete(
             @PathVariable Long id) {
-
         service.delete(id);
-
-        return ResponseEntity.ok(
-                "Subscription plan deleted successfully"
+        return ApiResponse.success(
+                "Delete subscription plan successfully",
+                null
         );
     }
 }

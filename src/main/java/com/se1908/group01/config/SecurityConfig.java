@@ -8,6 +8,7 @@ import com.se1908.group01.security.RestAuthenticationEntryPoint;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -88,6 +89,25 @@ public class SecurityConfig {
                                 "/api/documents/public/**",
                                 "/api/documents/share-link/**"
                         ).permitAll()
+
+                        // SUBSCRIPTION PLANS
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/subscription-plans",
+                                "/api/subscription-plans/**"
+                        ).permitAll()
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/subscription-plans"
+                        ).hasRole("ADMIN")
+                        .requestMatchers(
+                                HttpMethod.PUT,
+                                "/api/subscription-plans/**"
+                        ).hasRole("ADMIN")
+                        .requestMatchers(
+                                HttpMethod.DELETE,
+                                "/api/subscription-plans/**"
+                        ).hasRole("ADMIN")
 
                         // PAYMENT (TẠM THỜI MỞ ĐỂ TEST VNPAY)
                         .requestMatchers(

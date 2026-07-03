@@ -92,6 +92,17 @@ public class ApiExceptionHandler {
         );
     }
 
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ApiResponse<Void>> handleConflict(
+            ConflictException ex) {
+
+        return error(
+                HttpStatus.CONFLICT,
+                ex.getMessage(),
+                fieldError(null, ex.getMessage())
+        );
+    }
+
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<ApiResponse<Void>> handleIllegalState(
             IllegalStateException ex) {
