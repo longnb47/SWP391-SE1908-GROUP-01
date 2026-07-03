@@ -3,6 +3,8 @@ package com.se1908.group01.repository;
 import com.se1908.group01.entity.Payment;
 import com.se1908.group01.entity.User;
 import com.se1908.group01.enums.PaymentStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -30,6 +32,10 @@ public interface PaymentRepository
             @Param("transactionNo") String transactionNo);
 
     List<Payment> findByUser(User user);
+
+    Page<Payment> findByStatus(
+            PaymentStatus status,
+            Pageable pageable);
 
     long countByStatus(PaymentStatus status);
 

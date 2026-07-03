@@ -1,5 +1,6 @@
 package com.se1908.group01.controller;
 
+import com.se1908.group01.dto.AdminPaymentListResponse;
 import com.se1908.group01.dto.ApiResponse;
 import com.se1908.group01.dto.PaymentCallbackResponse;
 import com.se1908.group01.dto.PaymentHistoryResponse;
@@ -92,6 +93,23 @@ public class PaymentController {
         return ApiResponse.success(
                 "Get payment revenue successfully",
                 paymentService.getRevenue()
+        );
+    }
+
+    @GetMapping
+    @SecurityRequirement(name = "bearerAuth")
+    public ApiResponse<AdminPaymentListResponse> getAllPayments(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String status) {
+
+        return ApiResponse.success(
+                "Get all payments successfully",
+                paymentService.getAllPayments(
+                        status,
+                        page,
+                        size
+                )
         );
     }
 

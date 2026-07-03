@@ -116,6 +116,7 @@ public class SecurityConfig {
                         ).permitAll()
                         .requestMatchers(
                                 HttpMethod.GET,
+                                "/api/payments",
                                 "/api/payments/revenue"
                         ).hasRole("ADMIN")
                         .requestMatchers(
