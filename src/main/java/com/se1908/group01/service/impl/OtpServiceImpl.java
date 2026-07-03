@@ -13,6 +13,7 @@ import com.se1908.group01.repository.OtpVerificationRepository;
 import com.se1908.group01.repository.UserRepository;
 import com.se1908.group01.service.EmailService;
 import com.se1908.group01.service.OtpService;
+import com.se1908.group01.service.SubscriptionLifecycleService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NonNull;
@@ -28,6 +29,7 @@ public class OtpServiceImpl implements OtpService {
     private final UserRepository userRepository;
     private final OtpVerificationRepository otpVerificationRepository;
     private final EmailService emailService;
+    private final SubscriptionLifecycleService subscriptionLifecycleService;
 
     public String generateOtp() {
         int otp = (int) (Math.random() * 900000) + 100000;
@@ -35,6 +37,7 @@ public class OtpServiceImpl implements OtpService {
     }
 
 
+    @Transactional
     public VerifyOtpResponse verifyOtp(VerifyOtpRequest request) {
 
         User user = userRepository.findByEmail(request.getEmail())
@@ -68,6 +71,7 @@ public class OtpServiceImpl implements OtpService {
         user.setStatus(AccountStatus.ACTIVE);
         user.setVerifiedStatus(true);
         userRepository.save(user);
+        subscriptionLifecycleService.getOrCreateActiveSubscription(user);
         otpVerificationRepository.delete(otpVerification);
         return new VerifyOtpResponse("OTP verified successfully. Account actived.");
     }

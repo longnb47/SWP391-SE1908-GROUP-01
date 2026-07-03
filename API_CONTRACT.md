@@ -4026,7 +4026,574 @@ Status: `200 OK`
 
 ---
 
-## 8. Common HTTP status codes
+## 8. Subscription Plan APIs
+
+Subscription Plan APIs define the available plans and their upload, storage, video, multi-document chat, and monthly token limits.
+
+Access rules:
+
+- `GET /api/subscription-plans` and `GET /api/subscription-plans/{id}` are public.
+- Creating, updating, and deleting plans require an authenticated user with the `ADMIN` role.
+- Plan names are trimmed and compared without case sensitivity.
+- Only one active plan may use a given name.
+- After a plan is soft-deleted, its name may be reused by a new plan.
+- The `FREE` plan must have price `0` and cannot be renamed or deleted.
+- An active `FREE` plan must be configured before new users complete account activation.
+
+---
+
+## 8.1. Subscription plan response object
+
+```json
+{
+  "id": 1,
+  "name": "PLUS",
+  "price": 99000,
+  "durationDays": 30,
+  "description": "Plan for advanced study features",
+  "storageLimitGb": 10,
+  "allowedFormats": "pdf,doc,docx,pptx,xls,xlsx,png,mp4",
+  "maxUploadSizeMb": 50,
+  "multipleDocuments": true,
+  "videoUpload": true,
+  "monthlyTokenLimit": 100000,
+  "active": true
+}
+```
+
+### Subscription plan fields
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | number | Subscription plan ID |
+| `name` | string | Unique name among active plans |
+| `price` | number | Plan price; greater than or equal to `0` |
+| `durationDays` | number | Subscription duration in days |
+| `description` | string / null | Plan description |
+| `storageLimitGb` | number | Total storage limit in GB |
+| `allowedFormats` | string | Comma-separated supported file formats |
+| `maxUploadSizeMb` | number | Maximum size of one uploaded file in MB |
+| `multipleDocuments` | boolean | Whether multi-document chat is enabled |
+| `videoUpload` | boolean | Whether video upload is enabled |
+| `monthlyTokenLimit` | number | Monthly AI token limit; may be `0` |
+| `active` | boolean | Whether the plan is currently available |
+
+---
+
+## 8.2. Create subscription plan
+
+Create a new active subscription plan.
+
+### Request
+
+- Method: `POST`
+- URL: `/api/subscription-plans`
+- Auth: JWT with `ADMIN` role required
+- Content-Type: `application/json`
+
+```json
+{
+  "name": "PLUS",
+  "price": 99000,
+  "durationDays": 30,
+  "description": "Plan for advanced study features",
+  "storageLimitGb": 10,
+  "allowedFormats": "pdf,doc,docx,pptx,xls,xlsx,png,mp4",
+  "maxUploadSizeMb": 50,
+  "multipleDocuments": true,
+  "videoUpload": true,
+  "monthlyTokenLimit": 100000
+}
+```
+
+### Request fields
+
+| Field | Type | Required | Rule |
+|---|---|---|---|
+| `name` | string | Yes | Not blank, maximum 100 characters |
+| `price` | number | Yes | Greater than or equal to `0` |
+| `durationDays` | number | Yes | Greater than `0` |
+| `description` | string | No | Maximum 2000 characters |
+| `storageLimitGb` | number | Yes | Greater than `0` |
+| `allowedFormats` | string | Yes | Not blank, maximum 500 characters |
+| `maxUploadSizeMb` | number | Yes | Greater than `0` |
+| `multipleDocuments` | boolean | Yes | `true` or `false` |
+| `videoUpload` | boolean | Yes | `true` or `false` |
+| `monthlyTokenLimit` | number | Yes | Greater than or equal to `0` |
+
+If `name` is `FREE`, `price` must be `0`.
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Create subscription plan successfully",
+  "data": {
+    "id": 1,
+    "name": "PLUS",
+    "price": 99000,
+    "durationDays": 30,
+    "description": "Plan for advanced study features",
+    "storageLimitGb": 10,
+    "allowedFormats": "pdf,doc,docx,pptx,xls,xlsx,png,mp4",
+    "maxUploadSizeMb": 50,
+    "multipleDocuments": true,
+    "videoUpload": true,
+    "monthlyTokenLimit": 100000,
+    "active": true
+  },
+  "errors": null,
+  "timestamp": "2026-07-03T10:30:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Validation failed` | Missing or invalid plan data |
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `403` | `Forbidden` | Authenticated user does not have the `ADMIN` role |
+| `409` | `An active subscription plan with this name already exists` | Another active plan has the same name |
+
+---
+
+## 8.3. Get active subscription plans
+
+Get all active plans for the pricing or subscription selection page.
+
+### Request
+
+- Method: `GET`
+- URL: `/api/subscription-plans`
+- Auth: Public, no JWT required
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Get subscription plans successfully",
+  "data": [
+    {
+      "id": 1,
+      "name": "PLUS",
+      "price": 99000,
+      "durationDays": 30,
+      "description": "Plan for advanced study features",
+      "storageLimitGb": 10,
+      "allowedFormats": "pdf,doc,docx,pptx,xls,xlsx,png,mp4",
+      "maxUploadSizeMb": 50,
+      "multipleDocuments": true,
+      "videoUpload": true,
+      "monthlyTokenLimit": 100000,
+      "active": true
+    }
+  ],
+  "errors": null,
+  "timestamp": "2026-07-03T10:30:00Z"
+}
+```
+
+---
+
+## 8.4. Get subscription plan detail
+
+Get one active subscription plan by ID.
+
+### Request
+
+- Method: `GET`
+- URL: `/api/subscription-plans/{id}`
+- Auth: Public, no JWT required
+
+### Path variables
+
+| Name | Type | Required |
+|---|---|---|
+| `id` | number | Yes |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Get subscription plan successfully",
+  "data": {
+    "id": 1,
+    "name": "PLUS",
+    "price": 99000,
+    "durationDays": 30,
+    "description": "Plan for advanced study features",
+    "storageLimitGb": 10,
+    "allowedFormats": "pdf,doc,docx,pptx,xls,xlsx,png,mp4",
+    "maxUploadSizeMb": 50,
+    "multipleDocuments": true,
+    "videoUpload": true,
+    "monthlyTokenLimit": 100000,
+    "active": true
+  },
+  "errors": null,
+  "timestamp": "2026-07-03T10:30:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `404` | `Subscription plan not found` | Plan does not exist or was soft-deleted |
+
+---
+
+## 8.5. Update subscription plan
+
+Replace the configurable fields of an active subscription plan.
+
+### Request
+
+- Method: `PUT`
+- URL: `/api/subscription-plans/{id}`
+- Auth: JWT with `ADMIN` role required
+- Content-Type: `application/json`
+
+The request body uses the same fields and validation rules as the create API. All fields except `description` are required.
+
+```json
+{
+  "name": "PLUS",
+  "price": 129000,
+  "durationDays": 30,
+  "description": "Updated PLUS plan",
+  "storageLimitGb": 20,
+  "allowedFormats": "pdf,doc,docx,pptx,xls,xlsx,png,mp4",
+  "maxUploadSizeMb": 100,
+  "multipleDocuments": true,
+  "videoUpload": true,
+  "monthlyTokenLimit": 200000
+}
+```
+
+### Success response
+
+Status: `200 OK`
+
+The response uses the standard `ApiResponse` format and returns the updated subscription plan in `data`.
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Validation failed` | Missing or invalid plan data |
+| `400` | `FREE subscription plan cannot be renamed` | Attempted to rename the default FREE plan |
+| `400` | `FREE subscription plan price must be 0` | FREE plan was assigned a non-zero price |
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `403` | `Forbidden` | Authenticated user does not have the `ADMIN` role |
+| `404` | `Subscription plan not found` | Plan does not exist or was soft-deleted |
+| `409` | `An active subscription plan with this name already exists` | Another active plan has the same name |
+
+---
+
+## 8.6. Delete subscription plan
+
+Soft-delete an active subscription plan. Existing payment and subscription history is preserved. The deleted plan's name can be reused for a new plan.
+
+### Request
+
+- Method: `DELETE`
+- URL: `/api/subscription-plans/{id}`
+- Auth: JWT with `ADMIN` role required
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Delete subscription plan successfully",
+  "data": null,
+  "errors": null,
+  "timestamp": "2026-07-03T10:30:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `403` | `Forbidden` | Authenticated user does not have the `ADMIN` role |
+| `400` | `FREE subscription plan cannot be deleted` | Attempted to delete the default FREE plan |
+| `404` | `Subscription plan not found` | Plan does not exist |
+| `409` | `Subscription plan is already deleted` | Plan was previously soft-deleted |
+
+---
+
+## 9. Payment and Subscription APIs
+
+Payment APIs create VNPay Sandbox transactions, process signed VNPay return callbacks, expose payment history, and return the user's active subscription.
+
+Access rules:
+
+- Purchase, history, and current-subscription APIs require JWT authentication.
+- Revenue is available only to users with the `ADMIN` role.
+- The VNPay return endpoint is public because VNPay redirects the browser to it.
+- The backend verifies the callback signature, merchant code, transaction reference, and amount before updating payment data.
+
+---
+
+## 9.1. Purchase a subscription plan
+
+Create a pending payment and generate a VNPay payment URL.
+
+### Request
+
+- Method: `POST`
+- URL: `/api/payments/purchase`
+- Auth: JWT required
+- Content-Type: `application/json`
+
+```json
+{
+  "planId": 1,
+  "paymentMethod": "VNPAY"
+}
+```
+
+### Request fields
+
+| Field | Type | Required | Rule |
+|---|---|---|---|
+| `planId` | number | Yes | Must be greater than `0` and reference an active plan |
+| `paymentMethod` | string | Yes | Currently only `VNPAY` is accepted |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Create payment successfully",
+  "data": {
+    "paymentId": 1,
+    "transactionNo": "c0b1527ca7a847be9c32d19f45eb8d89",
+    "paymentUrl": "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?...",
+    "status": "PENDING"
+  },
+  "errors": null,
+  "timestamp": "2026-07-03T10:30:00Z"
+}
+```
+
+The frontend should redirect the browser to `data.paymentUrl`.
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Validation failed` | Missing/invalid plan ID or payment method |
+| `400` | `Subscription plan is no longer available` | Plan was soft-deleted |
+| `400` | `FREE subscription plan does not require payment` | Attempted to purchase the default FREE plan |
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `404` | `Subscription plan not found` | Plan does not exist |
+| `500` | `VNPay configuration is incomplete` | Required VNPay environment variables are missing |
+
+---
+
+## 9.2. VNPay return callback
+
+VNPay redirects the browser to this endpoint after the customer finishes or cancels payment. The frontend must not construct or call this URL manually.
+
+### Request
+
+- Method: `GET`
+- URL: `/api/payments/vnpay-return`
+- Auth: Public callback from VNPay
+- Query parameters: Supplied by VNPay
+
+Important callback parameters include:
+
+| Parameter | Description |
+|---|---|
+| `vnp_TxnRef` | Backend transaction number |
+| `vnp_Amount` | Paid amount multiplied by 100 |
+| `vnp_TmnCode` | VNPay merchant code |
+| `vnp_ResponseCode` | `00` means the payment response succeeded |
+| `vnp_TransactionStatus` | `00` means the transaction succeeded |
+| `vnp_SecureHash` | HMAC-SHA512 signature generated by VNPay |
+
+### Redirect response
+
+After validating and processing the callback, the backend returns:
+
+```http
+302 Found
+Location: http://localhost:5173/payment-result?status=SUCCESS&transactionNo=c0b1527ca7a847be9c32d19f45eb8d89&alreadyProcessed=false
+```
+
+### Frontend redirect query parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| `status` | string | Final backend payment status: `SUCCESS` or `FAILED` |
+| `transactionNo` | string | Backend payment transaction number |
+| `alreadyProcessed` | boolean | `true` if this valid callback was already processed |
+
+The frontend result page is configured by `APP_FRONTEND_BASE_URL` and defaults to:
+
+```text
+http://localhost:5173/payment-result
+```
+
+When the same valid callback is received again, no duplicate subscription is created.
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Invalid VNPay signature` | Callback data was changed or signed with a different secret |
+| `400` | `Invalid VNPay merchant code` | Merchant code does not match backend configuration |
+| `400` | `VNPay payment amount does not match` | Callback amount differs from the stored payment |
+| `400` | `Missing VNPay parameter: ...` | A required callback parameter is missing |
+| `404` | `Payment not found` | `vnp_TxnRef` does not match a stored payment |
+
+---
+
+## 9.3. Get my payment history
+
+### Request
+
+- Method: `GET`
+- URL: `/api/payments/history`
+- Auth: JWT required
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Get payment history successfully",
+  "data": [
+    {
+      "paymentId": 1,
+      "planName": "PLUS",
+      "amount": 99000,
+      "paymentMethod": "VNPAY",
+      "status": "SUCCESS",
+      "paidAt": "2026-07-03T10:35:00"
+    }
+  ],
+  "errors": null,
+  "timestamp": "2026-07-03T10:40:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `401` | `Unauthorized` | Missing or invalid JWT |
+
+---
+
+## 9.4. Get payment revenue
+
+Return total successful payment revenue and transaction count.
+
+### Request
+
+- Method: `GET`
+- URL: `/api/payments/revenue`
+- Auth: JWT with `ADMIN` role required
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Get payment revenue successfully",
+  "data": {
+    "totalRevenue": 99000,
+    "totalTransactions": 1
+  },
+  "errors": null,
+  "timestamp": "2026-07-03T10:40:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `403` | `Forbidden` | Authenticated user does not have the `ADMIN` role |
+
+---
+
+## 9.5. Get my active subscription
+
+Two equivalent endpoints currently expose the authenticated user's active subscription:
+
+```text
+GET /api/payments/my-subscription
+GET /api/subscriptions/me
+```
+
+- Auth: JWT required
+
+If the user has no active subscription, the backend assigns the active `FREE` plan automatically. If a paid subscription has passed its `endDate`, it is marked `EXPIRED` and the user falls back to `FREE`.
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Get my subscription successfully",
+  "data": {
+    "subscriptionId": 1,
+    "status": "ACTIVE",
+    "startDate": "2026-07-03",
+    "endDate": "2026-08-02",
+    "planName": "PLUS",
+    "price": 99000,
+    "durationDays": 30,
+    "storageLimitGb": 10,
+    "allowedFormats": "pdf,doc,docx,pptx,xls,xlsx,png,mp4",
+    "maxUploadSizeMb": 50,
+    "multipleDocuments": true,
+    "videoUpload": true,
+    "monthlyTokenLimit": 100000
+  },
+  "errors": null,
+  "timestamp": "2026-07-03T10:40:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `500` | `Active FREE subscription plan is not configured` | The system has no active FREE plan |
+
+---
+
+## 10. Common HTTP status codes
 
 | Status                      | Description                                          |
 | --------------------------- | ---------------------------------------------------- |
@@ -4035,13 +4602,14 @@ Status: `200 OK`
 | `401 Unauthorized`          | Missing, invalid, or expired JWT                     |
 | `403 Forbidden`             | Authenticated but not allowed to access the resource |
 | `404 Not Found`             | Resource not found                                   |
+| `409 Conflict`              | Request conflicts with the current resource state    |
 | `413 Payload Too Large`     | Uploaded file exceeds the size limit                 |
 | `500 Internal Server Error` | Unexpected server error                              |
 | `503 Service Unavailable`   | S3 or external service failure                       |
 
 ---
 
-## 9. Frontend notes
+## 11. Frontend notes
 
 - Private APIs do not require `userId`; the backend reads the current user from JWT.
 - After login or Google login, store both `accessToken` and `refreshToken`.
@@ -4072,6 +4640,12 @@ false
 - Chat requires documents to be accessible and have status `READY`.
 - Chat currently supports owned documents and public documents; shared-with-me document chat access is not documented as supported yet.
 - Use `/api/chat/sessions` for persistent chat history; only the latest five completed messages are used as conversational memory for each new answer.
+- Subscription plan listing and detail APIs are public; plan management APIs require an `ADMIN` JWT.
+- Only active plans are returned. If a plan is soft-deleted, refresh the plan list instead of continuing to display it.
+- Every activated user receives the `FREE` plan. Local accounts receive it after OTP verification; Google accounts receive it during Google login.
+- Paid subscriptions fall back to `FREE` after expiration. The FREE plan has no end date and does not go through VNPay.
+- Redirect the browser to the `paymentUrl` returned by the purchase API; do not call the VNPay return endpoint manually.
+- VNPay return query parameters are signed. Changing the amount, transaction reference, merchant code, or signature causes the backend to reject the callback.
 - `ResendOtpResponse.mesage` is currently misspelled according to the existing DTO. If the team wants `message`, the DTO/backend should be updated later.
 - Tag colors should be sent as HEX values such as `#8B5CF6`, `#22C55E`, or `#FFF`.
 - Video upload currently supports storing the video file and metadata, but real transcript extraction is not available yet.

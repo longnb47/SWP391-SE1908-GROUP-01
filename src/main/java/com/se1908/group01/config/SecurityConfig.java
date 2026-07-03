@@ -8,9 +8,11 @@ import com.se1908.group01.security.RestAuthenticationEntryPoint;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -37,57 +39,146 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+    public AuthenticationManager authenticationManager(
+            AuthenticationConfiguration config) throws Exception {
+
         return config.getAuthenticationManager();
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http) throws Exception {
+
         http
                 .csrf(csrf -> csrf.disable())
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
+                .cors(cors ->
+                        cors.configurationSource(
+                                corsConfigurationSource()))
+
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(
+                                SessionCreationPolicy.STATELESS))
+
                 .formLogin(form -> form.disable())
+
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**", "/api/auth/refresh", "/api/auth/logout").permitAll()
-                        .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
+
+                        // AUTH
                         .requestMatchers(
-                                "/api/documents/public",
-                                "/api/documents/public/**",
-                                "/api/documents/share-link/**"
+                                "/api/auth/**",
+                                "/api/auth/refresh",
+                                "/api/auth/logout"
                         ).permitAll()
+
+                        // OAUTH2
+                        .requestMatchers(
+                                "/oauth2/**",
+                                "/login/oauth2/**"
+                        ).permitAll()
+
+                        // SWAGGER
                         .requestMatchers(
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/v3/api-docs/**"
                         ).permitAll()
-                        .anyRequest().authenticated()
+
+                        // PUBLIC DOCUMENT
+                        .requestMatchers(
+                                "/api/documents/public/**",
+                                "/api/documents/share-link/**"
+                        ).permitAll()
+
+                        // SUBSCRIPTION PLANS
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/subscription-plans",
+                                "/api/subscription-plans/**"
+                        ).permitAll()
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/subscription-plans"
+                        ).hasRole("ADMIN")
+                        .requestMatchers(
+                                HttpMethod.PUT,
+                                "/api/subscription-plans/**"
+                        ).hasRole("ADMIN")
+                        .requestMatchers(
+                                HttpMethod.DELETE,
+                                "/api/subscription-plans/**"
+                        ).hasRole("ADMIN")
+
+                        // PAYMENT
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/payments/vnpay-return"
+                        ).permitAll()
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/payments/revenue"
+                        ).hasRole("ADMIN")
+                        .requestMatchers(
+                                "/api/payments/**"
+                        ).authenticated()
+
+                        .anyRequest()
+                        .authenticated()
                 )
-                .exceptionHandling(exception -> exception
-                        .authenticationEntryPoint(restAuthenticationEntryPoint)
-                        .accessDeniedHandler(restAccessDeniedHandler)
-                )
-                .oauth2Login(oauth2 -> oauth2
-                        .successHandler(oAuth2FrontendSuccessHandler)
-                        .failureHandler(oAuth2FrontendFailureHandler)
-                )
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
+                .exceptionHandling(exception ->
+                        exception
+                                .authenticationEntryPoint(
+                                        restAuthenticationEntryPoint)
+                                .accessDeniedHandler(
+                                        restAccessDeniedHandler))
+
+                .oauth2Login(oauth2 ->
+                        oauth2
+                                .successHandler(
+                                        oAuth2FrontendSuccessHandler)
+                                .failureHandler(
+                                        oAuth2FrontendFailureHandler))
+
+                .addFilterBefore(
+                        jwtAuthenticationFilter,
+                        UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration config = new CorsConfiguration();
+
+        CorsConfiguration config =
+                new CorsConfiguration();
+
         config.setAllowedOrigins(List.of(
                 "http://localhost:3000",
-                "http://localhost:5173"
+                "http://localhost:5173",
+                "https://predefine-bribe-resurrect.ngrok-free.dev"
         ));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
+
+        config.setAllowedMethods(List.of(
+                "GET",
+                "POST",
+                "PUT",
+                "DELETE",
+                "PATCH",
+                "OPTIONS"
+        ));
+
         config.setAllowedHeaders(List.of("*"));
+
         config.setAllowCredentials(true);
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
+        UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
+
+        source.registerCorsConfiguration(
+                "/**",
+                config);
+
         return source;
     }
 }
