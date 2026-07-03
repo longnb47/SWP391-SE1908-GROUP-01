@@ -109,10 +109,18 @@ public class SecurityConfig {
                                 "/api/subscription-plans/**"
                         ).hasRole("ADMIN")
 
-                        // PAYMENT (TẠM THỜI MỞ ĐỂ TEST VNPAY)
+                        // PAYMENT
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/payments/vnpay-return"
+                        ).permitAll()
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/payments/revenue"
+                        ).hasRole("ADMIN")
                         .requestMatchers(
                                 "/api/payments/**"
-                        ).permitAll()
+                        ).authenticated()
 
                         .anyRequest()
                         .authenticated()

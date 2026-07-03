@@ -1,27 +1,34 @@
 package com.se1908.group01.controller;
 
+import com.se1908.group01.dto.ApiResponse;
+import com.se1908.group01.dto.PaymentHistoryResponse;
+import com.se1908.group01.dto.PaymentPurchaseResponse;
 import com.se1908.group01.dto.PurchaseRequest;
+import com.se1908.group01.dto.RevenueResponse;
+import com.se1908.group01.dto.SubscriptionResponse;
 import com.se1908.group01.service.PaymentService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/payments")
 @RequiredArgsConstructor
-@SecurityRequirement(name = "bearerAuth")
 public class PaymentController {
 
     private final PaymentService paymentService;
 
     @PostMapping("/purchase")
-    public ResponseEntity<?> purchase(
+    @SecurityRequirement(name = "bearerAuth")
+    public ApiResponse<PaymentPurchaseResponse> purchase(
             Authentication authentication,
-            @RequestBody PurchaseRequest request) {
-
-        return ResponseEntity.ok(
+            @Valid @RequestBody PurchaseRequest request) {
+        return ApiResponse.success(
+                "Create payment successfully",
                 paymentService.purchase(
                         authentication.getName(),
                         request
@@ -30,7 +37,7 @@ public class PaymentController {
     }
 
     @GetMapping("/vnpay-return")
-    public ResponseEntity<?> vnPayReturn(
+    public ApiResponse<Void> vnPayReturn(
 
             @RequestParam("vnp_TxnRef")
             String transactionNo,
@@ -38,19 +45,19 @@ public class PaymentController {
             @RequestParam("vnp_ResponseCode")
             String responseCode) {
 
-        paymentService.handleVNPayCallback(
-                transactionNo,
-                responseCode);
-
-        return ResponseEntity.ok(
-                "VNPay callback processed successfully");
+        paymentService.handleVNPayCallback(transactionNo, responseCode);
+        return ApiResponse.success(
+                "VNPay callback processed successfully",
+                null
+        );
     }
 
     @GetMapping("/history")
-    public ResponseEntity<?> history(
+    @SecurityRequirement(name = "bearerAuth")
+    public ApiResponse<List<PaymentHistoryResponse>> history(
             Authentication authentication) {
-
-        return ResponseEntity.ok(
+        return ApiResponse.success(
+                "Get payment history successfully",
                 paymentService.getMyPaymentHistory(
                         authentication.getName()
                 )
@@ -58,18 +65,20 @@ public class PaymentController {
     }
 
     @GetMapping("/revenue")
-    public ResponseEntity<?> revenue() {
-
-        return ResponseEntity.ok(
+    @SecurityRequirement(name = "bearerAuth")
+    public ApiResponse<RevenueResponse> revenue() {
+        return ApiResponse.success(
+                "Get payment revenue successfully",
                 paymentService.getRevenue()
         );
     }
 
     @GetMapping("/my-subscription")
-    public ResponseEntity<?> mySubscription(
+    @SecurityRequirement(name = "bearerAuth")
+    public ApiResponse<SubscriptionResponse> mySubscription(
             Authentication authentication) {
-
-        return ResponseEntity.ok(
+        return ApiResponse.success(
+                "Get my subscription successfully",
                 paymentService.getMySubscription(
                         authentication.getName()
                 )
