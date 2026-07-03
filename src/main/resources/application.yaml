@@ -3,38 +3,45 @@ server:
 
 app:
   frontend-base-url: ${APP_FRONTEND_BASE_URL:http://localhost:5173}
+  ai:
+    default-model: ${GEMINI_CHAT_MODEL:gemini-2.5-flash-lite}
+    default-temperature: ${GEMINI_CHAT_TEMPERATURE:0.2}
+  upload:
+    max-video-file-size: ${APP_MAX_VIDEO_FILE_SIZE:52428800}
   jwt:
     secret: ${APP_JWT_SECRET:}
-    expiration-ms: ${APP_JWT_EXPIRATION_MS:10000000}
+    expiration-ms: ${APP_JWT_EXPIRATION_MS:300000}
     refresh-expiration-ms: ${APP_JWT_REFRESH_EXPIRATION_MS:604800000}
 
 spring:
   application:
     name: AI-HUB-STUDY
-
-  autoconfigure:
-    exclude:
-      - org.springframework.ai.model.google.genai.autoconfigure.chat.GoogleGenAiChatAutoConfiguration
-      - org.springframework.ai.model.google.genai.autoconfigure.chat.GoogleGenAiChatConnectionAutoConfiguration
-      - org.springframework.ai.model.google.genai.autoconfigure.embedding.GoogleGenAiEmbeddingAutoConfiguration
-      - org.springframework.ai.model.google.genai.autoconfigure.embedding.GoogleGenAiEmbeddingConnectionAutoConfiguration
-
   jackson:
     datatype:
       datetime:
         write-dates-as-timestamps: false
-
   servlet:
     multipart:
-      max-file-size: 20MB
-      max-request-size: 20MB
-
+      max-file-size: ${APP_MAX_MULTIPART_FILE_SIZE:50MB}
+      max-request-size: ${APP_MAX_MULTIPART_REQUEST_SIZE:50MB}
   ai:
     model:
-      chat: none
+      chat: ${SPRING_AI_MODEL_CHAT:none}
       embedding:
-        text: none
-
+        text: ${SPRING_AI_MODEL_EMBEDDING_TEXT:none}
+    google:
+      genai:
+        api-key: ${GEMINI_CHAT_API_KEY:}
+        chat:
+          options:
+            model: ${GEMINI_CHAT_MODEL:gemini-2.5-flash-lite}
+            temperature: ${GEMINI_CHAT_TEMPERATURE:0.2}
+        embedding:
+          api-key: ${GEMINI_EMBEDDING_API_KEY:}
+          text:
+            options:
+              model: gemini-embedding-001
+              task-type: RETRIEVAL_DOCUMENT
   datasource:
     url: ${SQLSERVER_DATASOURCE_URL:jdbc:sqlserver://localhost:1433;databaseName=lms_ai;encrypt=true;trustServerCertificate=true}
     username: ${SQLSERVER_DATASOURCE_USERNAME:sa}
@@ -43,7 +50,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: update # chú ý: chỉ dùng update trong lúc phát triển, sau chuyển thành validate hoặc none
     show-sql: true
     properties:
       hibernate:
@@ -54,6 +61,7 @@ spring:
     port: 587
     username: ${MAIL_USERNAME:}
     password: ${MAIL_PASSWORD:}
+
     properties:
       mail:
         smtp:
@@ -80,6 +88,17 @@ aws:
     endpoint: ${AWS_S3_ENDPOINT:}
     presigned-url-expiration-minutes: ${AWS_S3_PRESIGNED_URL_EXPIRATION_MINUTES:10}
 
+google:
+  speech:
+    project-id: ${GOOGLE_CLOUD_PROJECT_ID:}
+    gcs-bucket-name: ${GOOGLE_SPEECH_GCS_BUCKET:}
+    gcs-key-prefix: ${GOOGLE_SPEECH_GCS_KEY_PREFIX:transcribe-temp/}
+    timeout-seconds: ${GOOGLE_SPEECH_TIMEOUT_SECONDS:300}
+
+rag:
+  user-storage:
+    allow-general-knowledge: false
+
 ocr:
   tesseract:
     enabled: ${TESSERACT_ENABLED:false}
@@ -89,9 +108,8 @@ ocr:
     timeout-seconds: ${TESSERACT_TIMEOUT_SECONDS:60}
     pdf-dpi: ${TESSERACT_PDF_DPI:200}
     pdf-text-min-characters: ${TESSERACT_PDF_TEXT_MIN_CHARACTERS:20}
-
 vnpay:
-  tmn-code: FSQXKGP6
-  hash-secret: SQMT8UABTGN824KJACU1XGSWMTHER5CK
-  pay-url: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
-  return-url: https://predefine-bribe-resurrect.ngrok-free.dev/api/payments/vnpay-return
+  tmn-code: ${VNPAY_TMN_CODE:}
+  hash-secret: ${VNPAY_HASH_SECRET:}
+  pay-url: ${VNPAY_PAY_URL:https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
+  return-url: ${VNPAY_RETURN_URL:}
