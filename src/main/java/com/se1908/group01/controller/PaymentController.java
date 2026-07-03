@@ -1,6 +1,7 @@
 package com.se1908.group01.controller;
 
 import com.se1908.group01.dto.ApiResponse;
+import com.se1908.group01.dto.PaymentCallbackResponse;
 import com.se1908.group01.dto.PaymentHistoryResponse;
 import com.se1908.group01.dto.PaymentPurchaseResponse;
 import com.se1908.group01.dto.PurchaseRequest;
@@ -14,6 +15,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/payments")
@@ -37,18 +39,11 @@ public class PaymentController {
     }
 
     @GetMapping("/vnpay-return")
-    public ApiResponse<Void> vnPayReturn(
-
-            @RequestParam("vnp_TxnRef")
-            String transactionNo,
-
-            @RequestParam("vnp_ResponseCode")
-            String responseCode) {
-
-        paymentService.handleVNPayCallback(transactionNo, responseCode);
+    public ApiResponse<PaymentCallbackResponse> vnPayReturn(
+            @RequestParam Map<String, String> params) {
         return ApiResponse.success(
                 "VNPay callback processed successfully",
-                null
+                paymentService.handleVNPayCallback(params)
         );
     }
 

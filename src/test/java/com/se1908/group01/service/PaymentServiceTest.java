@@ -3,26 +3,34 @@ package com.se1908.group01.service;
 import com.se1908.group01.config.VNPayConfig;
 import com.se1908.group01.dto.PurchaseRequest;
 import com.se1908.group01.entity.Payment;
+import com.se1908.group01.entity.Subscription;
 import com.se1908.group01.entity.SubscriptionPlan;
 import com.se1908.group01.entity.User;
+import com.se1908.group01.enums.PaymentMethod;
 import com.se1908.group01.enums.PaymentStatus;
 import com.se1908.group01.exception.ResourceNotFoundException;
 import com.se1908.group01.repository.PaymentRepository;
 import com.se1908.group01.repository.SubscriptionPlanRepository;
 import com.se1908.group01.repository.SubscriptionRepository;
 import com.se1908.group01.repository.UserRepository;
+import com.se1908.group01.util.VNPayUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -141,6 +149,72 @@ class PaymentServiceTest {
         );
     }
 
+    @Test
+    void callbackVerifiesSignatureAndCreatesSubscription() {
+        Payment payment = payment(PaymentStatus.PENDING);
+        Map<String, String> params = signedCallbackParams("9900000");
+
+        when(paymentRepository.findByTransactionNoForUpdate("txn-001"))
+                .thenReturn(Optional.of(payment));
+        when(subscriptionRepository.findByUserAndStatus(
+                any(User.class),
+                any()))
+                .thenReturn(Optional.empty());
+
+        var response = service.handleVNPayCallback(params);
+
+        assertEquals(PaymentStatus.SUCCESS, response.getStatus());
+        assertEquals(false, response.isAlreadyProcessed());
+        verify(paymentRepository).save(payment);
+        verify(subscriptionRepository).save(any(Subscription.class));
+    }
+
+    @Test
+    void callbackRejectsInvalidSignatureBeforeDatabaseLookup() {
+        Map<String, String> params = signedCallbackParams("9900000");
+        params.put("vnp_SecureHash", "invalid-signature");
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.handleVNPayCallback(params)
+        );
+
+        verify(paymentRepository, never())
+                .findByTransactionNoForUpdate(any());
+    }
+
+    @Test
+    void callbackRejectsSignedButIncorrectAmount() {
+        Payment payment = payment(PaymentStatus.PENDING);
+        Map<String, String> params = signedCallbackParams("10000");
+
+        when(paymentRepository.findByTransactionNoForUpdate("txn-001"))
+                .thenReturn(Optional.of(payment));
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.handleVNPayCallback(params)
+        );
+
+        verify(paymentRepository, never()).save(any(Payment.class));
+        verify(subscriptionRepository, never()).save(any(Subscription.class));
+    }
+
+    @Test
+    void callbackDoesNotCreateDuplicateSubscription() {
+        Payment payment = payment(PaymentStatus.SUCCESS);
+        Map<String, String> params = signedCallbackParams("9900000");
+
+        when(paymentRepository.findByTransactionNoForUpdate("txn-001"))
+                .thenReturn(Optional.of(payment));
+
+        var response = service.handleVNPayCallback(params);
+
+        assertEquals(PaymentStatus.SUCCESS, response.getStatus());
+        assertEquals(true, response.isAlreadyProcessed());
+        verify(subscriptionRepository, never()).save(any(Subscription.class));
+    }
+
     private PurchaseRequest purchaseRequest() {
         PurchaseRequest request = new PurchaseRequest();
         request.setPlanId(1L);
@@ -163,5 +237,37 @@ class PaymentServiceTest {
                 .monthlyTokenLimit(100000L)
                 .active(active)
                 .build();
+    }
+
+    private Payment payment(PaymentStatus status) {
+        return Payment.builder()
+                .id(10L)
+                .transactionNo("txn-001")
+                .amount(BigDecimal.valueOf(99000))
+                .paymentMethod(PaymentMethod.VNPAY)
+                .status(status)
+                .user(User.builder()
+                        .userId(1L)
+                        .email("user@example.com")
+                        .build())
+                .plan(plan(true))
+                .build();
+    }
+
+    private Map<String, String> signedCallbackParams(String amount) {
+        Map<String, String> params = new HashMap<>();
+        params.put("vnp_Amount", amount);
+        params.put("vnp_ResponseCode", "00");
+        params.put("vnp_TmnCode", "DEMO");
+        params.put("vnp_TransactionNo", "vnp-transaction-001");
+        params.put("vnp_TransactionStatus", "00");
+        params.put("vnp_TxnRef", "txn-001");
+
+        String signature = VNPayUtil.hmacSHA512(
+                vnPayConfig.getHashSecret(),
+                VNPayUtil.buildQuery(params)
+        );
+        params.put("vnp_SecureHash", signature);
+        return params;
     }
 }

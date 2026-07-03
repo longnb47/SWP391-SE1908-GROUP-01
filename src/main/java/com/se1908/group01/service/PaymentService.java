@@ -1,6 +1,7 @@
 package com.se1908.group01.service;
 
 import com.se1908.group01.config.VNPayConfig;
+import com.se1908.group01.dto.PaymentCallbackResponse;
 import com.se1908.group01.dto.PaymentHistoryResponse;
 import com.se1908.group01.dto.PaymentPurchaseResponse;
 import com.se1908.group01.dto.PurchaseRequest;
@@ -21,6 +22,7 @@ import com.se1908.group01.repository.UserRepository;
 import com.se1908.group01.util.VNPayUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
@@ -82,32 +84,56 @@ public class PaymentService {
                 .build();
     }
 
-    public void handleVNPayCallback(
-            String transactionNo,
-            String responseCode) {
+    @Transactional
+    public PaymentCallbackResponse handleVNPayCallback(
+            Map<String, String> params) {
+
+        validateVNPayCallbackConfiguration();
+
+        if (!VNPayUtil.isValidSignature(
+                params,
+                vnPayConfig.getHashSecret())) {
+            throw new IllegalArgumentException(
+                    "Invalid VNPay signature");
+        }
+
+        String transactionNo = requireParam(params, "vnp_TxnRef");
+        String responseCode = requireParam(params, "vnp_ResponseCode");
+        String transactionStatus = requireParam(
+                params,
+                "vnp_TransactionStatus");
+        String tmnCode = requireParam(params, "vnp_TmnCode");
+
+        if (!vnPayConfig.getTmnCode().equals(tmnCode)) {
+            throw new IllegalArgumentException(
+                    "Invalid VNPay merchant code");
+        }
 
         Payment payment = paymentRepository
-                .findByTransactionNo(transactionNo)
+                .findByTransactionNoForUpdate(transactionNo)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Payment not found"));
 
-        payment.setResponseCode(responseCode);
+        validateCallbackAmount(params, payment);
 
-        if (payment.getStatus() == PaymentStatus.SUCCESS) {
-            paymentRepository.save(payment);
-            return;
+        if (payment.getStatus() != PaymentStatus.PENDING) {
+            return callbackResponse(payment, true);
         }
 
-        if ("00".equals(responseCode)) {
+        payment.setResponseCode(responseCode);
+
+        if ("00".equals(responseCode)
+                && "00".equals(transactionStatus)) {
             payment.setStatus(PaymentStatus.SUCCESS);
             payment.setPaidAt(LocalDateTime.now());
             paymentRepository.save(payment);
             createSubscription(payment);
-            return;
+        } else {
+            payment.setStatus(PaymentStatus.FAILED);
+            paymentRepository.save(payment);
         }
 
-        payment.setStatus(PaymentStatus.FAILED);
-        paymentRepository.save(payment);
+        return callbackResponse(payment, false);
     }
 
     public List<PaymentHistoryResponse> getMyPaymentHistory(
@@ -252,5 +278,59 @@ public class PaymentService {
             throw new IllegalStateException(
                     "VNPay configuration is incomplete");
         }
+    }
+
+    private void validateVNPayCallbackConfiguration() {
+        if (!StringUtils.hasText(vnPayConfig.getTmnCode())
+                || !StringUtils.hasText(vnPayConfig.getHashSecret())) {
+            throw new IllegalStateException(
+                    "VNPay callback configuration is incomplete");
+        }
+    }
+
+    private void validateCallbackAmount(
+            Map<String, String> params,
+            Payment payment) {
+
+        String rawAmount = requireParam(params, "vnp_Amount");
+
+        try {
+            long callbackAmount = Long.parseLong(rawAmount);
+            long expectedAmount = payment.getAmount()
+                    .movePointRight(2)
+                    .longValueExact();
+
+            if (callbackAmount != expectedAmount) {
+                throw new IllegalArgumentException(
+                        "VNPay payment amount does not match");
+            }
+        } catch (NumberFormatException | ArithmeticException exception) {
+            throw new IllegalArgumentException(
+                    "Invalid VNPay payment amount");
+        }
+    }
+
+    private String requireParam(
+            Map<String, String> params,
+            String name) {
+
+        String value = params.get(name);
+        if (!StringUtils.hasText(value)) {
+            throw new IllegalArgumentException(
+                    "Missing VNPay parameter: " + name);
+        }
+
+        return value;
+    }
+
+    private PaymentCallbackResponse callbackResponse(
+            Payment payment,
+            boolean alreadyProcessed) {
+
+        return PaymentCallbackResponse.builder()
+                .transactionNo(payment.getTransactionNo())
+                .status(payment.getStatus())
+                .alreadyProcessed(alreadyProcessed)
+                .build();
     }
 }
