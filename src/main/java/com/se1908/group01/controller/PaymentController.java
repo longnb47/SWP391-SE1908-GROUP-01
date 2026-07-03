@@ -11,9 +11,14 @@ import com.se1908.group01.service.PaymentService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.util.UriComponentsBuilder;
 
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
@@ -23,6 +28,9 @@ import java.util.Map;
 public class PaymentController {
 
     private final PaymentService paymentService;
+
+    @Value("${app.frontend-base-url:http://localhost:5173}")
+    private String frontendBaseUrl;
 
     @PostMapping("/purchase")
     @SecurityRequirement(name = "bearerAuth")
@@ -39,12 +47,31 @@ public class PaymentController {
     }
 
     @GetMapping("/vnpay-return")
-    public ApiResponse<PaymentCallbackResponse> vnPayReturn(
+    public ResponseEntity<Void> vnPayReturn(
             @RequestParam Map<String, String> params) {
-        return ApiResponse.success(
-                "VNPay callback processed successfully",
-                paymentService.handleVNPayCallback(params)
-        );
+        PaymentCallbackResponse result =
+                paymentService.handleVNPayCallback(params);
+
+        URI redirectUri = UriComponentsBuilder
+                .fromUriString(normalizedFrontendBaseUrl())
+                .path("/payment-result")
+                .queryParam("status", result.getStatus().name())
+                .queryParam(
+                        "transactionNo",
+                        result.getTransactionNo()
+                )
+                .queryParam(
+                        "alreadyProcessed",
+                        result.isAlreadyProcessed()
+                )
+                .build()
+                .encode()
+                .toUri();
+
+        return ResponseEntity
+                .status(HttpStatus.FOUND)
+                .location(redirectUri)
+                .build();
     }
 
     @GetMapping("/history")
@@ -78,5 +105,14 @@ public class PaymentController {
                         authentication.getName()
                 )
         );
+    }
+
+    private String normalizedFrontendBaseUrl() {
+        return frontendBaseUrl.endsWith("/")
+                ? frontendBaseUrl.substring(
+                        0,
+                        frontendBaseUrl.length() - 1
+                )
+                : frontendBaseUrl;
     }
 }
