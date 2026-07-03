@@ -2,6 +2,7 @@ package com.se1908.group01.service.impl;
 
 import com.se1908.group01.dto.MultiChatAskRequest;
 import com.se1908.group01.dto.MultiChatAskResponse;
+import com.se1908.group01.dto.MultiChatSourceResponse;
 import com.se1908.group01.dto.RetrievedChunk;
 import com.se1908.group01.entity.Document;
 import com.se1908.group01.enums.ChatMode;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Service;
 public class MultiChatServiceImpl implements MultiChatService {
 
 	private static final int TOP_K = 10;
+	private static final int CONTENT_PREVIEW_LENGTH = 200;
 
 	private final DocumentAccessService documentAccessService;
 	private final CurrentUserService currentUserService;
@@ -81,6 +83,7 @@ public class MultiChatServiceImpl implements MultiChatService {
 					chatMode.name(),
 					generationOptions.modelName(),
 					generationOptions.temperature(),
+					List.of(),
 					List.of()
 			);
 		}
@@ -101,12 +104,14 @@ public class MultiChatServiceImpl implements MultiChatService {
 					chatMode.name(),
 					generationOptions.modelName(),
 					generationOptions.temperature(),
-					resolvedDocumentIds
+					resolvedDocumentIds,
+					List.of()
 			);
 		}
 
 		var context = buildContext(chunks);
 		var prompt = promptBuilderService.buildMultiDocumentQuestionPrompt(chatMode, context, request.getQuestion());
+		var sources = buildSources(chunks);
 		var answer = llmClient.generateAnswer(prompt, generationOptions);
 
 		var usedDocumentIds = chunks.stream()
@@ -119,7 +124,8 @@ public class MultiChatServiceImpl implements MultiChatService {
 				chatMode.name(),
 				generationOptions.modelName(),
 				generationOptions.temperature(),
-				usedDocumentIds
+				usedDocumentIds,
+				sources
 		);
 	}
 
@@ -131,6 +137,28 @@ public class MultiChatServiceImpl implements MultiChatService {
 					? "I cannot find sufficient information in this folder to answer this question."
 					: "I cannot find sufficient information in your documents to answer this question.";
 		};
+	}
+
+	private List<MultiChatSourceResponse> buildSources(List<RetrievedChunk> chunks) {
+		return chunks.stream()
+				.map(retrieved -> {
+					var chunk = retrieved.getChunk();
+					return new MultiChatSourceResponse(
+							chunk.getDocument().getDocumentId(),
+							chunk.getDocument().getOriginalFileName(),
+							chunk.getChunkId(),
+							truncateForPreview(chunk.getContent()),
+							retrieved.getScore()
+					);
+				})
+				.toList();
+	}
+
+	private String truncateForPreview(String content) {
+		if (content == null || content.length() <= CONTENT_PREVIEW_LENGTH) {
+			return content;
+		}
+		return content.substring(0, CONTENT_PREVIEW_LENGTH) + "...";
 	}
 
 	private String buildContext(List<RetrievedChunk> chunks) {

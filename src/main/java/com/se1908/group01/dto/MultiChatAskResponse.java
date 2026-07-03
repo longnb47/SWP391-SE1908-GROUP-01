@@ -9,6 +9,7 @@ public class MultiChatAskResponse {
 	private String model;
 	private Double temperature;
 	private List<Long> usedDocumentIds;
+	private List<MultiChatSourceResponse> sources;
 
 	public MultiChatAskResponse() {
 	}
@@ -18,13 +19,15 @@ public class MultiChatAskResponse {
 			String mode,
 			String model,
 			Double temperature,
-			List<Long> usedDocumentIds
+			List<Long> usedDocumentIds,
+			List<MultiChatSourceResponse> sources
 	) {
 		this.answer = answer;
 		this.mode = mode;
 		this.model = model;
 		this.temperature = temperature;
 		this.usedDocumentIds = usedDocumentIds;
+		this.sources = sources;
 	}
 
 	public String getAnswer() {
@@ -65,5 +68,13 @@ public class MultiChatAskResponse {
 
 	public void setUsedDocumentIds(List<Long> usedDocumentIds) {
 		this.usedDocumentIds = usedDocumentIds;
+	}
+
+	public List<MultiChatSourceResponse> getSources() {
+		return sources;
+	}
+
+	public void setSources(List<MultiChatSourceResponse> sources) {
+		this.sources = sources;
 	}
 }
