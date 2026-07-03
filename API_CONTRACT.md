@@ -721,7 +721,7 @@ Document APIs usually return a `DocumentUploadResponse` object:
 
 ## 3.2. Upload document
 
-Upload a file to S3, save metadata, and parse/chunk/embed it if supported.
+Upload a file to S3 and save metadata. Parsing, chunking, and embedding run in a background job after the upload request succeeds.
 
 ### Request
 
@@ -771,6 +771,14 @@ Files whose `Content-Type` starts with `video/` are also accepted.
 | Image files | Uploaded to private S3 and metadata saved to database | OCR can extract text if Tesseract is enabled; otherwise indexing may fail or produce no useful text |
 | Video files | Uploaded to private S3 and metadata saved to database | Current backend stores a placeholder chunk: `[VIDEO] Transcript pending...`; real video transcription is not implemented yet |
 
+Important behavior:
+
+- Upload response returns quickly after S3 upload and metadata save.
+- The returned document status is usually `UPLOADED`.
+- Backend continues processing asynchronously: `UPLOADED` -> `PARSING` -> `INDEXING` -> `READY`.
+- If parsing, embedding, or indexing fails, status becomes `FAILED`.
+- Frontend should poll document detail/list APIs and enable AI chat only when status is `READY`.
+
 ### Success response
 
 Status: `200 OK`
@@ -790,7 +798,7 @@ Status: `200 OK`
     "isPublic": true,
     "isDeleted": false,
     "isStarred": false,
-    "status": "READY",
+    "status": "UPLOADED",
     "uploadedAt": "2026-06-14T10:30:00Z",
     "deletedAt": null
   },
@@ -3083,12 +3091,14 @@ Authorization: Bearer <accessToken>
 
 Current scope:
 
-- Chat works on one selected document per request.
-- The selected document must be accessible by the authenticated user.
-- The selected document must have status `READY`.
-- Retrieval is scoped only to chunks of the selected document.
+- Chat supports one selected document through `/api/chat/ask`.
+- Chat supports multi-document / storage-based retrieval through `/api/chat/ask-multi`.
+- Documents used for chat must be accessible by the authenticated user.
+- Documents used for chat must have status `READY`.
+- Retrieval is scoped to the selected document(s) or accessible storage scope.
 - The AI is instructed to answer only from the retrieved document context.
-- Chat session/history persistence is not implemented yet.
+- Persistent chat sessions, messages, and RAG sources are supported through `/api/chat/sessions`.
+- For each new session message, only the latest five completed messages are used as conversational memory.
 
 ---
 
@@ -3106,7 +3116,9 @@ Ask the AI a question using one selected document as context.
 ```json
 {
   "documentId": 1,
-  "question": "What is the main idea of this document?"
+  "question": "What is the main idea of this document?",
+  "model": "gemini-2.5-flash-lite",
+  "temperature": 0.2
 }
 ```
 
@@ -3116,6 +3128,8 @@ Ask the AI a question using one selected document as context.
 |---|---|---|---|
 | `documentId` | number | Yes | Must point to an accessible document |
 | `question` | string | Yes | Must not be blank |
+| `model` | string / null | No | One of the three supported chat models; backend default if omitted |
+| `temperature` | number / null | No | AI creativity from `0.0` to `1.0`; backend default `0.2` if omitted |
 
 ### Success response
 
@@ -3128,6 +3142,8 @@ Status: `200 OK`
   "data": {
     "documentId": 1,
     "answer": "The main idea of the document is ...",
+    "model": "gemini-2.5-flash-lite",
+    "temperature": 0.2,
     "sources": [
       {
         "chunkId": 10,
@@ -3148,6 +3164,8 @@ Status: `200 OK`
 |---|---|---|
 | `documentId` | number | The selected document ID |
 | `answer` | string | AI answer grounded by retrieved chunks |
+| `model` | string | Model actually used by the backend |
+| `temperature` | number | Temperature actually used by the backend |
 | `sources` | array | Retrieved chunks used as context |
 | `sources[].chunkId` | number | Source chunk ID |
 | `sources[].chunkIndex` | number | Chunk order in the document |
@@ -3159,6 +3177,7 @@ Status: `200 OK`
 | Status | Message | Reason |
 |---|---|---|
 | `400` | `Validation failed` | Missing documentId or blank question |
+| `400` | `Validation failed` | Unsupported model or temperature outside `0.0`–`1.0` |
 | `400` | `Validation failed` | Document is not `READY` |
 | `400` | `Validation failed` | Document has no indexed content for chat |
 | `401` | `Unauthorized` | Missing or invalid JWT |
@@ -3170,7 +3189,7 @@ Status: `200 OK`
 
 1. Let the user select a document.
 2. Only enable chat when the selected document has status `READY`.
-3. Send the selected `documentId` and the user's question to `/api/chat/ask`.
+3. Send the selected `documentId`, question, optional model, and optional temperature to `/api/chat/ask`.
 4. Render `data.answer`.
 5. Optionally show `data.sources` for debugging or future citation UI.
 
@@ -3179,6 +3198,375 @@ Important:
 - Do not send the full document content from the frontend.
 - Do not call Gemini directly from the frontend.
 - The backend handles embedding, vector search, prompt building, and AI calling.
+
+---
+
+## 6.2. Ask a question using multiple documents or user storage
+
+Ask the AI a question using multiple selected documents, or using the user's accessible document storage.
+
+### Request
+
+- Method: `POST`
+- URL: `/api/chat/ask-multi`
+- Auth: JWT required
+- Content-Type: `application/json`
+
+### Case 1: selected documents
+
+Use this when the user manually selects one or more documents.
+Every requested document must exist, be accessible to the current user, not be deleted, and have status `READY`.
+The backend searches only the selected document IDs. `useGeneralKnowledge` is ignored in this mode.
+
+```json
+{
+  "mode": "SelectedDocuments",
+  "selectedDocumentIds": [1, 2, 3],
+  "folderId": null,
+  "question": "Summarize the common topic across these documents.",
+  "useGeneralKnowledge": null,
+  "model": "gemini-2.5-flash-lite",
+  "temperature": 0.2
+}
+```
+
+### Case 2: user storage
+
+Use this when the user does not manually select documents and wants to search only their own `READY` documents.
+Public Community documents are not included.
+
+```json
+{
+  "mode": "UserStorage",
+  "selectedDocumentIds": null,
+  "folderId": null,
+  "question": "Which of my documents mention machine learning?",
+  "useGeneralKnowledge": false,
+  "model": "gemini-3.1-flash-lite",
+  "temperature": 0.2
+}
+```
+
+### Case 3: user storage with general/community option
+
+Use this when the user does not manually select documents and enables the broader Community scope.
+The backend searches the user's own `READY` documents plus all accessible public `READY` documents.
+
+```json
+{
+  "mode": "UserStorage",
+  "selectedDocumentIds": null,
+  "folderId": null,
+  "question": "Find related material about deep learning.",
+  "useGeneralKnowledge": true,
+  "model": "gemini-3.5-flash",
+  "temperature": 0.4
+}
+```
+
+> Despite its current name, `useGeneralKnowledge` does not allow unrestricted pretrained or external AI knowledge. It controls whether public Community documents are included in retrieval. The AI must still answer only from the retrieved document context.
+
+### Retrieval scope
+
+| Mode | `useGeneralKnowledge` | Documents searched |
+|---|---|---|
+| `SelectedDocuments` | Ignored | Only all requested accessible `READY` documents |
+| `UserStorage` | `false` | Current user's `READY` documents only |
+| `UserStorage` | `null` | Uses backend default; currently My Files only |
+| `UserStorage` | `true` | Current user's `READY` documents plus public Community `READY` documents |
+
+When `folderId` is supplied:
+
+- The folder must belong to the authenticated user.
+- With `useGeneralKnowledge = false/null`, only the user's `READY` documents in that folder are searched.
+- With `useGeneralKnowledge = true`, the user's `READY` documents in that folder and public Community `READY` documents are searched.
+- Documents with `UPLOADED`, `PARSING`, `INDEXING`, `FAILED`, or deleted status are excluded.
+- If no eligible documents or chunks remain, the API returns `200 OK` with a no-context answer and does not call Gemini.
+
+### Request fields
+
+| Field | Type | Required | Rule |
+|---|---|---|---|
+| `mode` | string | Yes | Must be `SelectedDocuments` or `UserStorage` |
+| `selectedDocumentIds` | array / null | Required for `SelectedDocuments` | List of accessible `READY` document IDs |
+| `folderId` | number / null | No | Optional owned folder filter for the user's document scope in `UserStorage` |
+| `question` | string | Yes | Must not be blank |
+| `useGeneralKnowledge` | boolean / null | No | For `UserStorage`: `false` = My Files only, `true` = My Files + public Community; ignored for `SelectedDocuments` |
+| `model` | string / null | No | One of the three supported chat models; backend default if omitted |
+| `temperature` | number / null | No | AI creativity from `0.0` to `1.0`; backend default `0.2` if omitted |
+
+### Supported AI generation options
+
+Supported `model` values:
+
+```text
+gemini-2.5-flash-lite
+gemini-3.1-flash-lite
+gemini-3.5-flash
+```
+
+The frontend may display these as:
+
+```text
+Gemini 2.5 Flash Lite
+Gemini 3.1 Flash Lite
+Gemini 3.5 Flash
+```
+
+Rules:
+
+- `model` and `temperature` are optional.
+- If omitted, the backend uses `GEMINI_CHAT_MODEL` and `GEMINI_CHAT_TEMPERATURE`.
+- The backend defaults are `gemini-2.5-flash-lite` and `0.2`.
+- Temperature `0.0` is the most deterministic; `1.0` allows more variation.
+- Model and temperature affect answer generation only. They do not change parsing, embeddings, cosine similarity, retrieval scope, or access control.
+- The Gemini API key is configured only on the backend and must never be sent by the frontend.
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Ask multi-document chat successfully",
+  "data": {
+    "answer": "The selected documents mainly discuss ...",
+    "mode": "SELECTED_DOCUMENTS",
+    "policy": "DOCUMENTS_ONLY",
+    "model": "gemini-2.5-flash-lite",
+    "temperature": 0.2,
+    "usedDocumentIds": [1, 2]
+  },
+  "errors": null,
+  "timestamp": "2026-06-26T10:30:00Z"
+}
+```
+
+### Response fields
+
+| Field | Type | Description |
+|---|---|---|
+| `answer` | string | AI answer grounded by retrieved chunks |
+| `mode` | string | Resolved backend mode, for example `SELECTED_DOCUMENTS` or `USER_STORAGE` |
+| `policy` | string | Resolved knowledge policy, for example `DOCUMENTS_ONLY` or `DOCUMENTS_PLUS_GENERAL` |
+| `model` | string | Model actually used by the backend |
+| `temperature` | number | Temperature actually used by the backend |
+| `usedDocumentIds` | array | Document IDs whose chunks were used as context |
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Validation failed` | Missing/invalid mode or blank question |
+| `400` | `Validation failed` | Unsupported model or temperature outside `0.0`–`1.0` |
+| `400` | `Validation failed` | `selectedDocumentIds` is missing for `SelectedDocuments` mode |
+| `400` | `Validation failed` | One or more selected documents do not exist, are deleted, are not `READY`, or are not accessible |
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `404` | `Resource not found` | The supplied `folderId` does not belong to the authenticated user |
+| `503` | `AI service is unavailable` | Gemini/Spring AI call failed |
+
+### Frontend usage
+
+1. If the user selects documents, call `/api/chat/ask-multi` with `mode = "SelectedDocuments"` and `selectedDocumentIds`.
+2. If the user does not select documents, call `/api/chat/ask-multi` with `mode = "UserStorage"`.
+3. Send `useGeneralKnowledge = false/null` to search only My Files.
+4. Send `useGeneralKnowledge = true` only when the user enables public Community document retrieval.
+5. Send one of the supported model IDs and a temperature between `0.0` and `1.0`, or omit them to use backend defaults.
+6. Render `data.answer` and optionally show `data.usedDocumentIds`.
+
+Important:
+
+- Do not send file content from the frontend.
+- Only send IDs, mode, optional folder filter, and the user's question.
+- The backend handles embedding, retrieval, prompt building, and AI calling.
+- In `SelectedDocuments` mode, do not include documents that are still processing or have status `FAILED`.
+
+---
+
+## 6.3. Persistent chat sessions and history
+
+Session APIs store the complete chat history in the database. When generating a new answer, the backend uses at most the latest five completed messages as Spring AI conversational memory. Document retrieval remains restricted by the session's saved RAG scope.
+
+Private session APIs require:
+
+```text
+Authorization: Bearer <accessToken>
+```
+
+### 6.3.1. Create chat session
+
+- Method: `POST`
+- URL: `/api/chat/sessions`
+- Auth: JWT required
+- Content-Type: `application/json`
+
+Selected documents example:
+
+```json
+{
+  "title": "Spring AI revision",
+  "mode": "SelectedDocuments",
+  "selectedDocumentIds": [1, 2],
+  "folderId": null,
+  "useGeneralKnowledge": null,
+  "model": "gemini-2.5-flash-lite",
+  "temperature": 0.2
+}
+```
+
+User storage example:
+
+```json
+{
+  "title": "My study assistant",
+  "mode": "UserStorage",
+  "selectedDocumentIds": null,
+  "folderId": 3,
+  "useGeneralKnowledge": true,
+  "model": "gemini-3.1-flash-lite",
+  "temperature": 0.3
+}
+```
+
+Rules:
+
+- `title` is optional and defaults to `New chat`; maximum 200 characters.
+- `SelectedDocuments` requires all selected documents to be accessible and `READY`.
+- `folderId` is not accepted in `SelectedDocuments`.
+- `selectedDocumentIds` is not accepted in `UserStorage`.
+- Session model, temperature, retrieval mode, and document scope are fixed when the session is created.
+
+Success data:
+
+```json
+{
+  "sessionId": 10,
+  "title": "Spring AI revision",
+  "mode": "SELECTED_DOCUMENTS",
+  "folderId": null,
+  "policy": "DOCUMENTS_ONLY",
+  "model": "gemini-2.5-flash-lite",
+  "temperature": 0.2,
+  "selectedDocumentIds": [1, 2],
+  "createdAt": "2026-06-28T10:30:00Z",
+  "updatedAt": "2026-06-28T10:30:00Z"
+}
+```
+
+### 6.3.2. Get my chat sessions
+
+- Method: `GET`
+- URL: `/api/chat/sessions`
+- Auth: JWT required
+
+Returns active sessions owned by the authenticated user, ordered by most recently updated.
+
+### 6.3.3. Rename chat session
+
+- Method: `PATCH`
+- URL: `/api/chat/sessions/{sessionId}`
+- Auth: JWT required
+- Content-Type: `application/json`
+
+```json
+{
+  "title": "Updated study session"
+}
+```
+
+The title must not be blank and must not exceed 200 characters.
+
+### 6.3.4. Delete chat session
+
+- Method: `DELETE`
+- URL: `/api/chat/sessions/{sessionId}`
+- Auth: JWT required
+
+The session is soft-deleted. Existing messages remain in the database but the session is no longer accessible through user APIs.
+
+### 6.3.5. Get session messages
+
+- Method: `GET`
+- URL: `/api/chat/sessions/{sessionId}/messages?page=0&size=50`
+- Auth: JWT required
+
+Query parameters:
+
+| Field | Type | Required | Rule |
+|---|---|---|---|
+| `page` | number | No | Default `0`; must be at least `0` |
+| `size` | number | No | Default `50`; must be between `1` and `100` |
+
+Success data:
+
+```json
+{
+  "messages": [
+    {
+      "messageId": 100,
+      "role": "USER",
+      "content": "What is dependency injection?",
+      "status": "COMPLETED",
+      "createdAt": "2026-06-28T10:31:00Z",
+      "sources": []
+    },
+    {
+      "messageId": 101,
+      "role": "ASSISTANT",
+      "content": "According to the selected documents...",
+      "status": "COMPLETED",
+      "createdAt": "2026-06-28T10:31:03Z",
+      "sources": [
+        {
+          "documentId": 1,
+          "chunkId": 25,
+          "pageNumber": 4,
+          "score": 0.9123
+        }
+      ]
+    }
+  ],
+  "page": 0,
+  "size": 50,
+  "totalElements": 2,
+  "totalPages": 1
+}
+```
+
+### 6.3.6. Send message to session
+
+- Method: `POST`
+- URL: `/api/chat/sessions/{sessionId}/messages`
+- Auth: JWT required
+- Content-Type: `application/json`
+
+```json
+{
+  "question": "Can you explain that more simply?"
+}
+```
+
+Flow:
+
+1. Verify the session belongs to the authenticated user.
+2. Load at most the five latest completed messages as Spring AI chat memory.
+3. Save the current user message.
+4. Resolve the session's document scope and retrieve relevant chunks.
+5. Build a grounded prompt containing memory, document context, and the current question.
+6. Call the session's configured Gemini model and temperature.
+7. Save the assistant message and RAG source chunks.
+
+The complete message history remains in the database, but only five recent completed messages are sent as conversational memory. Full private document context is not stored as a chat message.
+
+Error cases:
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Validation failed` | Blank question or invalid session configuration |
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `404` | `Resource not found` | Session does not exist, was deleted, or belongs to another user |
+| `503` | `AI service is unavailable` | Gemini/Spring AI call failed; the failed assistant attempt is recorded with `FAILED` status |
 
 ---
 
@@ -3679,10 +4067,11 @@ false
 - Share-link APIs are public by token. Anyone with a valid enabled share token can open the shared document metadata and request preview/download URLs.
 - Direct user sharing requires friendship. The backend rejects sharing with non-friends.
 - Documents in `shared-with-me` can be previewed/downloaded through the shared-with-me URL APIs.
-- Use `POST /api/chat/ask` for document-grounded AI chat.
-- Chat currently supports one selected document per request and requires document status `READY`.
+- Use `POST /api/chat/ask` for single-document grounded AI chat.
+- Use `POST /api/chat/ask-multi` for multi-document or user-storage grounded AI chat.
+- Chat requires documents to be accessible and have status `READY`.
 - Chat currently supports owned documents and public documents; shared-with-me document chat access is not documented as supported yet.
-- Chat history/session APIs are not implemented yet.
+- Use `/api/chat/sessions` for persistent chat history; only the latest five completed messages are used as conversational memory for each new answer.
 - `ResendOtpResponse.mesage` is currently misspelled according to the existing DTO. If the team wants `message`, the DTO/backend should be updated later.
 - Tag colors should be sent as HEX values such as `#8B5CF6`, `#22C55E`, or `#FFF`.
 - Video upload currently supports storing the video file and metadata, but real transcript extraction is not available yet.
