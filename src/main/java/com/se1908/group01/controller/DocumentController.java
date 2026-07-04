@@ -82,6 +82,12 @@ public class DocumentController {
 		return ApiResponse.success("Get shared document download URL successfully", response);
 	}
 
+	@PostMapping("/share-link/{token}/save")
+	public ApiResponse<DocumentShareResponse> saveShareLinkToSharedWithMe(@PathVariable String token) {
+		var response = documentService.saveShareLinkToSharedWithMe(token);
+		return ApiResponse.success("Save shared document successfully", response);
+	}
+
 	@GetMapping("/shared-with-me")
 	public ApiResponse<List<DocumentUploadResponse>> getSharedWithMeDocuments() {
 		var response = documentService.getSharedWithMeDocuments();

@@ -46,6 +46,8 @@ public interface DocumentService {
 
 	FileAccessUrlResponse getShareLinkDownloadUrl(String token);
 
+	DocumentShareResponse saveShareLinkToSharedWithMe(String token);
+
 	DocumentShareResponse shareDocumentWithUser(Long documentId, String email);
 
 	void removeUserShare(Long documentId, Long userId);
