@@ -48,10 +48,9 @@ public class PromptBuilderServiceImpl implements PromptBuilderService {
 	}
 
 	@Override
-	public String buildMultiDocumentQuestionPrompt(
-			ChatMode mode, KnowledgePolicy knowledgePolicy, String context, String question) {
+	public String buildMultiDocumentQuestionPrompt(ChatMode mode, String context, String question) {
 
-		var systemMessage = resolveSystemMessage(mode, knowledgePolicy);
+		var systemMessage = resolveSystemMessage(mode, KnowledgePolicy.DOCUMENTS_ONLY);
 
 		return "[SYSTEM]\n"
 				+ systemMessage
