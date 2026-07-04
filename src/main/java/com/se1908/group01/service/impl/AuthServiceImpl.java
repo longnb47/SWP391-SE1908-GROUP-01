@@ -14,9 +14,11 @@ import com.se1908.group01.service.AuthService;
 import com.se1908.group01.service.EmailService;
 import com.se1908.group01.service.OtpService;
 import com.se1908.group01.service.RefreshTokenService;
+import com.se1908.group01.service.SubscriptionLifecycleService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
@@ -31,6 +33,7 @@ public class AuthServiceImpl implements AuthService {
     private final OtpService otpService;
     private final JwtUtil jwtUtil;
     private final RefreshTokenService refreshTokenService;
+    private final SubscriptionLifecycleService subscriptionLifecycleService;
 
     public RegisterResponse register(RegisterRequest request) {
 
@@ -75,6 +78,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Transactional
     public GoogleLoginResponse loginWithGoogle(String email, String fullName) {
 
         User user = userRepository.findByEmail(email)
@@ -102,6 +106,8 @@ public class AuthServiceImpl implements AuthService {
 
             user = userRepository.save(user);
         }
+
+        subscriptionLifecycleService.getOrCreateActiveSubscription(user);
 
         String token = jwtUtil.generateToken(
                 user.getUserId(),
@@ -132,6 +138,8 @@ public class AuthServiceImpl implements AuthService {
         if (!AccountStatus.ACTIVE.equals(user.getStatus())) {
             throw new IllegalArgumentException("Account is not verified. Please complete OTP verification.");
         }
+
+        subscriptionLifecycleService.getOrCreateActiveSubscription(user);
 
         String token = jwtUtil.generateToken(user.getUserId(), user.getEmail(), user.getRole().name());
         String rawRefreshToken = refreshTokenService.issue(user.getUserId(), null, null);

@@ -5,6 +5,7 @@ import com.se1908.group01.dto.ChatAskResponse;
 import com.se1908.group01.dto.ChatSourceResponse;
 import com.se1908.group01.dto.RetrievedChunk;
 import com.se1908.group01.service.AiChatClientService;
+import com.se1908.group01.service.AiGenerationOptionsService;
 import com.se1908.group01.service.ChatService;
 import com.se1908.group01.service.CurrentUserService;
 import com.se1908.group01.service.DocumentAccessService;
@@ -26,6 +27,7 @@ public class ChatServiceImpl implements ChatService {
 	private final VectorSearchService vectorSearchService;
 	private final PromptBuilderService promptBuilderService;
 	private final AiChatClientService aiChatClientService;
+	private final AiGenerationOptionsService aiGenerationOptionsService;
 
 	public ChatServiceImpl(
 			CurrentUserService currentUserService,
@@ -33,7 +35,8 @@ public class ChatServiceImpl implements ChatService {
 			DocumentEmbeddingService documentEmbeddingService,
 			VectorSearchService vectorSearchService,
 			PromptBuilderService promptBuilderService,
-			AiChatClientService aiChatClientService
+			AiChatClientService aiChatClientService,
+			AiGenerationOptionsService aiGenerationOptionsService
 	) {
 		this.currentUserService = currentUserService;
 		this.documentAccessService = documentAccessService;
@@ -41,6 +44,7 @@ public class ChatServiceImpl implements ChatService {
 		this.vectorSearchService = vectorSearchService;
 		this.promptBuilderService = promptBuilderService;
 		this.aiChatClientService = aiChatClientService;
+		this.aiGenerationOptionsService = aiGenerationOptionsService;
 	}
 
 	@Override
@@ -53,6 +57,10 @@ public class ChatServiceImpl implements ChatService {
 		}
 
 		var userId = currentUserService.getCurrentUserId();
+		var generationOptions = aiGenerationOptionsService.resolve(
+				request.getModel(),
+				request.getTemperature()
+		);
 		var document = documentAccessService.getReadyDocumentForChat(userId, request.getDocumentId());
 		var queryVector = documentEmbeddingService.embedVectors(List.of(request.getQuestion())).stream()
 				.findFirst()
@@ -63,8 +71,14 @@ public class ChatServiceImpl implements ChatService {
 		}
 
 		var prompt = promptBuilderService.buildDocumentQuestionPrompt(request.getQuestion(), chunks);
-		var answer = aiChatClientService.ask(prompt);
-		return new ChatAskResponse(document.getDocumentId(), answer, toSources(chunks));
+		var answer = aiChatClientService.ask(prompt, generationOptions);
+		return new ChatAskResponse(
+				document.getDocumentId(),
+				answer,
+				generationOptions.modelName(),
+				generationOptions.temperature(),
+				toSources(chunks)
+		);
 	}
 
 	private List<ChatSourceResponse> toSources(List<RetrievedChunk> chunks) {
