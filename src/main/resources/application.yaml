@@ -8,6 +8,7 @@ app:
     default-temperature: ${GEMINI_CHAT_TEMPERATURE:0.2}
   upload:
     max-video-file-size: ${APP_MAX_VIDEO_FILE_SIZE:52428800}
+    max-avatar-file-size: ${APP_MAX_AVATAR_FILE_SIZE:5242880}
   jwt:
     secret: ${APP_JWT_SECRET:}
     expiration-ms: ${APP_JWT_EXPIRATION_MS:300000}
