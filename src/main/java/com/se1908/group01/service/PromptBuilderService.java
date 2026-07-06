@@ -10,7 +10,7 @@ public interface PromptBuilderService {
 
     String buildDocumentQuestionPrompt(String question, List<RetrievedChunk> chunks);
 
-    String buildMultiDocumentQuestionPrompt(ChatMode mode, KnowledgePolicy knowledgePolicy, String context, String question);
+    String buildMultiDocumentQuestionPrompt(ChatMode mode, String context, String question);
 
     String buildSessionQuestionPrompt(
             ChatMode mode,
