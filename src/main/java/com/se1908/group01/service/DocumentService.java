@@ -1,10 +1,12 @@
 package com.se1908.group01.service;
 
 import com.se1908.group01.dto.DocumentUploadResponse;
+import com.se1908.group01.dto.DocumentPageResponse;
 import com.se1908.group01.dto.DocumentShareLinkResponse;
 import com.se1908.group01.dto.DocumentShareResponse;
 import com.se1908.group01.dto.FileAccessUrlResponse;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.List;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -46,6 +48,8 @@ public interface DocumentService {
 
 	FileAccessUrlResponse getShareLinkDownloadUrl(String token);
 
+	DocumentShareResponse saveShareLinkToSharedWithMe(String token);
+
 	DocumentShareResponse shareDocumentWithUser(Long documentId, String email);
 
 	void removeUserShare(Long documentId, Long userId);
@@ -67,4 +71,14 @@ public interface DocumentService {
 	DocumentUploadResponse restoreFromTrash(Long documentId);
 
 	void deletePermanently(Long documentId);
+
+	DocumentPageResponse filterMyDocuments(
+			List<Long> tagIds,
+			String contentType,
+			Instant createdFrom,
+			Instant createdTo,
+			String sort,
+			int page,
+			int size
+	);
 }

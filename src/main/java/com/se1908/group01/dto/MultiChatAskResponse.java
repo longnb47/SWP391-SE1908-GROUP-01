@@ -1,16 +1,15 @@
 package com.se1908.group01.dto;
 
-import com.se1908.group01.enums.KnowledgePolicy;
 import java.util.List;
 
 public class MultiChatAskResponse {
 
 	private String answer;
 	private String mode;
-	private KnowledgePolicy policy;
 	private String model;
 	private Double temperature;
 	private List<Long> usedDocumentIds;
+	private List<MultiChatSourceResponse> sources;
 
 	public MultiChatAskResponse() {
 	}
@@ -18,17 +17,17 @@ public class MultiChatAskResponse {
 	public MultiChatAskResponse(
 			String answer,
 			String mode,
-			KnowledgePolicy policy,
 			String model,
 			Double temperature,
-			List<Long> usedDocumentIds
+			List<Long> usedDocumentIds,
+			List<MultiChatSourceResponse> sources
 	) {
 		this.answer = answer;
 		this.mode = mode;
-		this.policy = policy;
 		this.model = model;
 		this.temperature = temperature;
 		this.usedDocumentIds = usedDocumentIds;
+		this.sources = sources;
 	}
 
 	public String getAnswer() {
@@ -45,14 +44,6 @@ public class MultiChatAskResponse {
 
 	public void setMode(String mode) {
 		this.mode = mode;
-	}
-
-	public KnowledgePolicy getPolicy() {
-		return policy;
-	}
-
-	public void setPolicy(KnowledgePolicy policy) {
-		this.policy = policy;
 	}
 
 	public String getModel() {
@@ -77,5 +68,13 @@ public class MultiChatAskResponse {
 
 	public void setUsedDocumentIds(List<Long> usedDocumentIds) {
 		this.usedDocumentIds = usedDocumentIds;
+	}
+
+	public List<MultiChatSourceResponse> getSources() {
+		return sources;
+	}
+
+	public void setSources(List<MultiChatSourceResponse> sources) {
+		this.sources = sources;
 	}
 }

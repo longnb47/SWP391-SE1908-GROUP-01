@@ -20,8 +20,6 @@ public class MultiChatAskRequest {
 	@NotBlank(message = "Question is required")
 	private String question;
 
-	private Boolean useGeneralKnowledge;
-
 	private String model;
 
 	@DecimalMin(value = "0.0", message = "Temperature must be between 0.0 and 1.0")
@@ -58,14 +56,6 @@ public class MultiChatAskRequest {
 
 	public void setQuestion(String question) {
 		this.question = question;
-	}
-
-	public Boolean getUseGeneralKnowledge() {
-		return useGeneralKnowledge;
-	}
-
-	public void setUseGeneralKnowledge(Boolean useGeneralKnowledge) {
-		this.useGeneralKnowledge = useGeneralKnowledge;
 	}
 
 	public String getModel() {

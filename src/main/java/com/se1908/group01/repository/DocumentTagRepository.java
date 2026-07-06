@@ -4,6 +4,8 @@ import com.se1908.group01.entity.DocumentTag;
 import com.se1908.group01.entity.DocumentTagId;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface DocumentTagRepository extends JpaRepository<DocumentTag, DocumentTagId> {
 
@@ -16,4 +18,7 @@ public interface DocumentTagRepository extends JpaRepository<DocumentTag, Docume
 	void deleteByDocumentDocumentId(Long documentId);
 
 	void deleteByTagTagIdAndTagUserId(Long tagId, Long userId);
+
+	@Query("SELECT DISTINCT dt.document.documentId FROM DocumentTag dt WHERE dt.tag.tagId IN :tagIds")
+	List<Long> findDocumentIdsByTagIdIn(@Param("tagIds") List<Long> tagIds);
 }
