@@ -231,11 +231,12 @@ Use the refresh token only when calling `/api/auth/refresh` or `/api/auth/logout
 
 ### Error cases
 
-| Status | Message             | Reason                                     |
-| ------ | ------------------- | ------------------------------------------ |
-| `400`  | `Validation failed` | Missing or invalid email/password          |
-| `400`  | `Validation failed` | Invalid email or password                  |
-| `400`  | `Validation failed` | Account has not completed OTP verification |
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Validation failed` | Missing or invalid email/password |
+| `400` | `Invalid email or password` | Invalid email or password |
+| `400` | `Account is not verified. Please complete OTP verification.` | Account is still `PENDING` |
+| `400` | `Account has been blocked. Please contact support.` | Account is `BLOCKED` |
 
 ---
 
