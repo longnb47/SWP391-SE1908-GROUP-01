@@ -109,6 +109,17 @@ ocr:
     timeout-seconds: ${TESSERACT_TIMEOUT_SECONDS:60}
     pdf-dpi: ${TESSERACT_PDF_DPI:200}
     pdf-text-min-characters: ${TESSERACT_PDF_TEXT_MIN_CHARACTERS:20}
+
+docling:
+  enabled: ${DOCLING_ENABLED:false}
+  base-url: ${DOCLING_BASE_URL:http://localhost:5001}
+  api-key: ${DOCLING_API_KEY:}
+  timeout-seconds: ${DOCLING_TIMEOUT_SECONDS:300}
+  max-tokens: ${DOCLING_MAX_TOKENS:300}
+  use-markdown-tables: ${DOCLING_USE_MARKDOWN_TABLES:true}
+  merge-peers: ${DOCLING_MERGE_PEERS:true}
+  fallback-enabled: ${DOCLING_FALLBACK_ENABLED:true}
+
 vnpay:
   tmn-code: ${VNPAY_TMN_CODE:}
   hash-secret: ${VNPAY_HASH_SECRET:}

@@ -231,11 +231,12 @@ Use the refresh token only when calling `/api/auth/refresh` or `/api/auth/logout
 
 ### Error cases
 
-| Status | Message             | Reason                                     |
-| ------ | ------------------- | ------------------------------------------ |
-| `400`  | `Validation failed` | Missing or invalid email/password          |
-| `400`  | `Validation failed` | Invalid email or password                  |
-| `400`  | `Validation failed` | Account has not completed OTP verification |
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Validation failed` | Missing or invalid email/password |
+| `400` | `Invalid email or password` | Invalid email or password |
+| `400` | `Account is not verified. Please complete OTP verification.` | Account is still `PENDING` |
+| `400` | `Account has been blocked. Please contact support.` | Account is `BLOCKED` |
 
 ---
 
@@ -816,6 +817,81 @@ Status: `200 OK`
 | `413`  | `File upload failed` | Uploaded file exceeds the size limit                   |
 | `500`  | `File read failed`   | Backend failed to read the file                        |
 | `503`  | `S3 upload failed`   | S3 upload failed                                       |
+
+---
+
+## 3.2.1. Filter my documents
+
+Filter and paginate active documents owned by the authenticated user.
+
+### Request
+
+- Method: `GET`
+- URL: `/api/documents/filter`
+- Auth: JWT required
+
+### Query parameters
+
+| Field | Type | Required | Rule |
+|---|---|---|---|
+| `tagIds` | repeated number / null | No | Example: `tagIds=1&tagIds=2`; documents matching any supplied tag are returned |
+| `contentType` | string / null | No | Exact MIME-type match, for example `application/pdf` |
+| `createdFrom` | ISO-8601 datetime / null | No | Inclusive lower bound for `uploadedAt` |
+| `createdTo` | ISO-8601 datetime / null | No | Inclusive upper bound for `uploadedAt` |
+| `sort` | string | No | `NEWEST` (default) or `OLDEST` |
+| `page` | integer | No | Default `0`; must be at least `0` |
+| `size` | integer | No | Default `20`; must be between `1` and `100` |
+
+Example:
+
+```text
+GET /api/documents/filter?tagIds=1&tagIds=2&contentType=application/pdf&sort=NEWEST&page=0&size=20
+```
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Filter documents successfully",
+  "data": {
+    "documents": [
+      {
+        "documentId": 1,
+        "userId": 1,
+        "folderId": null,
+        "originalFileName": "example.pdf",
+        "s3Key": "documents/1/uuid-example.pdf",
+        "contentType": "application/pdf",
+        "fileSize": 123456,
+        "isPublic": false,
+        "isDeleted": false,
+        "isStarred": false,
+        "status": "READY",
+        "uploadedAt": "2026-07-06T10:30:00Z",
+        "deletedAt": null
+      }
+    ],
+    "page": 0,
+    "size": 20,
+    "totalElements": 1,
+    "totalPages": 1
+  },
+  "errors": null,
+  "timestamp": "2026-07-06T10:30:00Z"
+}
+```
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Page must be greater than or equal to 0` | Invalid page |
+| `400` | `Size must be between 1 and 100` | Invalid page size |
+| `400` | `Sort must be NEWEST or OLDEST` | Invalid sort value |
+| `401` | `Unauthorized` | Missing or invalid JWT |
 
 ---
 
@@ -1993,6 +2069,56 @@ Status: `200 OK`
 | `400` | `Validation failed` | Missing token |
 | `404` | `Resource not found` | Share link not found, disabled, expired, or document was soft-deleted |
 | `500` | `Request failed` | S3 pre-signer is not configured |
+
+---
+
+## 3.12.7.1. Save share-link document to Shared with me
+
+Save a document opened through a valid public share token to the authenticated user's **Shared with me** list. This creates a document-share record; it does not copy the S3 object.
+
+### Request
+
+- Method: `POST`
+- URL: `/api/documents/share-link/{token}/save`
+- Auth: JWT required
+
+### Path variables
+
+| Name | Type | Required |
+|---|---|---|
+| `token` | string | Yes |
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Save shared document successfully",
+  "data": {
+    "documentShareId": 10,
+    "documentId": 2,
+    "ownerId": 1,
+    "sharedWithUserId": 3,
+    "sharedWithEmail": "student@example.com",
+    "sharedWithName": "Student",
+    "createdAt": "2026-07-06T10:30:00Z"
+  },
+  "errors": null,
+  "timestamp": "2026-07-06T10:30:00Z"
+}
+```
+
+Calling this endpoint again returns the existing share record. The document owner cannot save their own share link.
+
+### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `You already own this document` | The current user owns the shared document |
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `404` | `Shared document not found` | Token is missing, disabled, expired, or its document was deleted |
 
 ---
 
@@ -3215,8 +3341,8 @@ Ask the AI a question using multiple selected documents, or using the user's acc
 ### Case 1: selected documents
 
 Use this when the user manually selects one or more documents.
-Every requested document must exist, be accessible to the current user, not be deleted, and have status `READY`.
-The backend searches only the selected document IDs. `useGeneralKnowledge` is ignored in this mode.
+Every requested document must exist, be owned by the user or public, not be deleted, and have status `READY`.
+The backend searches only the selected document IDs.
 
 ```json
 {
@@ -3224,7 +3350,6 @@ The backend searches only the selected document IDs. `useGeneralKnowledge` is ig
   "selectedDocumentIds": [1, 2, 3],
   "folderId": null,
   "question": "Summarize the common topic across these documents.",
-  "useGeneralKnowledge": null,
   "model": "gemini-2.5-flash-lite",
   "temperature": 0.2
 }
@@ -3241,47 +3366,26 @@ Public Community documents are not included.
   "selectedDocumentIds": null,
   "folderId": null,
   "question": "Which of my documents mention machine learning?",
-  "useGeneralKnowledge": false,
   "model": "gemini-3.1-flash-lite",
   "temperature": 0.2
 }
 ```
 
-### Case 3: user storage with general/community option
-
-Use this when the user does not manually select documents and enables the broader Community scope.
-The backend searches the user's own `READY` documents plus all accessible public `READY` documents.
-
-```json
-{
-  "mode": "UserStorage",
-  "selectedDocumentIds": null,
-  "folderId": null,
-  "question": "Find related material about deep learning.",
-  "useGeneralKnowledge": true,
-  "model": "gemini-3.5-flash",
-  "temperature": 0.4
-}
-```
-
-> Despite its current name, `useGeneralKnowledge` does not allow unrestricted pretrained or external AI knowledge. It controls whether public Community documents are included in retrieval. The AI must still answer only from the retrieved document context.
-
 ### Retrieval scope
 
-| Mode | `useGeneralKnowledge` | Documents searched |
-|---|---|---|
-| `SelectedDocuments` | Ignored | Only all requested accessible `READY` documents |
-| `UserStorage` | `false` | Current user's `READY` documents only |
-| `UserStorage` | `null` | Uses backend default; currently My Files only |
-| `UserStorage` | `true` | Current user's `READY` documents plus public Community `READY` documents |
+| Mode | Documents searched |
+|---|---|
+| `SelectedDocuments` | Only all requested accessible `READY` documents |
+| `UserStorage` | Current user's `READY` documents only |
 
 When `folderId` is supplied:
 
 - The folder must belong to the authenticated user.
-- With `useGeneralKnowledge = false/null`, only the user's `READY` documents in that folder are searched.
-- With `useGeneralKnowledge = true`, the user's `READY` documents in that folder and public Community `READY` documents are searched.
+- Only the user's `READY` documents in that folder are searched.
 - Documents with `UPLOADED`, `PARSING`, `INDEXING`, `FAILED`, or deleted status are excluded.
 - If no eligible documents or chunks remain, the API returns `200 OK` with a no-context answer and does not call Gemini.
+
+> `POST /api/chat/ask-multi` currently has no `useGeneralKnowledge` request field. The public Community option exists only when creating a persistent chat session through `POST /api/chat/sessions`.
 
 ### Request fields
 
@@ -3291,7 +3395,6 @@ When `folderId` is supplied:
 | `selectedDocumentIds` | array / null | Required for `SelectedDocuments` | List of accessible `READY` document IDs |
 | `folderId` | number / null | No | Optional owned folder filter for the user's document scope in `UserStorage` |
 | `question` | string | Yes | Must not be blank |
-| `useGeneralKnowledge` | boolean / null | No | For `UserStorage`: `false` = My Files only, `true` = My Files + public Community; ignored for `SelectedDocuments` |
 | `model` | string / null | No | One of the three supported chat models; backend default if omitted |
 | `temperature` | number / null | No | AI creativity from `0.0` to `1.0`; backend default `0.2` if omitted |
 
@@ -3329,14 +3432,22 @@ Status: `200 OK`
 ```json
 {
   "success": true,
-  "message": "Ask multi-document chat successfully",
+  "message": "Multi-document chat processed",
   "data": {
     "answer": "The selected documents mainly discuss ...",
     "mode": "SELECTED_DOCUMENTS",
-    "policy": "DOCUMENTS_ONLY",
     "model": "gemini-2.5-flash-lite",
     "temperature": 0.2,
-    "usedDocumentIds": [1, 2]
+    "usedDocumentIds": [1, 2],
+    "sources": [
+      {
+        "documentId": 1,
+        "documentName": "example.pdf",
+        "chunkId": 15,
+        "contentPreview": "Relevant extracted content...",
+        "similarityScore": 0.91
+      }
+    ]
   },
   "errors": null,
   "timestamp": "2026-06-26T10:30:00Z"
@@ -3349,10 +3460,10 @@ Status: `200 OK`
 |---|---|---|
 | `answer` | string | AI answer grounded by retrieved chunks |
 | `mode` | string | Resolved backend mode, for example `SELECTED_DOCUMENTS` or `USER_STORAGE` |
-| `policy` | string | Resolved knowledge policy, for example `DOCUMENTS_ONLY` or `DOCUMENTS_PLUS_GENERAL` |
 | `model` | string | Model actually used by the backend |
 | `temperature` | number | Temperature actually used by the backend |
 | `usedDocumentIds` | array | Document IDs whose chunks were used as context |
+| `sources` | array | Retrieved chunk citations with document, preview, and cosine-similarity score |
 
 ### Error cases
 
@@ -3370,10 +3481,8 @@ Status: `200 OK`
 
 1. If the user selects documents, call `/api/chat/ask-multi` with `mode = "SelectedDocuments"` and `selectedDocumentIds`.
 2. If the user does not select documents, call `/api/chat/ask-multi` with `mode = "UserStorage"`.
-3. Send `useGeneralKnowledge = false/null` to search only My Files.
-4. Send `useGeneralKnowledge = true` only when the user enables public Community document retrieval.
-5. Send one of the supported model IDs and a temperature between `0.0` and `1.0`, or omit them to use backend defaults.
-6. Render `data.answer` and optionally show `data.usedDocumentIds`.
+3. Send one of the supported model IDs and a temperature between `0.0` and `1.0`, or omit them to use backend defaults.
+4. Render `data.answer`, `data.sources`, and optionally `data.usedDocumentIds`.
 
 Important:
 
@@ -4658,7 +4767,346 @@ Status: `200 OK`
 
 ---
 
-## 10. Common HTTP status codes
+## 10. User Profile and Settings APIs
+
+All endpoints in this section require:
+
+```text
+Authorization: Bearer <accessToken>
+```
+
+### 10.1. Get my profile
+
+- Method: `GET`
+- URL: `/api/users/me`
+
+Success data:
+
+```json
+{
+  "userId": 1,
+  "fullName": "Long Nguyen",
+  "email": "long@example.com",
+  "bio": "Software engineering student",
+  "avatarUrl": "https://temporary-s3-presigned-url",
+  "role": "USER",
+  "status": "ACTIVE",
+  "createdAt": "2026-06-01T10:30:00",
+  "updatedAt": "2026-07-06T10:30:00"
+}
+```
+
+`avatarUrl` is `null` when no avatar exists. Otherwise, it is a temporary S3 pre-signed URL.
+
+### 10.2. Update my profile
+
+- Method: `PATCH`
+- URL: `/api/users/me`
+- Content-Type: `application/json`
+
+```json
+{
+  "fullName": "Long Nguyen",
+  "bio": "Updated biography"
+}
+```
+
+| Field | Type | Required | Rule |
+|---|---|---|---|
+| `fullName` | string / null | No | Maximum 100 characters; blank values are ignored |
+| `bio` | string / null | No | Maximum 500 characters; `null` keeps the current value, empty string clears it |
+
+Returns the updated profile object with message `Update profile successfully`.
+
+### 10.3. Change password
+
+- Method: `PATCH`
+- URL: `/api/users/me/password`
+- Content-Type: `application/json`
+
+```json
+{
+  "currentPassword": "old-password",
+  "newPassword": "new-password",
+  "confirmNewPassword": "new-password"
+}
+```
+
+All fields are required and each password must contain at least 8 characters.
+
+Success response data is `null` with message `Change password successfully`.
+
+Error cases:
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Current password is incorrect` | Current password does not match |
+| `400` | `New password and confirm password do not match` | Confirmation mismatch |
+| `400` | `Validation failed` | Missing or short password field |
+| `401` | `Unauthorized` | Missing or invalid JWT |
+
+### 10.4. Update avatar
+
+- Method: `POST`
+- URL: `/api/users/me/avatar`
+- Content-Type: `multipart/form-data`
+
+| Field | Type | Required | Rule |
+|---|---|---|---|
+| `file` | File | Yes | `png`, `jpg`, `jpeg`, or `webp`; MIME type must be `image/*`; maximum configured size is 5MB |
+
+The new image is uploaded privately to S3, the profile is updated, and the previous avatar is deleted when possible. Returns the updated profile object.
+
+Error cases:
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Unsupported avatar file type: ...` | Invalid extension or MIME type |
+| `400` | `Avatar file exceeds 5MB limit` | File exceeds configured avatar limit |
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `503` | `S3 upload failed` | S3 operation failed |
+
+### 10.5. Get my settings
+
+- Method: `GET`
+- URL: `/api/users/me/settings`
+
+If settings do not exist, the backend creates these defaults:
+
+```json
+{
+  "theme": "SYSTEM",
+  "profileVisibility": "PUBLIC",
+  "activityVisibility": "PUBLIC",
+  "allowFriendRequests": true,
+  "showOnlineStatus": true,
+  "updatedAt": "2026-07-06T10:30:00Z"
+}
+```
+
+### 10.6. Update my settings
+
+- Method: `PATCH`
+- URL: `/api/users/me/settings`
+- Content-Type: `application/json`
+
+All fields are optional; omitted fields keep their current values.
+
+```json
+{
+  "theme": "DARK",
+  "profileVisibility": "FRIENDS_ONLY",
+  "activityVisibility": "PRIVATE",
+  "allowFriendRequests": true,
+  "showOnlineStatus": false
+}
+```
+
+Allowed enum values:
+
+```text
+theme: LIGHT, DARK, SYSTEM
+profileVisibility/activityVisibility: PUBLIC, FRIENDS_ONLY, PRIVATE
+```
+
+Returns the complete updated settings object.
+
+---
+
+## 11. Admin User Management APIs
+
+All APIs in this section require an authenticated account with `ROLE_ADMIN`:
+
+```text
+Authorization: Bearer <adminAccessToken>
+```
+
+The API never returns password hashes, refresh tokens, avatar S3 keys, or other credentials.
+
+### 11.1. Get users
+
+Get a filtered and paginated user list, sorted by newest account first.
+
+- Method: `GET`
+- URL: `/api/admin/users`
+- Auth: Admin JWT required
+
+#### Query parameters
+
+| Field | Type | Required | Rule |
+|---|---|---|---|
+| `keyword` | string / null | No | Case-insensitive partial match against full name or email |
+| `status` | string / null | No | `PENDING`, `ACTIVE`, or `BLOCKED` |
+| `role` | string / null | No | `USER` or `ADMIN` |
+| `page` | integer | No | Default `0`; must be at least `0` |
+| `size` | integer | No | Default `20`; must be between `1` and `100` |
+
+Example:
+
+```text
+GET /api/admin/users?keyword=long&status=ACTIVE&role=USER&page=0&size=20
+```
+
+#### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Get users successfully",
+  "data": {
+    "users": [
+      {
+        "userId": 2,
+        "fullName": "Long Nguyen",
+        "email": "long@example.com",
+        "provider": "LOCAL",
+        "role": "USER",
+        "status": "ACTIVE",
+        "verified": true,
+        "bio": "Software engineering student",
+        "createdAt": "2026-07-01T10:30:00",
+        "updatedAt": "2026-07-06T10:30:00"
+      }
+    ],
+    "page": 0,
+    "size": 20,
+    "totalElements": 1,
+    "totalPages": 1
+  },
+  "errors": null,
+  "timestamp": "2026-07-06T10:30:00Z"
+}
+```
+
+#### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Status must be PENDING, ACTIVE, or BLOCKED` | Invalid status filter |
+| `400` | `Role must be USER or ADMIN` | Invalid role filter |
+| `400` | `Page must be greater than or equal to 0` | Invalid page |
+| `400` | `Size must be between 1 and 100` | Invalid size |
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `403` | `Forbidden` | Authenticated account is not an admin |
+
+### 11.2. Get user detail
+
+- Method: `GET`
+- URL: `/api/admin/users/{userId}`
+- Auth: Admin JWT required
+
+#### Path variables
+
+| Name | Type | Required |
+|---|---|---|
+| `userId` | number | Yes |
+
+#### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Get user detail successfully",
+  "data": {
+    "userId": 2,
+    "fullName": "Long Nguyen",
+    "email": "long@example.com",
+    "provider": "GOOGLE",
+    "role": "USER",
+    "status": "ACTIVE",
+    "verified": true,
+    "bio": null,
+    "createdAt": "2026-07-01T10:30:00",
+    "updatedAt": null
+  },
+  "errors": null,
+  "timestamp": "2026-07-06T10:30:00Z"
+}
+```
+
+#### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `403` | `Forbidden` | Authenticated account is not an admin |
+| `404` | `User not found` | User does not exist |
+
+### 11.3. Block or unblock user
+
+Change an account between `ACTIVE` and `BLOCKED`.
+
+- Method: `PATCH`
+- URL: `/api/admin/users/{userId}/status`
+- Auth: Admin JWT required
+- Content-Type: `application/json`
+
+Block:
+
+```json
+{
+  "status": "BLOCKED"
+}
+```
+
+Unblock:
+
+```json
+{
+  "status": "ACTIVE"
+}
+```
+
+When an account is blocked:
+
+- All refresh tokens belonging to that user are revoked.
+- Existing JWTs no longer authenticate on subsequent requests.
+- Local and Google login are rejected.
+
+When an account is activated, `verified` is set to `true`. An admin cannot block their own account.
+
+#### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Update user status successfully",
+  "data": {
+    "userId": 2,
+    "fullName": "Long Nguyen",
+    "email": "long@example.com",
+    "provider": "LOCAL",
+    "role": "USER",
+    "status": "BLOCKED",
+    "verified": true,
+    "bio": null,
+    "createdAt": "2026-07-01T10:30:00",
+    "updatedAt": "2026-07-06T10:30:00"
+  },
+  "errors": null,
+  "timestamp": "2026-07-06T10:30:00Z"
+}
+```
+
+#### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Status must be ACTIVE or BLOCKED` | Missing or unsupported target status |
+| `400` | `You cannot block your own account` | Admin attempts to block themselves |
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `403` | `Forbidden` | Authenticated account is not an admin |
+| `404` | `User not found` | User does not exist |
+
+---
+
+## 12. Common HTTP status codes
 
 | Status                      | Description                                          |
 | --------------------------- | ---------------------------------------------------- |
@@ -4674,7 +5122,7 @@ Status: `200 OK`
 
 ---
 
-## 11. Frontend notes
+## 13. Frontend notes
 
 - Private APIs do not require `userId`; the backend reads the current user from JWT.
 - After login or Google login, store both `accessToken` and `refreshToken`.

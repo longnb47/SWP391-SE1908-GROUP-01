@@ -91,6 +91,11 @@ public class AuthServiceImpl implements AuthService {
                         "Email already registered with another provider"
                 );
             }
+            if (AccountStatus.BLOCKED.equals(user.getStatus())) {
+                throw new IllegalArgumentException(
+                        "Account has been blocked. Please contact support."
+                );
+            }
 
         } else {
 
@@ -135,7 +140,13 @@ public class AuthServiceImpl implements AuthService {
             throw new IllegalArgumentException("Invalid email or password");
         }
 
-        if (!AccountStatus.ACTIVE.equals(user.getStatus())) {
+        if (AccountStatus.BLOCKED.equals(user.getStatus())) {
+            throw new IllegalArgumentException(
+                    "Account has been blocked. Please contact support."
+            );
+        }
+
+        if (AccountStatus.PENDING.equals(user.getStatus())) {
             throw new IllegalArgumentException("Account is not verified. Please complete OTP verification.");
         }
 
