@@ -4912,7 +4912,200 @@ Returns the complete updated settings object.
 
 ---
 
-## 11. Common HTTP status codes
+## 11. Admin User Management APIs
+
+All APIs in this section require an authenticated account with `ROLE_ADMIN`:
+
+```text
+Authorization: Bearer <adminAccessToken>
+```
+
+The API never returns password hashes, refresh tokens, avatar S3 keys, or other credentials.
+
+### 11.1. Get users
+
+Get a filtered and paginated user list, sorted by newest account first.
+
+- Method: `GET`
+- URL: `/api/admin/users`
+- Auth: Admin JWT required
+
+#### Query parameters
+
+| Field | Type | Required | Rule |
+|---|---|---|---|
+| `keyword` | string / null | No | Case-insensitive partial match against full name or email |
+| `status` | string / null | No | `PENDING`, `ACTIVE`, or `BLOCKED` |
+| `role` | string / null | No | `USER` or `ADMIN` |
+| `page` | integer | No | Default `0`; must be at least `0` |
+| `size` | integer | No | Default `20`; must be between `1` and `100` |
+
+Example:
+
+```text
+GET /api/admin/users?keyword=long&status=ACTIVE&role=USER&page=0&size=20
+```
+
+#### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Get users successfully",
+  "data": {
+    "users": [
+      {
+        "userId": 2,
+        "fullName": "Long Nguyen",
+        "email": "long@example.com",
+        "provider": "LOCAL",
+        "role": "USER",
+        "status": "ACTIVE",
+        "verified": true,
+        "bio": "Software engineering student",
+        "createdAt": "2026-07-01T10:30:00",
+        "updatedAt": "2026-07-06T10:30:00"
+      }
+    ],
+    "page": 0,
+    "size": 20,
+    "totalElements": 1,
+    "totalPages": 1
+  },
+  "errors": null,
+  "timestamp": "2026-07-06T10:30:00Z"
+}
+```
+
+#### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Status must be PENDING, ACTIVE, or BLOCKED` | Invalid status filter |
+| `400` | `Role must be USER or ADMIN` | Invalid role filter |
+| `400` | `Page must be greater than or equal to 0` | Invalid page |
+| `400` | `Size must be between 1 and 100` | Invalid size |
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `403` | `Forbidden` | Authenticated account is not an admin |
+
+### 11.2. Get user detail
+
+- Method: `GET`
+- URL: `/api/admin/users/{userId}`
+- Auth: Admin JWT required
+
+#### Path variables
+
+| Name | Type | Required |
+|---|---|---|
+| `userId` | number | Yes |
+
+#### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Get user detail successfully",
+  "data": {
+    "userId": 2,
+    "fullName": "Long Nguyen",
+    "email": "long@example.com",
+    "provider": "GOOGLE",
+    "role": "USER",
+    "status": "ACTIVE",
+    "verified": true,
+    "bio": null,
+    "createdAt": "2026-07-01T10:30:00",
+    "updatedAt": null
+  },
+  "errors": null,
+  "timestamp": "2026-07-06T10:30:00Z"
+}
+```
+
+#### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `403` | `Forbidden` | Authenticated account is not an admin |
+| `404` | `User not found` | User does not exist |
+
+### 11.3. Block or unblock user
+
+Change an account between `ACTIVE` and `BLOCKED`.
+
+- Method: `PATCH`
+- URL: `/api/admin/users/{userId}/status`
+- Auth: Admin JWT required
+- Content-Type: `application/json`
+
+Block:
+
+```json
+{
+  "status": "BLOCKED"
+}
+```
+
+Unblock:
+
+```json
+{
+  "status": "ACTIVE"
+}
+```
+
+When an account is blocked:
+
+- All refresh tokens belonging to that user are revoked.
+- Existing JWTs no longer authenticate on subsequent requests.
+- Local and Google login are rejected.
+
+When an account is activated, `verified` is set to `true`. An admin cannot block their own account.
+
+#### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Update user status successfully",
+  "data": {
+    "userId": 2,
+    "fullName": "Long Nguyen",
+    "email": "long@example.com",
+    "provider": "LOCAL",
+    "role": "USER",
+    "status": "BLOCKED",
+    "verified": true,
+    "bio": null,
+    "createdAt": "2026-07-01T10:30:00",
+    "updatedAt": "2026-07-06T10:30:00"
+  },
+  "errors": null,
+  "timestamp": "2026-07-06T10:30:00Z"
+}
+```
+
+#### Error cases
+
+| Status | Message | Reason |
+|---|---|---|
+| `400` | `Status must be ACTIVE or BLOCKED` | Missing or unsupported target status |
+| `400` | `You cannot block your own account` | Admin attempts to block themselves |
+| `401` | `Unauthorized` | Missing or invalid JWT |
+| `403` | `Forbidden` | Authenticated account is not an admin |
+| `404` | `User not found` | User does not exist |
+
+---
+
+## 12. Common HTTP status codes
 
 | Status                      | Description                                          |
 | --------------------------- | ---------------------------------------------------- |
@@ -4928,7 +5121,7 @@ Returns the complete updated settings object.
 
 ---
 
-## 12. Frontend notes
+## 13. Frontend notes
 
 - Private APIs do not require `userId`; the backend reads the current user from JWT.
 - After login or Google login, store both `accessToken` and `refreshToken`.

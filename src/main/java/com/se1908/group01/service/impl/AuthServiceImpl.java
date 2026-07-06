@@ -91,6 +91,9 @@ public class AuthServiceImpl implements AuthService {
                         "Email already registered with another provider"
                 );
             }
+            if (!AccountStatus.ACTIVE.equals(user.getStatus())) {
+                throw new IllegalArgumentException("Account is blocked");
+            }
 
         } else {
 
