@@ -21,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -121,5 +122,37 @@ class DocumentIngestionServiceImplTest {
 		verify(parsingService).extractSegments(file, document);
 		verify(chunkingService).chunk(segments);
 		verify(documentChunkRepository).saveAll(anyList());
+	}
+
+	@Test
+	void ingestFailsWhenDoclingUnavailableAndFallbackDisabled() throws Exception {
+		when(doclingService.supports(file)).thenReturn(true);
+		when(doclingService.chunk(file)).thenThrow(
+				new DoclingUnavailableException("Docling is unavailable")
+		);
+		when(doclingService.isFallbackEnabled()).thenReturn(false);
+
+		assertThrows(
+				DoclingUnavailableException.class,
+				() -> service.ingest(document, file)
+		);
+
+		verify(parsingService, never()).extractSegments(file, document);
+		verify(embeddingService, never()).embedVectors(anyList());
+	}
+
+	@Test
+	void ingestFailsWhenNoTextCanBeExtracted() throws Exception {
+		when(doclingService.supports(file)).thenReturn(false);
+		when(parsingService.extractSegments(file, document)).thenReturn(List.of());
+		when(chunkingService.chunk(List.of())).thenReturn(List.of());
+
+		assertThrows(
+				IllegalStateException.class,
+				() -> service.ingest(document, file)
+		);
+
+		assertEquals(DocumentStatus.FAILED, document.getStatus());
+		verify(embeddingService, never()).embedVectors(anyList());
 	}
 }
