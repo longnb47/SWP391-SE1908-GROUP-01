@@ -144,6 +144,18 @@ public class FriendServiceImpl implements FriendService {
         return mapToFriendRequestResponse(friendRequestRepository.save(friendRequest));
     }
 
+    /**
+     * Từ chối một yêu cầu kết bạn đang ở trạng thái chờ (PENDING).
+     * <p>
+     * Phương thức này thực hiện xác thực quyền sở hữu và trạng thái của yêu cầu kết bạn, sau đó cập nhật
+     * trạng thái yêu cầu thành {@link FriendRequestStatus#REJECTED} và ghi nhận thời điểm phản hồi.
+     *
+     * @param requestId ID của yêu cầu kết bạn cần từ chối
+     * @param userId    ID của người dùng hiện tại thực hiện từ chối yêu cầu (phải là người nhận của yêu cầu đó)
+     * @return một đối tượng {@link FriendRequestResponse} chứa thông tin yêu cầu kết bạn đã bị từ chối
+     * @throws ResourceNotFoundException nếu không tìm thấy yêu cầu kết bạn
+     * @throws IllegalArgumentException  nếu người dùng không có quyền phản hồi hoặc yêu cầu không ở trạng thái chờ (PENDING)
+     */
     @Override
     public FriendRequestResponse rejectFriendRequest(Long requestId, Long userId) {
         FriendRequest friendRequest = getPendingRequestForReceiver(requestId, userId);
@@ -191,6 +203,17 @@ public class FriendServiceImpl implements FriendService {
                 .toList();
     }
 
+    /**
+     * Hủy quan hệ bạn bè giữa người dùng hiện tại và một người bạn cụ thể.
+     * <p>
+     * Phương thức này thực hiện chuẩn hóa ID của hai người dùng để tìm kiếm bản ghi tương ứng trong bảng
+     * {@code friendships} và thực hiện xóa bản ghi đó.
+     *
+     * @param userId   ID của người dùng hiện tại thực hiện hủy kết bạn
+     * @param friendId ID của người bạn cần hủy kết bạn
+     * @throws ResourceNotFoundException nếu không tìm thấy mối quan hệ bạn bè giữa hai người dùng
+     * @throws IllegalArgumentException  nếu người dùng tự hủy kết bạn với chính mình
+     */
     @Override
     public void unfriend(Long userId, Long friendId) {
         if (userId.equals(friendId)) {
