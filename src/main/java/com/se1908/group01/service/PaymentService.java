@@ -178,6 +178,15 @@ public class PaymentService {
         return callbackResponse(payment, false);
     }
 
+    /**
+     * Lấy lịch sử thanh toán của người dùng theo email.
+     *
+     * @param email email của người dùng cần lấy lịch sử thanh toán
+     * @return danh sách các giao dịch thanh toán của người dùng,
+     *         bao gồm thông tin gói đăng ký, số tiền, phương thức
+     *         thanh toán, trạng thái và thời điểm thanh toán
+     * @throws ResourceNotFoundException nếu không tìm thấy người dùng
+     */
     public List<PaymentHistoryResponse> getMyPaymentHistory(
             String email) {
 
