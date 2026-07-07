@@ -145,16 +145,16 @@ public class FriendServiceImpl implements FriendService {
     }
 
     /**
-     * Từ chối một yêu cầu kết bạn đang ở trạng thái chờ (PENDING).
+     * Từ chối lời mời kết bạn đang ở trạng thái chờ xử lý (PENDING).
      * <p>
-     * Phương thức này thực hiện xác thực quyền sở hữu và trạng thái của yêu cầu kết bạn, sau đó cập nhật
-     * trạng thái yêu cầu thành {@link FriendRequestStatus#REJECTED} và ghi nhận thời điểm phản hồi.
+     * Phương thức tiến hành kiểm tra tính hợp lệ và quyền sở hữu yêu cầu, sau đó chuyển trạng thái
+     * của yêu cầu kết bạn thành {@link FriendRequestStatus#REJECTED} và lưu thời gian từ chối.
      *
      * @param requestId ID của yêu cầu kết bạn cần từ chối
-     * @param userId    ID của người dùng hiện tại thực hiện từ chối yêu cầu (phải là người nhận của yêu cầu đó)
-     * @return một đối tượng {@link FriendRequestResponse} chứa thông tin yêu cầu kết bạn đã bị từ chối
-     * @throws ResourceNotFoundException nếu không tìm thấy yêu cầu kết bạn
-     * @throws IllegalArgumentException  nếu người dùng không có quyền phản hồi hoặc yêu cầu không ở trạng thái chờ (PENDING)
+     * @param userId    ID của người dùng hiện tại thực hiện từ chối (bắt buộc phải là người nhận lời mời)
+     * @return đối tượng {@link FriendRequestResponse} chứa thông tin yêu cầu kết bạn sau khi từ chối
+     * @throws ResourceNotFoundException nếu không tìm thấy bản ghi yêu cầu kết bạn trong hệ thống
+     * @throws IllegalArgumentException  nếu người dùng không có quyền thao tác hoặc yêu cầu không còn ở trạng thái PENDING
      */
     @Override
     public FriendRequestResponse rejectFriendRequest(Long requestId, Long userId) {
@@ -204,15 +204,15 @@ public class FriendServiceImpl implements FriendService {
     }
 
     /**
-     * Hủy quan hệ bạn bè giữa người dùng hiện tại và một người bạn cụ thể.
+     * Xóa mối quan hệ bạn bè hiện tại giữa người dùng hiện tại và một người dùng khác.
      * <p>
-     * Phương thức này thực hiện chuẩn hóa ID của hai người dùng để tìm kiếm bản ghi tương ứng trong bảng
-     * {@code friendships} và thực hiện xóa bản ghi đó.
+     * Hệ thống sẽ sắp xếp ID của hai người dùng theo quy tắc chuẩn hóa để định vị chính xác
+     * thực thể liên kết trong bảng {@code friendships}, sau đó tiến hành xóa bỏ mối quan hệ này.
      *
-     * @param userId   ID của người dùng hiện tại thực hiện hủy kết bạn
-     * @param friendId ID của người bạn cần hủy kết bạn
-     * @throws ResourceNotFoundException nếu không tìm thấy mối quan hệ bạn bè giữa hai người dùng
-     * @throws IllegalArgumentException  nếu người dùng tự hủy kết bạn với chính mình
+     * @param userId   ID của người dùng hiện tại thực hiện thao tác hủy kết bạn
+     * @param friendId ID của người bạn cần xóa khỏi danh sách bạn bè
+     * @throws ResourceNotFoundException nếu không tìm thấy bản ghi quan hệ bạn bè giữa hai người
+     * @throws IllegalArgumentException  nếu ID của người hủy và người bị hủy trùng nhau
      */
     @Override
     public void unfriend(Long userId, Long friendId) {
