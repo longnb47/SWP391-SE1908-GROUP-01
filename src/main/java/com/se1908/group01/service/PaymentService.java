@@ -48,6 +48,21 @@ public class PaymentService {
     private final SubscriptionLifecycleService subscriptionLifecycleService;
     private final VNPayConfig vnPayConfig;
 
+    /**
+     * Tạo một giao dịch thanh toán cho gói đăng ký đã chọn và
+     * sinh URL thanh toán VNPay để người dùng thực hiện thanh toán.
+     *
+     * @param email email của người dùng đang thực hiện thanh toán
+     * @param request thông tin gói đăng ký và phương thức thanh toán
+     * @return thông tin giao dịch bao gồm mã thanh toán, mã giao dịch,
+     *         URL thanh toán và trạng thái hiện tại
+     * @throws ResourceNotFoundException nếu không tìm thấy người dùng
+     *                                   hoặc gói đăng ký
+     * @throws IllegalArgumentException nếu gói đăng ký không khả dụng,
+     *                                  là gói miễn phí hoặc phương thức
+     *                                  thanh toán không hợp lệ
+     * @throws IllegalStateException nếu cấu hình VNPay chưa đầy đủ
+     */
     public PaymentPurchaseResponse purchase(
             String email,
             PurchaseRequest request) {
@@ -94,6 +109,20 @@ public class PaymentService {
                 .build();
     }
 
+    /**
+     * Xử lý callback từ VNPay sau khi người dùng hoàn tất hoặc hủy thanh toán.
+     * Phương thức sẽ kiểm tra chữ ký, mã merchant, số tiền thanh toán và
+     * cập nhật trạng thái giao dịch tương ứng. Nếu thanh toán thành công,
+     * hệ thống sẽ kích hoạt gói đăng ký cho người dùng.
+     *
+     * @param params tập các tham số callback do VNPay gửi về
+     * @return kết quả xử lý callback bao gồm trạng thái giao dịch
+     *         và thông tin giao dịch đã được xử lý hay chưa
+     * @throws IllegalArgumentException nếu callback không hợp lệ, thiếu tham số,
+     *                                  sai chữ ký, sai merchant hoặc sai số tiền
+     * @throws ResourceNotFoundException nếu không tìm thấy giao dịch thanh toán
+     * @throws IllegalStateException nếu cấu hình callback của VNPay chưa đầy đủ
+     */
     @Transactional
     public PaymentCallbackResponse handleVNPayCallback(
             Map<String, String> params) {
