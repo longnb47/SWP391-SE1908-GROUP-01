@@ -29,21 +29,21 @@ public class FriendServiceImpl implements FriendService {
 
 
     /**
-     * Sends a new friend request from the current user to another user by email.
+     * Gửi một yêu cầu kết bạn mới từ người dùng hiện tại đến một người dùng khác thông qua email.
      * <p>
-     * Validation checks:
+     * Các quy tắc kiểm tra hợp lệ:
      * <ul>
-     *   <li>Ensures the receiver exists in the database.</li>
-     *   <li>Prevents users from sending friend requests to themselves.</li>
-     *   <li>Ensures the two users are not already friends.</li>
-     *   <li>Ensures there is no active pending request between the two users in either direction.</li>
+     *   <li>Đảm bảo người nhận tồn tại trong cơ sở dữ liệu.</li>
+     *   <li>Ngăn chặn người dùng tự gửi yêu cầu kết bạn cho chính mình.</li>
+     *   <li>Đảm bảo hai người dùng chưa phải là bạn bè từ trước.</li>
+     *   <li>Đảm bảo không có yêu cầu kết bạn nào đang ở trạng thái chờ (PENDING) giữa hai người dùng theo cả hai chiều.</li>
      * </ul>
      *
-     * @param senderId the ID of the user sending the request
-     * @param email    the email of the user receiving the request
-     * @return a {@link FriendRequestResponse} containing details of the created request
-     * @throws ResourceNotFoundException if the sender or receiver cannot be found
-     * @throws IllegalArgumentException  if any validation rule is violated
+     * @param senderId ID của người dùng gửi yêu cầu kết bạn
+     * @param email    Email của người nhận yêu cầu kết bạn
+     * @return một đối tượng {@link FriendRequestResponse} chứa thông tin chi tiết của yêu cầu kết bạn vừa được tạo
+     * @throws ResourceNotFoundException nếu không tìm thấy người gửi hoặc người nhận
+     * @throws IllegalArgumentException  nếu vi phạm bất kỳ quy tắc kiểm tra hợp lệ nào
      */
     @Override
     public FriendRequestResponse sendFriendRequest(Long senderId, String email) {
@@ -100,18 +100,18 @@ public class FriendServiceImpl implements FriendService {
     }
 
     /**
-     * Accepts a pending friend request.
+     * Chấp nhận một yêu cầu kết bạn đang ở trạng thái chờ (PENDING).
      * <p>
-     * This method validates the request ownership and status, creates a new {@link Friendship}
-     * between the two users, updates the friend request status to {@link FriendRequestStatus#ACCEPTED},
-     * and records the response timestamp.
+     * Phương thức này thực hiện xác thực quyền sở hữu và trạng thái của yêu cầu kết bạn, tạo một mối quan hệ bạn bè
+     * {@link Friendship} mới giữa hai người dùng, cập nhật trạng thái yêu cầu kết bạn thành {@link FriendRequestStatus#ACCEPTED},
+     * và ghi nhận thời điểm phản hồi.
      *
-     * @param requestId the ID of the friend request to accept
-     * @param userId    the ID of the current user accepting the request (must be the receiver)
-     * @return a {@link FriendRequestResponse} with the updated ACCEPTED status
-     * @throws ResourceNotFoundException if the request or users cannot be found
-     * @throws IllegalArgumentException  if the user is not authorized, the request is not pending,
-     *                                   or they are already friends
+     * @param requestId ID của yêu cầu kết bạn cần chấp nhận
+     * @param userId    ID của người dùng hiện tại thực hiện chấp nhận yêu cầu (phải là người nhận của yêu cầu đó)
+     * @return một đối tượng {@link FriendRequestResponse} với trạng thái đã được cập nhật thành ACCEPTED
+     * @throws ResourceNotFoundException nếu không tìm thấy yêu cầu kết bạn hoặc người dùng liên quan
+     * @throws IllegalArgumentException  nếu người dùng không có quyền phản hồi, yêu cầu kết bạn không ở trạng thái chờ (PENDING),
+     *                                   hoặc hai người dùng đã là bạn bè từ trước
      */
     @Override
     public FriendRequestResponse acceptFriendRequest(Long requestId, Long userId) {
@@ -208,14 +208,14 @@ public class FriendServiceImpl implements FriendService {
     }
 
     /**
-     * Retrieves the list of all friends for a given user.
+     * Lấy danh sách toàn bộ bạn bè của một người dùng cụ thể.
      * <p>
-     * This query fetches all relationships from the {@code friendships} table where the user
-     * is either the initiator or the receiver, and maps the corresponding friend's information
-     * to a {@link FriendResponse} DTO.
+     * Truy vấn này sẽ lấy ra tất cả các mối quan hệ từ bảng {@code friendships} mà người dùng hiện tại
+     * tham gia với tư cách là người khởi tạo (user) hoặc người nhận (friend), sau đó ánh xạ thông tin
+     * của người bạn tương ứng thành đối tượng DTO {@link FriendResponse}.
      *
-     * @param userId the ID of the user whose friends are being retrieved
-     * @return a {@link List} of {@link FriendResponse} DTOs representing the user's friends
+     * @param userId ID của người dùng cần lấy danh sách bạn bè
+     * @return một {@link List} chứa các đối tượng DTO {@link FriendResponse} đại diện cho bạn bè của người dùng
      */
     @Override
     public List<FriendResponse> getFriends(Long userId) {
