@@ -28,6 +28,23 @@ public class FriendServiceImpl implements FriendService {
     private final FriendshipRepository friendshipRepository;
 
 
+    /**
+     * Sends a new friend request from the current user to another user by email.
+     * <p>
+     * Validation checks:
+     * <ul>
+     *   <li>Ensures the receiver exists in the database.</li>
+     *   <li>Prevents users from sending friend requests to themselves.</li>
+     *   <li>Ensures the two users are not already friends.</li>
+     *   <li>Ensures there is no active pending request between the two users in either direction.</li>
+     * </ul>
+     *
+     * @param senderId the ID of the user sending the request
+     * @param email    the email of the user receiving the request
+     * @return a {@link FriendRequestResponse} containing details of the created request
+     * @throws ResourceNotFoundException if the sender or receiver cannot be found
+     * @throws IllegalArgumentException  if any validation rule is violated
+     */
     @Override
     public FriendRequestResponse sendFriendRequest(Long senderId, String email) {
         User receiver = userRepository.findByEmail(email)
@@ -82,6 +99,20 @@ public class FriendServiceImpl implements FriendService {
         );
     }
 
+    /**
+     * Accepts a pending friend request.
+     * <p>
+     * This method validates the request ownership and status, creates a new {@link Friendship}
+     * between the two users, updates the friend request status to {@link FriendRequestStatus#ACCEPTED},
+     * and records the response timestamp.
+     *
+     * @param requestId the ID of the friend request to accept
+     * @param userId    the ID of the current user accepting the request (must be the receiver)
+     * @return a {@link FriendRequestResponse} with the updated ACCEPTED status
+     * @throws ResourceNotFoundException if the request or users cannot be found
+     * @throws IllegalArgumentException  if the user is not authorized, the request is not pending,
+     *                                   or they are already friends
+     */
     @Override
     public FriendRequestResponse acceptFriendRequest(Long requestId, Long userId) {
         FriendRequest friendRequest = getPendingRequestForReceiver(requestId, userId);
@@ -176,6 +207,16 @@ public class FriendServiceImpl implements FriendService {
         friendshipRepository.delete(friendship);
     }
 
+    /**
+     * Retrieves the list of all friends for a given user.
+     * <p>
+     * This query fetches all relationships from the {@code friendships} table where the user
+     * is either the initiator or the receiver, and maps the corresponding friend's information
+     * to a {@link FriendResponse} DTO.
+     *
+     * @param userId the ID of the user whose friends are being retrieved
+     * @return a {@link List} of {@link FriendResponse} DTOs representing the user's friends
+     */
     @Override
     public List<FriendResponse> getFriends(Long userId) {
         List<Friendship> friendships = friendshipRepository
