@@ -166,6 +166,19 @@ public class FriendServiceImpl implements FriendService {
         return mapToFriendRequestResponse(friendRequestRepository.save(friendRequest));
     }
 
+    /**
+     * Hủy bỏ một yêu cầu kết bạn đã gửi đi đang ở trạng thái chờ (PENDING).
+     * <p>
+     * Phương thức thực hiện kiểm tra quyền sở hữu (người thực hiện hủy phải là người gửi yêu cầu)
+     * và trạng thái của yêu cầu kết bạn. Nếu hợp lệ, cập nhật trạng thái thành {@link FriendRequestStatus#CANCELLED}
+     * và ghi nhận mốc thời gian phản hồi.
+     *
+     * @param requestId ID của yêu cầu kết bạn cần hủy bỏ
+     * @param userId    ID của người dùng hiện tại đang đăng nhập thực hiện hủy yêu cầu
+     * @return đối tượng {@link FriendRequestResponse} chứa thông tin chi tiết yêu cầu kết bạn sau khi hủy
+     * @throws ResourceNotFoundException nếu không tìm thấy bản ghi yêu cầu kết bạn trong hệ thống
+     * @throws IllegalArgumentException  nếu người dùng hiện tại không phải là người gửi yêu cầu, hoặc trạng thái của yêu cầu không phải là PENDING
+     */
     @Override
     public FriendRequestResponse cancelFriendRequest(Long requestId, Long userId) {
         FriendRequest friendRequest = friendRequestRepository.findById(requestId)
@@ -185,6 +198,14 @@ public class FriendServiceImpl implements FriendService {
         return mapToFriendRequestResponse(friendRequestRepository.save(friendRequest));
     }
 
+    /**
+     * Lấy danh sách tất cả các lời mời kết bạn gửi đến đang ở trạng thái chờ (PENDING) của người dùng.
+     * <p>
+     * Dữ liệu trả về được sắp xếp theo thứ tự thời gian tạo giảm dần (yêu cầu mới nhất được xếp lên đầu).
+     *
+     * @param userId ID của người dùng nhận lời mời
+     * @return danh sách các đối tượng DTO {@link FriendRequestResponse} đại diện cho các lời mời kết bạn gửi đến
+     */
     @Override
     public List<FriendRequestResponse> getIncomingRequests(Long userId) {
         return friendRequestRepository
@@ -194,6 +215,14 @@ public class FriendServiceImpl implements FriendService {
                 .toList();
     }
 
+    /**
+     * Lấy danh sách tất cả các yêu cầu kết bạn đã gửi đi đang ở trạng thái chờ (PENDING) của người dùng.
+     * <p>
+     * Dữ liệu trả về được sắp xếp theo thứ tự thời gian tạo giảm dần (yêu cầu mới nhất được xếp lên đầu).
+     *
+     * @param userId ID của người dùng gửi lời mời
+     * @return danh sách các đối tượng DTO {@link FriendRequestResponse} đại diện cho các yêu cầu kết bạn đã gửi đi
+     */
     @Override
     public List<FriendRequestResponse> getOutgoingRequests(Long userId) {
         return friendRequestRepository
