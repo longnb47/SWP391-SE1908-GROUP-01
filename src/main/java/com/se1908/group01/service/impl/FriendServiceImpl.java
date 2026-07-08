@@ -291,6 +291,22 @@ public class FriendServiceImpl implements FriendService {
                 .toList();
     }
 
+    /**
+     * Lấy yêu cầu kết bạn đang ở trạng thái chờ xử lý (PENDING) dành cho người nhận cụ thể và thực hiện xác thực bảo mật.
+     * <p>
+     * Phương thức này thực hiện các bước kiểm tra an toàn:
+     * <ul>
+     *   <li>Đảm bảo bản ghi yêu cầu kết bạn có tồn tại trong hệ thống.</li>
+     *   <li>Đảm bảo người nhận của yêu cầu kết bạn trùng khớp với người dùng đang thực hiện thao tác (chống giả mạo).</li>
+     *   <li>Đảm bảo trạng thái hiện tại của yêu cầu là {@link FriendRequestStatus#PENDING}.</li>
+     * </ul>
+     *
+     * @param requestId ID của yêu cầu kết bạn cần lấy
+     * @param userId    ID của người nhận yêu cầu kết bạn thực hiện thao tác
+     * @return đối tượng {@link FriendRequest} hợp lệ
+     * @throws ResourceNotFoundException nếu không tìm thấy bản ghi yêu cầu kết bạn
+     * @throws IllegalArgumentException  nếu người dùng không có quyền phản hồi hoặc yêu cầu không ở trạng thái PENDING
+     */
     private FriendRequest getPendingRequestForReceiver(Long requestId, Long userId) {
         FriendRequest friendRequest = friendRequestRepository.findById(requestId)
                 .orElseThrow(() -> new ResourceNotFoundException("Friend request not found"));
@@ -306,6 +322,14 @@ public class FriendServiceImpl implements FriendService {
         return friendRequest;
     }
 
+    /**
+     * Chuyển đổi đối tượng thực thể {@link FriendRequest} sang đối tượng DTO {@link FriendRequestResponse}.
+     * <p>
+     * Phương thức này giúp ẩn đi thông tin nhạy cảm của người dùng và định dạng lại cấu trúc dữ liệu trả về cho client.
+     *
+     * @param friendRequest thực thể yêu cầu kết bạn cần chuyển đổi
+     * @return đối tượng DTO {@link FriendRequestResponse} chứa dữ liệu sạch trả về
+     */
     private FriendRequestResponse mapToFriendRequestResponse(FriendRequest friendRequest) {
         return FriendRequestResponse.builder()
                 .requestId(friendRequest.getRequestId())
