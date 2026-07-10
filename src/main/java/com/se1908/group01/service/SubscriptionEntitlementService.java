@@ -1,0 +1,145 @@
+package com.se1908.group01.service;
+
+import com.se1908.group01.entity.AiTokenUsage;
+import com.se1908.group01.entity.SubscriptionPlan;
+import com.se1908.group01.exception.ResourceNotFoundException;
+import com.se1908.group01.repository.AiTokenUsageRepository;
+import com.se1908.group01.repository.DocumentRepository;
+import com.se1908.group01.repository.UserRepository;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
+
+@Service
+public class SubscriptionEntitlementService {
+
+	private static final long BYTES_PER_GB = 1024L * 1024L * 1024L;
+	private static final int APPROX_CHARS_PER_TOKEN = 4;
+
+	private final UserRepository userRepository;
+	private final SubscriptionLifecycleService subscriptionLifecycleService;
+	private final DocumentRepository documentRepository;
+	private final AiTokenUsageRepository aiTokenUsageRepository;
+
+	public SubscriptionEntitlementService(
+			UserRepository userRepository,
+			SubscriptionLifecycleService subscriptionLifecycleService,
+			DocumentRepository documentRepository,
+			AiTokenUsageRepository aiTokenUsageRepository
+	) {
+		this.userRepository = userRepository;
+		this.subscriptionLifecycleService = subscriptionLifecycleService;
+		this.documentRepository = documentRepository;
+		this.aiTokenUsageRepository = aiTokenUsageRepository;
+	}
+
+	@Transactional
+	public SubscriptionPlan getActivePlan(Long userId) {
+		if (userId == null) {
+			throw new IllegalArgumentException("userId is required");
+		}
+		var user = userRepository.findById(userId)
+				.orElseThrow(() -> new ResourceNotFoundException("User not found"));
+		var subscription = subscriptionLifecycleService.getOrCreateActiveSubscription(user);
+		var plan = subscription.getPlan();
+		if (plan == null) {
+			throw new IllegalStateException("Active subscription plan is not configured");
+		}
+		return plan;
+	}
+
+	@Transactional(readOnly = true)
+	public void enforceUploadEntitlements(
+			Long userId,
+			MultipartFile file,
+			SubscriptionPlan plan,
+			boolean video
+	) {
+		if (video && !Boolean.TRUE.equals(plan.getVideoUpload())) {
+			throw new IllegalArgumentException("Video upload is not allowed by your subscription plan");
+		}
+		enforceStorageLimit(userId, plan, file.getSize());
+	}
+
+	@Transactional
+	public void enforceAiRequestEntitlements(
+			Long userId,
+			int documentCount,
+			String prompt
+	) {
+		var plan = getActivePlan(userId);
+		enforceMultipleDocumentLimit(plan, documentCount);
+		enforceMonthlyTokenLimit(userId, plan, estimateTokens(prompt));
+	}
+
+	@Transactional
+	public void enforceDocumentChatEntitlement(Long userId, int documentCount) {
+		var plan = getActivePlan(userId);
+		enforceMultipleDocumentLimit(plan, documentCount);
+	}
+
+	@Transactional
+	public void enforceAiTokenBudget(Long userId, String prompt) {
+		var plan = getActivePlan(userId);
+		enforceMonthlyTokenLimit(userId, plan, estimateTokens(prompt));
+	}
+
+	@Transactional
+	public void recordAiTokenUsage(Long userId, String prompt, String answer) {
+		var estimatedTokens = estimateTokens(prompt) + estimateTokens(answer);
+		if (estimatedTokens <= 0) {
+			return;
+		}
+		var usage = new AiTokenUsage();
+		usage.setUserId(userId);
+		usage.setEstimatedTokens(estimatedTokens);
+		aiTokenUsageRepository.save(usage);
+	}
+
+	private void enforceStorageLimit(Long userId, SubscriptionPlan plan, long incomingBytes) {
+		var storageLimitGb = plan.getStorageLimitGb();
+		if (storageLimitGb == null || storageLimitGb < 0) {
+			throw new IllegalStateException("Active subscription plan storage limit is not configured");
+		}
+		var storageLimitBytes = storageLimitGb * BYTES_PER_GB;
+		var usedBytes = documentRepository.sumActiveStorageBytesByUserId(userId);
+		if (usedBytes + incomingBytes > storageLimitBytes) {
+			throw new IllegalArgumentException("Storage limit exceeded for your subscription plan");
+		}
+	}
+
+	private void enforceMultipleDocumentLimit(SubscriptionPlan plan, int documentCount) {
+		if (documentCount > 1 && !Boolean.TRUE.equals(plan.getMultipleDocuments())) {
+			throw new IllegalArgumentException("Multiple document chat is not allowed by your subscription plan");
+		}
+	}
+
+	private void enforceMonthlyTokenLimit(Long userId, SubscriptionPlan plan, long requestedTokens) {
+		var monthlyTokenLimit = plan.getMonthlyTokenLimit();
+		if (monthlyTokenLimit == null || monthlyTokenLimit < 0) {
+			throw new IllegalStateException("Active subscription plan token limit is not configured");
+		}
+		var usedTokens = aiTokenUsageRepository.sumEstimatedTokensSince(userId, currentMonthStart());
+		if (usedTokens + requestedTokens > monthlyTokenLimit) {
+			throw new IllegalArgumentException("Monthly AI token limit exceeded for your subscription plan");
+		}
+	}
+
+	private Instant currentMonthStart() {
+		return LocalDate.now()
+				.withDayOfMonth(1)
+				.atStartOfDay(ZoneId.systemDefault())
+				.toInstant();
+	}
+
+	private long estimateTokens(String text) {
+		if (!StringUtils.hasText(text)) {
+			return 0L;
+		}
+		return Math.max(1L, (text.trim().length() + APPROX_CHARS_PER_TOKEN - 1L) / APPROX_CHARS_PER_TOKEN);
+	}
+}

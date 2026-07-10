@@ -32,6 +32,7 @@ import com.se1908.group01.service.DocumentAccessService;
 import com.se1908.group01.service.DocumentEmbeddingService;
 import com.se1908.group01.service.LlmClient;
 import com.se1908.group01.service.PromptBuilderService;
+import com.se1908.group01.service.SubscriptionEntitlementService;
 import com.se1908.group01.service.VectorSearchService;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -63,6 +64,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 	private final ChatMessageRepository chatMessageRepository;
 	private final ChatMessageSourceRepository chatMessageSourceRepository;
 	private final RagProperties ragProperties;
+	private final SubscriptionEntitlementService subscriptionEntitlementService;
 
 	public ChatSessionServiceImpl(
 			CurrentUserService currentUserService,
@@ -77,7 +79,8 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 			ChatSessionDocumentRepository chatSessionDocumentRepository,
 			ChatMessageRepository chatMessageRepository,
 			ChatMessageSourceRepository chatMessageSourceRepository,
-			RagProperties ragProperties
+			RagProperties ragProperties,
+			SubscriptionEntitlementService subscriptionEntitlementService
 	) {
 		this.currentUserService = currentUserService;
 		this.documentAccessService = documentAccessService;
@@ -92,6 +95,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 		this.chatMessageRepository = chatMessageRepository;
 		this.chatMessageSourceRepository = chatMessageSourceRepository;
 		this.ragProperties = ragProperties;
+		this.subscriptionEntitlementService = subscriptionEntitlementService;
 	}
 
 	@Transactional
@@ -102,6 +106,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 		var policy = resolvePolicy(mode, request.useGeneralKnowledge());
 		var options = aiGenerationOptionsService.resolve(request.model(), request.temperature());
 		List<Document> selectedDocuments = List.of();
+		List<Document> userStorageDocuments = List.of();
 
 		if (mode == ChatMode.SELECTED_DOCUMENTS) {
 			if (request.folderId() != null) {
@@ -115,12 +120,16 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 			if (request.selectedDocumentIds() != null && !request.selectedDocumentIds().isEmpty()) {
 				throw new IllegalArgumentException("selectedDocumentIds is not supported in UserStorage mode");
 			}
-			documentAccessService.getAllReadyDocumentsForUser(
+			userStorageDocuments = documentAccessService.getAllReadyDocumentsForUser(
 					userId,
 					request.folderId(),
 					policy == KnowledgePolicy.DOCUMENTS_PLUS_GENERAL
 			);
 		}
+		var entitlementDocumentCount = mode == ChatMode.SELECTED_DOCUMENTS
+				? selectedDocuments.size()
+				: userStorageDocuments.size();
+		subscriptionEntitlementService.enforceDocumentChatEntitlement(userId, entitlementDocumentCount);
 
 		var session = new ChatSession();
 		session.setUserId(userId);
@@ -218,6 +227,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 		try {
 			var documents = resolveDocuments(session);
 			var options = aiGenerationOptionsService.resolve(session.getModel(), session.getTemperature());
+			subscriptionEntitlementService.enforceDocumentChatEntitlement(session.getUserId(), documents.size());
 			if (documents.isEmpty()) {
 				return saveNoContextAnswer(session);
 			}
@@ -244,7 +254,9 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 					conversationMemory,
 					request.question()
 			);
+			subscriptionEntitlementService.enforceAiTokenBudget(session.getUserId(), prompt);
 			var answer = llmClient.generateAnswer(prompt, options);
+			subscriptionEntitlementService.recordAiTokenUsage(session.getUserId(), prompt, answer);
 			var assistantMessage = saveMessage(
 					session,
 					ChatMessageRole.ASSISTANT,

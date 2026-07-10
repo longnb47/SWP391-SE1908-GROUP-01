@@ -93,6 +93,15 @@ public class FileValidationService {
 		}
 	}
 
+	public boolean isVideo(MultipartFile file) {
+		if (file == null) {
+			return false;
+		}
+		var originalFilename = file.getOriginalFilename();
+		var ext = StringUtils.hasText(originalFilename) ? getExtensionLower(originalFilename) : "";
+		return isVideoFile(ext, file.getContentType());
+	}
+
 	private static boolean isVideoFile(String ext, String contentType) {
 		if (VIDEO_EXTENSIONS.contains(ext)) {
 			return true;

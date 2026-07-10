@@ -61,7 +61,7 @@ public class DocumentServiceImpl implements DocumentService {
 	private final DocumentIngestionJobService documentIngestionJobService;
 	private final CurrentUserService currentUserService;
 	private final ChatSessionDocumentRepository chatSessionDocumentRepository;
-	private final SubscriptionLifecycleService subscriptionLifecycleService;
+	private final SubscriptionEntitlementService subscriptionEntitlementService;
 
 	public DocumentServiceImpl(
 			FileValidationService fileValidationService,
@@ -79,7 +79,7 @@ public class DocumentServiceImpl implements DocumentService {
 			DocumentIngestionJobService documentIngestionJobService,
 			CurrentUserService currentUserService,
 			ChatSessionDocumentRepository chatSessionDocumentRepository,
-			SubscriptionLifecycleService subscriptionLifecycleService
+			SubscriptionEntitlementService subscriptionEntitlementService
 	) {
 		this.fileValidationService = fileValidationService;
 		this.s3StorageService = s3StorageService;
@@ -96,15 +96,21 @@ public class DocumentServiceImpl implements DocumentService {
 		this.documentIngestionJobService = documentIngestionJobService;
 		this.currentUserService = currentUserService;
 		this.chatSessionDocumentRepository = chatSessionDocumentRepository;
-		this.subscriptionLifecycleService = subscriptionLifecycleService;
+		this.subscriptionEntitlementService = subscriptionEntitlementService;
 	}
 
 	@Transactional(rollbackFor = Exception.class)
 	@Override
 	public DocumentUploadResponse upload(MultipartFile file, Boolean isPublic) throws IOException {
 		var userId = currentUserService.getCurrentUserId();
-		var maxUploadSizeMb = resolveMaxUploadSizeMb(userId);
-		fileValidationService.validateForUpload(file, maxUploadSizeMb);
+		var activePlan = subscriptionEntitlementService.getActivePlan(userId);
+		fileValidationService.validateForUpload(file, activePlan.getMaxUploadSizeMb());
+		subscriptionEntitlementService.enforceUploadEntitlements(
+				userId,
+				file,
+				activePlan,
+				fileValidationService.isVideo(file)
+		);
 
 		var originalName = FilenameSanitizer.sanitize(file.getOriginalFilename());
 		var key = buildObjectKey(userId, originalName);
@@ -136,13 +142,6 @@ public class DocumentServiceImpl implements DocumentService {
 		}
 
 		return toResponse(doc);
-	}
-
-	private Integer resolveMaxUploadSizeMb(Long userId) {
-		var user = userRepository.findById(userId)
-				.orElseThrow(() -> new ResourceNotFoundException("User not found"));
-		var subscription = subscriptionLifecycleService.getOrCreateActiveSubscription(user);
-		return subscription.getPlan().getMaxUploadSizeMb();
 	}
 
 	@Transactional

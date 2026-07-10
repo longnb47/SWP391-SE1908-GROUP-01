@@ -14,9 +14,7 @@ import static org.mockito.Mockito.when;
 import com.se1908.group01.config.S3Properties;
 import com.se1908.group01.entity.Document;
 import com.se1908.group01.entity.DocumentStatus;
-import com.se1908.group01.entity.Subscription;
 import com.se1908.group01.entity.SubscriptionPlan;
-import com.se1908.group01.entity.User;
 import com.se1908.group01.repository.ChatSessionDocumentRepository;
 import com.se1908.group01.repository.DocumentChunkRepository;
 import com.se1908.group01.repository.DocumentFolderRepository;
@@ -31,11 +29,10 @@ import com.se1908.group01.service.DocumentIngestionJobService;
 import com.se1908.group01.service.DocumentIngestionService;
 import com.se1908.group01.service.FileValidationService;
 import com.se1908.group01.service.S3StorageService;
-import com.se1908.group01.service.SubscriptionLifecycleService;
+import com.se1908.group01.service.SubscriptionEntitlementService;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -62,12 +59,11 @@ class DocumentServiceImplUploadTest {
 	@Mock private DocumentIngestionJobService documentIngestionJobService;
 	@Mock private CurrentUserService currentUserService;
 	@Mock private ChatSessionDocumentRepository chatSessionDocumentRepository;
-	@Mock private SubscriptionLifecycleService subscriptionLifecycleService;
+	@Mock private SubscriptionEntitlementService subscriptionEntitlementService;
 
 	private DocumentServiceImpl service;
 	private MockMultipartFile file;
-	private User user;
-	private Subscription subscription;
+	private SubscriptionPlan plan;
 
 	@BeforeEach
 	void setUp() {
@@ -87,7 +83,7 @@ class DocumentServiceImplUploadTest {
 				documentIngestionJobService,
 				currentUserService,
 				chatSessionDocumentRepository,
-				subscriptionLifecycleService
+				subscriptionEntitlementService
 		);
 		file = new MockMultipartFile(
 				"file",
@@ -95,16 +91,8 @@ class DocumentServiceImplUploadTest {
 				"application/pdf",
 				"PDF content".getBytes(StandardCharsets.UTF_8)
 		);
-		user = User.builder()
-				.userId(7L)
-				.email("user@example.com")
-				.fullName("Test User")
-				.build();
-		subscription = Subscription.builder()
-				.user(user)
-				.plan(SubscriptionPlan.builder()
-						.maxUploadSizeMb(35)
-						.build())
+		plan = SubscriptionPlan.builder()
+				.maxUploadSizeMb(35)
 				.build();
 	}
 
@@ -112,8 +100,7 @@ class DocumentServiceImplUploadTest {
 	void uploadStoresMetadataAndSchedulesIngestion() throws Exception {
 		var tempFile = Path.of("document-ingestion-test.tmp");
 		when(currentUserService.getCurrentUserId()).thenReturn(7L);
-		when(userRepository.findById(7L)).thenReturn(Optional.of(user));
-		when(subscriptionLifecycleService.getOrCreateActiveSubscription(user)).thenReturn(subscription);
+		when(subscriptionEntitlementService.getActivePlan(7L)).thenReturn(plan);
 		when(s3Properties.getKeyPrefix()).thenReturn("study");
 		when(documentRepository.save(any(Document.class))).thenAnswer(invocation -> {
 			Document document = invocation.getArgument(0);
@@ -135,6 +122,7 @@ class DocumentServiceImplUploadTest {
 		assertTrue(keyCaptor.getValue().startsWith("study/documents/7/"));
 		assertTrue(keyCaptor.getValue().endsWith("-unsafe name.pdf"));
 		verify(fileValidationService).validateForUpload(file, 35);
+		verify(subscriptionEntitlementService).enforceUploadEntitlements(7L, file, plan, false);
 		verify(documentIngestionJobService).ingestAsync(
 				11L,
 				tempFile,
@@ -146,8 +134,7 @@ class DocumentServiceImplUploadTest {
 	@Test
 	void uploadDeletesS3ObjectWhenMetadataSaveFails() throws Exception {
 		when(currentUserService.getCurrentUserId()).thenReturn(7L);
-		when(userRepository.findById(7L)).thenReturn(Optional.of(user));
-		when(subscriptionLifecycleService.getOrCreateActiveSubscription(user)).thenReturn(subscription);
+		when(subscriptionEntitlementService.getActivePlan(7L)).thenReturn(plan);
 		when(documentRepository.save(any(Document.class)))
 				.thenThrow(new IllegalStateException("Database unavailable"));
 
@@ -162,8 +149,7 @@ class DocumentServiceImplUploadTest {
 	@Test
 	void uploadStopsBeforeDatabaseWhenS3UploadFails() throws Exception {
 		when(currentUserService.getCurrentUserId()).thenReturn(7L);
-		when(userRepository.findById(7L)).thenReturn(Optional.of(user));
-		when(subscriptionLifecycleService.getOrCreateActiveSubscription(user)).thenReturn(subscription);
+		when(subscriptionEntitlementService.getActivePlan(7L)).thenReturn(plan);
 		doThrow(new IOException("S3 unavailable"))
 				.when(s3StorageService)
 				.uploadPrivate(any(), anyString());

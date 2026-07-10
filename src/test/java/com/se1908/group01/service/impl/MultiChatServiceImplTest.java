@@ -16,6 +16,7 @@ import com.se1908.group01.service.DocumentAccessService;
 import com.se1908.group01.service.DocumentEmbeddingService;
 import com.se1908.group01.service.LlmClient;
 import com.se1908.group01.service.PromptBuilderService;
+import com.se1908.group01.service.SubscriptionEntitlementService;
 import com.se1908.group01.service.VectorSearchService;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,6 +49,9 @@ class MultiChatServiceImplTest {
 	@Mock
 	private AiGenerationOptionsService aiGenerationOptionsService;
 
+	@Mock
+	private SubscriptionEntitlementService subscriptionEntitlementService;
+
 	private MultiChatServiceImpl multiChatService;
 
 	@BeforeEach
@@ -59,7 +63,8 @@ class MultiChatServiceImplTest {
 				vectorSearchService,
 				promptBuilderService,
 				llmClient,
-				aiGenerationOptionsService
+				aiGenerationOptionsService,
+				subscriptionEntitlementService
 		);
 		when(currentUserService.getCurrentUserId()).thenReturn(1L);
 		when(aiGenerationOptionsService.resolve(null, null))

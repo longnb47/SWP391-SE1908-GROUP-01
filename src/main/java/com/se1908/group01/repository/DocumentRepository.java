@@ -28,6 +28,14 @@ public interface DocumentRepository extends JpaRepository<Document, Long>, JpaSp
 
 	List<Document> findByUserIdAndIsDeletedTrueOrderByDeletedAtDesc(Long userId);
 
+	@Query("""
+			SELECT COALESCE(SUM(d.fileSize), 0)
+			FROM Document d
+			WHERE d.userId = :userId
+			  AND d.isDeleted = false
+			""")
+	long sumActiveStorageBytesByUserId(@Param("userId") Long userId);
+
 	@Modifying
 	@Query("update Document d set d.folderId = null where d.userId = :userId and d.folderId = :folderId")
 	void clearFolderForUser(@Param("userId") Long userId, @Param("folderId") Long folderId);

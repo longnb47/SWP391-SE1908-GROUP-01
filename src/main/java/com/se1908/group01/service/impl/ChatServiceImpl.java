@@ -11,6 +11,7 @@ import com.se1908.group01.service.CurrentUserService;
 import com.se1908.group01.service.DocumentAccessService;
 import com.se1908.group01.service.DocumentEmbeddingService;
 import com.se1908.group01.service.PromptBuilderService;
+import com.se1908.group01.service.SubscriptionEntitlementService;
 import com.se1908.group01.service.VectorSearchService;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,7 @@ public class ChatServiceImpl implements ChatService {
 	private final PromptBuilderService promptBuilderService;
 	private final AiChatClientService aiChatClientService;
 	private final AiGenerationOptionsService aiGenerationOptionsService;
+	private final SubscriptionEntitlementService subscriptionEntitlementService;
 
 	public ChatServiceImpl(
 			CurrentUserService currentUserService,
@@ -36,7 +38,8 @@ public class ChatServiceImpl implements ChatService {
 			VectorSearchService vectorSearchService,
 			PromptBuilderService promptBuilderService,
 			AiChatClientService aiChatClientService,
-			AiGenerationOptionsService aiGenerationOptionsService
+			AiGenerationOptionsService aiGenerationOptionsService,
+			SubscriptionEntitlementService subscriptionEntitlementService
 	) {
 		this.currentUserService = currentUserService;
 		this.documentAccessService = documentAccessService;
@@ -45,6 +48,7 @@ public class ChatServiceImpl implements ChatService {
 		this.promptBuilderService = promptBuilderService;
 		this.aiChatClientService = aiChatClientService;
 		this.aiGenerationOptionsService = aiGenerationOptionsService;
+		this.subscriptionEntitlementService = subscriptionEntitlementService;
 	}
 
 	@Override
@@ -71,7 +75,9 @@ public class ChatServiceImpl implements ChatService {
 		}
 
 		var prompt = promptBuilderService.buildDocumentQuestionPrompt(request.getQuestion(), chunks);
+		subscriptionEntitlementService.enforceAiRequestEntitlements(userId, 1, prompt);
 		var answer = aiChatClientService.ask(prompt, generationOptions);
+		subscriptionEntitlementService.recordAiTokenUsage(userId, prompt, answer);
 		return new ChatAskResponse(
 				document.getDocumentId(),
 				answer,
