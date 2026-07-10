@@ -61,6 +61,21 @@ class FileValidationServiceTest {
 	}
 
 	@Test
+	void rejectsDocumentLargerThanSubscriptionLimit() {
+		assertThrows(
+				IllegalArgumentException.class,
+				() -> service.validateForUpload(
+						sizedFile(
+								"large.pdf",
+								"application/pdf",
+								5L * 1024L * 1024L + 1
+						),
+						5
+				)
+		);
+	}
+
+	@Test
 	void rejectsVideoLargerThanConfiguredLimit() {
 		assertThrows(
 				IllegalArgumentException.class,

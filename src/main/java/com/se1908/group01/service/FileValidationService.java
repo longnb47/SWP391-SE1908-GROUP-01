@@ -9,7 +9,7 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 public class FileValidationService {
 
-	private static final long MAX_DOC_BYTES = 20L * 1024L * 1024L;
+	private static final int DEFAULT_MAX_DOC_MB = 20;
 
 	private static final Set<String> ALLOWED_DOC_EXTENSIONS = Set.of(
 			"pdf", "doc", "docx", "pptx", "xls", "xlsx", "png"
@@ -30,6 +30,10 @@ public class FileValidationService {
 	private long maxAvatarFileSize;
 
 	public void validateForUpload(MultipartFile file) {
+		validateForUpload(file, DEFAULT_MAX_DOC_MB);
+	}
+
+	public void validateForUpload(MultipartFile file, Integer maxNonVideoUploadSizeMb) {
 		if (file == null) {
 			throw new IllegalArgumentException("File is required");
 		}
@@ -56,8 +60,9 @@ public class FileValidationService {
 				throw new IllegalArgumentException("Video file exceeds " + (maxVideoFileSize / 1024 / 1024) + "MB limit");
 			}
 		} else {
-			if (file.getSize() > MAX_DOC_BYTES) {
-				throw new IllegalArgumentException("File exceeds 20MB limit");
+			var maxNonVideoBytes = toBytes(maxNonVideoUploadSizeMb);
+			if (file.getSize() > maxNonVideoBytes) {
+				throw new IllegalArgumentException("File exceeds " + maxNonVideoUploadSizeMb + "MB limit");
 			}
 		}
 	}
@@ -93,6 +98,13 @@ public class FileValidationService {
 			return true;
 		}
 		return StringUtils.hasText(contentType) && contentType.toLowerCase().startsWith("video/");
+	}
+
+	private static long toBytes(Integer sizeMb) {
+		if (sizeMb == null || sizeMb <= 0) {
+			throw new IllegalStateException("Active subscription plan upload limit is not configured");
+		}
+		return sizeMb * 1024L * 1024L;
 	}
 
 	private static String getExtensionLower(String filename) {

@@ -61,6 +61,7 @@ public class DocumentServiceImpl implements DocumentService {
 	private final DocumentIngestionJobService documentIngestionJobService;
 	private final CurrentUserService currentUserService;
 	private final ChatSessionDocumentRepository chatSessionDocumentRepository;
+	private final SubscriptionLifecycleService subscriptionLifecycleService;
 
 	public DocumentServiceImpl(
 			FileValidationService fileValidationService,
@@ -77,7 +78,8 @@ public class DocumentServiceImpl implements DocumentService {
 			UserRepository userRepository,
 			DocumentIngestionJobService documentIngestionJobService,
 			CurrentUserService currentUserService,
-			ChatSessionDocumentRepository chatSessionDocumentRepository
+			ChatSessionDocumentRepository chatSessionDocumentRepository,
+			SubscriptionLifecycleService subscriptionLifecycleService
 	) {
 		this.fileValidationService = fileValidationService;
 		this.s3StorageService = s3StorageService;
@@ -94,13 +96,15 @@ public class DocumentServiceImpl implements DocumentService {
 		this.documentIngestionJobService = documentIngestionJobService;
 		this.currentUserService = currentUserService;
 		this.chatSessionDocumentRepository = chatSessionDocumentRepository;
+		this.subscriptionLifecycleService = subscriptionLifecycleService;
 	}
 
 	@Transactional(rollbackFor = Exception.class)
 	@Override
 	public DocumentUploadResponse upload(MultipartFile file, Boolean isPublic) throws IOException {
 		var userId = currentUserService.getCurrentUserId();
-		fileValidationService.validateForUpload(file);
+		var maxUploadSizeMb = resolveMaxUploadSizeMb(userId);
+		fileValidationService.validateForUpload(file, maxUploadSizeMb);
 
 		var originalName = FilenameSanitizer.sanitize(file.getOriginalFilename());
 		var key = buildObjectKey(userId, originalName);
@@ -132,6 +136,13 @@ public class DocumentServiceImpl implements DocumentService {
 		}
 
 		return toResponse(doc);
+	}
+
+	private Integer resolveMaxUploadSizeMb(Long userId) {
+		var user = userRepository.findById(userId)
+				.orElseThrow(() -> new ResourceNotFoundException("User not found"));
+		var subscription = subscriptionLifecycleService.getOrCreateActiveSubscription(user);
+		return subscription.getPlan().getMaxUploadSizeMb();
 	}
 
 	@Transactional
