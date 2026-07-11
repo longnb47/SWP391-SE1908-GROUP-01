@@ -252,6 +252,18 @@ public class DocumentServiceImpl implements DocumentService {
 		return toFileAccessUrlResponse(findPublicActiveDocument(documentId), true);
 	}
 
+	/**
+	 * Tạo một liên kết chia sẻ (share link) mới cho tài liệu được chỉ định.
+	 * <p>
+	 * Phương thức này thực hiện xác thực quyền sở hữu của người dùng đối với tài liệu gốc.
+	 * Nếu tài liệu đã có một liên kết chia sẻ đang hoạt động và chưa hết hạn, hệ thống sẽ trả về luôn liên kết đó.
+	 * Ngược lại, nếu liên kết cũ đã hết hạn, hệ thống sẽ vô hiệu hóa liên kết cũ và tạo ra một liên kết chia sẻ mới
+	 * với mã token ngẫu nhiên và duy nhất.
+	 *
+	 * @param documentId ID của tài liệu cần tạo liên kết chia sẻ
+	 * @return một đối tượng {@link DocumentShareLinkResponse} chứa thông tin chi tiết của liên kết chia sẻ vừa tạo
+	 * @throws ResourceNotFoundException nếu không tìm thấy tài liệu đang hoạt động hoặc người dùng không sở hữu tài liệu đó
+	 */
 	@Transactional
 	@Override
 	public DocumentShareLinkResponse createShareLink(Long documentId) {
@@ -277,6 +289,16 @@ public class DocumentServiceImpl implements DocumentService {
 		return toShareLinkResponse(documentShareLinkRepository.save(shareLink));
 	}
 
+	/**
+	 * Vô hiệu hóa (tắt) liên kết chia sẻ đang hoạt động của tài liệu.
+	 * <p>
+	 * Phương thức này kiểm tra xem người dùng hiện tại có sở hữu tài liệu hay không, tìm liên kết chia sẻ đang hoạt động
+	 * và cập nhật trạng thái của liên kết đó thành vô hiệu hóa (enabled = false).
+	 *
+	 * @param documentId ID của tài liệu cần vô hiệu hóa liên kết chia sẻ
+	 * @return đối tượng {@link DocumentShareLinkResponse} chứa thông tin liên kết chia sẻ sau khi đã bị vô hiệu hóa
+	 * @throws ResourceNotFoundException nếu không tìm thấy liên kết chia sẻ đang hoạt động của tài liệu
+	 */
 	@Transactional
 	@Override
 	public DocumentShareLinkResponse disableShareLink(Long documentId) {
@@ -309,6 +331,22 @@ public class DocumentServiceImpl implements DocumentService {
 		return toFileAccessUrlResponse(findDocumentByShareLink(token), true);
 	}
 
+	/**
+	 * Lưu một tài liệu được chia sẻ qua liên kết vào danh mục tài liệu được chia sẻ với tôi (Shared with me).
+	 * <p>
+	 * Phương thức này thực hiện các bước kiểm tra an toàn và nghiệp vụ:
+	 * <ul>
+	 *   <li>Tìm kiếm tài liệu gốc và kiểm tra tính hợp lệ của token chia sẻ (chưa hết hạn, chưa bị vô hiệu hóa).</li>
+	 *   <li>Ngăn chặn chủ sở hữu tài liệu tự thực hiện hành động chia sẻ/lưu với chính mình.</li>
+	 *   <li>Kiểm tra xem tài liệu đã từng được lưu/chia sẻ trước đó với người dùng hiện tại chưa để tránh tạo bản ghi trùng lặp.</li>
+	 * </ul>
+	 * Nếu hợp lệ, hệ thống tạo bản ghi liên kết chia sẻ mới trong bảng {@code document_shares}.
+	 *
+	 * @param token mã token của liên kết chia sẻ tài liệu
+	 * @return đối tượng {@link DocumentShareResponse} chứa thông tin chia sẻ tài liệu thành công
+	 * @throws ResourceNotFoundException nếu không tìm thấy liên kết chia sẻ hợp lệ hoặc tài liệu đã bị xóa
+	 * @throws IllegalArgumentException  nếu người dùng cố tình tự lưu tài liệu của chính mình
+	 */
 	@Transactional
 	@Override
 	public DocumentShareResponse saveShareLinkToSharedWithMe(String token) {
