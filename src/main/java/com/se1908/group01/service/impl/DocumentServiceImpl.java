@@ -404,6 +404,25 @@ public class DocumentServiceImpl implements DocumentService {
 		return toDocumentShareResponse(documentShareRepository.save(documentShare));
 	}
 
+	/**
+	 * Chia sẻ quyền truy cập tài liệu trực tiếp cho một người dùng khác thông qua email của họ.
+	 * <p>
+	 * Các bước kiểm tra nghiệp vụ và an toàn:
+	 * <ul>
+	 *   <li>Xác thực người dùng hiện tại là chủ sở hữu của tài liệu đang hoạt động.</li>
+	 *   <li>Tìm kiếm tài khoản người nhận thông qua email và đảm bảo họ tồn tại trong hệ thống.</li>
+	 *   <li>Ngăn chặn chủ sở hữu tự chia sẻ tài liệu với chính bản thân mình.</li>
+	 *   <li>Đảm bảo người sở hữu và người được chia sẻ đã là bạn bè của nhau (quan hệ tồn tại trong bảng {@code friendships}).</li>
+	 *   <li>Đảm bảo tài liệu chưa từng được chia sẻ với người dùng này trước đó để tránh tạo bản ghi trùng lặp.</li>
+	 * </ul>
+	 * Nếu hợp lệ, hệ thống tạo bản ghi liên kết chia sẻ trong bảng {@code document_shares}.
+	 *
+	 * @param documentId ID của tài liệu muốn chia sẻ
+	 * @param email      Email của người dùng được chia sẻ tài liệu
+	 * @return một đối tượng {@link DocumentShareResponse} chứa thông tin chi tiết của việc chia sẻ tài liệu
+	 * @throws ResourceNotFoundException nếu không tìm thấy tài liệu hoặc tài khoản người nhận
+	 * @throws IllegalArgumentException  nếu tự chia sẻ với chính mình, hai người chưa kết bạn, hoặc tài liệu đã được chia sẻ trước đó
+	 */
 	@Transactional
 	@Override
 	public DocumentShareResponse shareDocumentWithUser(Long documentId, String email) {
@@ -435,6 +454,16 @@ public class DocumentServiceImpl implements DocumentService {
 		return toDocumentShareResponse(documentShareRepository.save(documentShare));
 	}
 
+	/**
+	 * Thu hồi quyền truy cập tài liệu đã chia sẻ trực tiếp với một người dùng cụ thể.
+	 * <p>
+	 * Phương thức này thực hiện xác thực quyền sở hữu của người dùng hiện tại đối với tài liệu gốc,
+	 * sau đó tìm kiếm và xóa bản ghi chia sẻ tương ứng trong bảng {@code document_shares}.
+	 *
+	 * @param documentId ID của tài liệu cần thu hồi quyền chia sẻ
+	 * @param userId     ID của người dùng bị thu hồi quyền truy cập tài liệu
+	 * @throws ResourceNotFoundException nếu không tìm thấy bản ghi chia sẻ tài liệu tương ứng
+	 */
 	@Transactional
 	@Override
 	public void removeUserShare(Long documentId, Long userId) {
@@ -447,6 +476,14 @@ public class DocumentServiceImpl implements DocumentService {
 		documentShareRepository.delete(documentShare);
 	}
 
+	/**
+	 * Lấy danh sách toàn bộ các tài liệu đang hoạt động được người khác chia sẻ với người dùng hiện tại.
+	 * <p>
+	 * Phương thức này truy vấn bảng {@code document_shares} để tìm kiếm các bản ghi được chia sẻ với
+	 * người dùng hiện tại, kiểm tra xem tài liệu gốc chưa bị xóa và chuyển đổi kết quả thành danh sách DTO.
+	 *
+	 * @return một {@link List} chứa các đối tượng DTO {@link DocumentUploadResponse} đại diện cho các tài liệu được chia sẻ
+	 */
 	@Transactional(readOnly = true)
 	@Override
 	public List<DocumentUploadResponse> getSharedWithMeDocuments() {
