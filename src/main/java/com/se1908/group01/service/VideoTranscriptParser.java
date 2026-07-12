@@ -50,6 +50,16 @@ public class VideoTranscriptParser {
         this.googleSpeechProperties = googleSpeechProperties;
     }
 
+    /**
+     * Tải video từ S3, trích xuất âm thanh và chuyển đổi nội dung giọng nói thành văn bản.
+     *
+     * @param documentId mã định danh của tài liệu cần xử lý
+     * @param s3Key đường dẫn đối tượng video trong S3
+     * @param contentType kiểu nội dung của video
+     * @return nội dung văn bản được nhận dạng từ video
+     * @throws IllegalStateException khi dịch vụ Google Speech-to-Text hoặc AWS S3 chưa được cấu hình
+     * @throws RuntimeException khi quá trình tải, chuyển đổi hoặc nhận dạng video thất bại
+     */
     public String parse(Long documentId, String s3Key, String contentType) {
         if (speechClient == null || storage == null) {
             throw new IllegalStateException(
@@ -110,6 +120,14 @@ public class VideoTranscriptParser {
         }
     }
 
+    /**
+     * Trích xuất luồng âm thanh từ video MP4 sang định dạng FLAC 16 kHz, một kênh bằng FFmpeg.
+     *
+     * @param inputMp4 đường dẫn đến tệp video MP4 đầu vào
+     * @param outputFlac đường dẫn đến tệp âm thanh FLAC đầu ra
+     * @throws IOException khi không thể khởi chạy FFmpeg hoặc đọc kết quả xử lý
+     * @throws InterruptedException khi luồng đang chờ tiến trình FFmpeg bị gián đoạn
+     */
     private void extractAudio(Path inputMp4, Path outputFlac) throws IOException, InterruptedException {
         log.debug("FFmpeg: extracting audio {} → {}", inputMp4, outputFlac);
         var process = new ProcessBuilder(
