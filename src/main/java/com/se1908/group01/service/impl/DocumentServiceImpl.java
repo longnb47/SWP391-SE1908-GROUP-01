@@ -313,18 +313,48 @@ public class DocumentServiceImpl implements DocumentService {
 		return toShareLinkResponse(documentShareLinkRepository.save(shareLink));
 	}
 
+	/**
+	 * Lấy thông tin chi tiết của tài liệu thông qua mã token của liên kết chia sẻ.
+	 * <p>
+	 * Phương thức này thực hiện tìm kiếm tài liệu từ token, kiểm tra xem liên kết chia sẻ có hợp lệ
+	 * (chưa hết hạn, đang kích hoạt) và tài liệu gốc chưa bị xóa vào thùng rác.
+	 *
+	 * @param token mã token của liên kết chia sẻ
+	 * @return một đối tượng {@link DocumentUploadResponse} chứa thông tin chi tiết của tài liệu được chia sẻ
+	 * @throws ResourceNotFoundException nếu liên kết chia sẻ không tồn tại, đã hết hạn hoặc tài liệu gốc đã bị xóa
+	 */
 	@Transactional(readOnly = true)
 	@Override
 	public DocumentUploadResponse getDocumentByShareLink(String token) {
 		return toResponse(findDocumentByShareLink(token));
 	}
 
+	/**
+	 * Lấy đường dẫn xem trước (preview URL) tạm thời của tài liệu thông qua mã token của liên kết chia sẻ.
+	 * <p>
+	 * Phương thức này tìm kiếm tài liệu tương ứng với token chia sẻ hợp lệ, sau đó yêu cầu dịch vụ lưu trữ S3
+	 * sinh ra một đường dẫn tạm thời (Presigned URL) cho phép truy cập xem trước file mà không cần đăng nhập.
+	 *
+	 * @param token mã token của liên kết chia sẻ
+	 * @return đối tượng {@link FileAccessUrlResponse} chứa đường dẫn xem trước tạm thời
+	 * @throws ResourceNotFoundException nếu không tìm thấy liên kết chia sẻ hợp lệ
+	 */
 	@Transactional(readOnly = true)
 	@Override
 	public FileAccessUrlResponse getShareLinkPreviewUrl(String token) {
 		return toFileAccessUrlResponse(findDocumentByShareLink(token), false);
 	}
 
+	/**
+	 * Lấy đường dẫn tải xuống (download URL) tạm thời của tài liệu thông qua mã token của liên kết chia sẻ.
+	 * <p>
+	 * Phương thức này tìm kiếm tài liệu tương ứng với token chia sẻ hợp lệ, sau đó yêu cầu dịch vụ lưu trữ S3
+	 * sinh ra một đường dẫn tạm thời (Presigned URL) được cấu hình chế độ tải file trực tiếp (attachment) về máy.
+	 *
+	 * @param token mã token của liên kết chia sẻ
+	 * @return đối tượng {@link FileAccessUrlResponse} chứa đường dẫn tải xuống tạm thời
+	 * @throws ResourceNotFoundException nếu không tìm thấy liên kết chia sẻ hợp lệ
+	 */
 	@Transactional(readOnly = true)
 	@Override
 	public FileAccessUrlResponse getShareLinkDownloadUrl(String token) {
