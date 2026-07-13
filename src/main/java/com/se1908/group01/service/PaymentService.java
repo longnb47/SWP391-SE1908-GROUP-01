@@ -270,6 +270,15 @@ public class PaymentService {
                 .build();
     }
 
+    /**
+     * Lấy thông tin gói đăng ký hiện tại của người dùng.
+     * Nếu người dùng chưa có gói đăng ký đang hoạt động,
+     * hệ thống sẽ lấy hoặc khởi tạo gói đăng ký theo quy tắc hiện có.
+     *
+     * @param email email của người dùng
+     * @return thông tin gói đăng ký hiện tại của người dùng
+     * @throws ResourceNotFoundException nếu không tìm thấy người dùng
+     */
     public SubscriptionResponse getMySubscription(String email) {
         User user = findUser(email);
 
