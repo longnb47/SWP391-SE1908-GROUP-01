@@ -95,18 +95,7 @@ public class PaymentController {
                 paymentService.getRevenue()
         );
     }
-    /**
-     * Lấy danh sách tất cả giao dịch thanh toán theo phân trang.
-     * Có thể lọc kết quả theo trạng thái thanh toán nếu được cung cấp.
-     *git status
-     * @param status trạng thái thanh toán cần lọc; nếu {@code null}
-     *               hoặc rỗng thì trả về tất cả giao dịch
-     * @param page số trang cần lấy (bắt đầu từ 0)
-     * @param size số lượng bản ghi trên mỗi trang
-     * @return danh sách giao dịch thanh toán theo phân trang
-     * @throws IllegalArgumentException nếu tham số phân trang không hợp lệ
-     *                                  hoặc trạng thái thanh toán không hợp lệ
-     */
+
     @GetMapping
     @SecurityRequirement(name = "bearerAuth")
     public ApiResponse<AdminPaymentListResponse> getAllPayments(

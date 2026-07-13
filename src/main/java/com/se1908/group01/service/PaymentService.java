@@ -255,7 +255,12 @@ public class PaymentService {
                 paymentPage.getTotalPages()
         );
     }
-
+    /**
+     * Lấy thông tin tổng quan về doanh thu từ các giao dịch thanh toán thành công.
+     *
+     * @return thông tin doanh thu bao gồm tổng doanh thu và
+     *         tổng số giao dịch thanh toán thành công
+     */
     public RevenueResponse getRevenue() {
         return RevenueResponse.builder()
                 .totalRevenue(paymentRepository.getTotalRevenue())
