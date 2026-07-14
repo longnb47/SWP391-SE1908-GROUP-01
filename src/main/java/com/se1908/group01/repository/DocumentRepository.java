@@ -11,7 +11,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.Query;
 
 /**
- * Persists document metadata and supplies ownership/storage queries used by upload entitlement checks.
+ * Lưu metadata tài liệu và cung cấp query ownership/storage cho việc kiểm tra entitlement upload.
  */
 public interface DocumentRepository extends JpaRepository<Document, Long>, JpaSpecificationExecutor<Document> {
 
@@ -37,7 +37,7 @@ public interface DocumentRepository extends JpaRepository<Document, Long>, JpaSp
 			WHERE d.userId = :userId
 			  AND d.isDeleted = false
 			""")
-	// Sum only non-deleted documents because soft-deleted files no longer consume active upload quota.
+	// Chỉ cộng tài liệu chưa bị xóa vì file soft-delete không còn tính vào quota storage đang dùng.
 	long sumActiveStorageBytesByUserId(@Param("userId") Long userId);
 
 	@Modifying

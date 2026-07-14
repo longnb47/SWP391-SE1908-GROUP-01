@@ -5,10 +5,10 @@ import java.io.IOException;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * Contract for converting uploaded files into embedded document chunks.
+ * Contract để chuyển file đã upload thành các document chunk có embedding.
  */
 public interface DocumentIngestionService {
 
-	/** Build and persist the searchable chunks for one document. */
+	/** Tạo và lưu các chunk có thể tìm kiếm cho một tài liệu. */
 	int ingest(Document document, MultipartFile file) throws IOException;
 }

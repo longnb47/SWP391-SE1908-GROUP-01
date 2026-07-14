@@ -8,8 +8,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Service
 /**
- * Performs server-side validation for uploaded document and video files.
- * This is the authoritative guard even when the frontend already rejected an invalid file.
+ * Thực hiện validation phía server cho document và video đã upload.
+ * Đây là lớp kiểm tra cuối cùng dù frontend đã reject file không hợp lệ.
  */
 public class FileValidationService {
 
@@ -38,7 +38,7 @@ public class FileValidationService {
 	}
 
 	public void validateForUpload(MultipartFile file, Integer maxNonVideoUploadSizeMb) {
-		// Reject missing or empty input before reading filename, type or size metadata.
+		// Từ chối input thiếu hoặc rỗng trước khi đọc filename, type hay size metadata.
 		if (file == null) {
 			throw new IllegalArgumentException("File is required");
 		}
@@ -56,18 +56,18 @@ public class FileValidationService {
 		var isImage = StringUtils.hasText(contentType) && contentType.toLowerCase().startsWith("image/");
 		var isVideo = isVideoFile(ext, contentType);
 
-		// The extension/content-type combination must belong to a supported document, image or video category.
+		// Extension/content-type phải thuộc nhóm document, image hoặc video được hỗ trợ.
 		if (!StringUtils.hasText(ext) || (!ALLOWED_DOC_EXTENSIONS.contains(ext) && !isImage && !isVideo)) {
 			throw new IllegalArgumentException("Unsupported file extension: " + ext);
 		}
 
 		if (isVideo) {
-			// Videos use the application-wide byte limit; plan video permission is checked separately.
+			// Video dùng giới hạn bytes chung của application; quyền video của plan được kiểm tra riêng.
 			if (file.getSize() > maxVideoFileSize) {
 				throw new IllegalArgumentException("Video file exceeds " + (maxVideoFileSize / 1024 / 1024) + "MB limit");
 			}
 		} else {
-			// Non-video files use maxUploadSizeMb from the user's active subscription plan.
+			// File không phải video dùng maxUploadSizeMb từ subscription plan đang active của user.
 			var maxNonVideoBytes = toBytes(maxNonVideoUploadSizeMb);
 			if (file.getSize() > maxNonVideoBytes) {
 				throw new IllegalArgumentException("File exceeds " + maxNonVideoUploadSizeMb + "MB limit");

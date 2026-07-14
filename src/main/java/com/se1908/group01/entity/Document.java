@@ -21,8 +21,8 @@ import java.time.Instant;
 		}
 )
 /**
- * JPA representation of the uploaded file metadata and its processing status.
- * Binary content is stored in S3; this table stores ownership, object key, size, visibility and lifecycle state.
+ * Đại diện JPA cho metadata và trạng thái xử lý của file đã upload.
+ * Nội dung binary nằm trong S3; bảng này lưu owner, object key, kích thước, visibility và lifecycle state.
  */
 public class Document {
 
@@ -70,7 +70,7 @@ public class Document {
 
 	@PrePersist
 	void prePersist() {
-		// Supply defaults so every newly persisted upload starts with timestamps and a predictable lifecycle state.
+		// Gán giá trị mặc định để mọi upload mới đều có timestamp và lifecycle state xác định.
 		if (uploadedAt == null) {
 			uploadedAt = Instant.now();
 		}

@@ -5,13 +5,13 @@ import java.nio.file.Path;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * Contract for preserving upload bytes and dispatching asynchronous ingestion.
+ * Contract để giữ lại bytes upload và dispatch ingestion bất đồng bộ.
  */
 public interface DocumentIngestionJobService {
 
-	/** Copy request-scoped multipart bytes to a file that survives until async ingestion runs. */
+	/** Copy bytes multipart thuộc request vào file tồn tại đến khi async ingestion chạy. */
 	Path copyToTempFile(MultipartFile file) throws IOException;
 
-	/** Parse and index the committed document in a worker thread. */
+	/** Parse và index tài liệu đã commit trong worker thread. */
 	void ingestAsync(Long documentId, Path filePath, String originalFilename, String contentType);
 }

@@ -6,7 +6,7 @@ import java.io.Serializable;
 import java.util.Objects;
 
 @Embeddable
-/** Composite key for the document_tag join row. */
+/** Composite key cho một dòng liên kết trong document_tag. */
 public class DocumentTagId implements Serializable {
 
 	@Column(name = "document_id")

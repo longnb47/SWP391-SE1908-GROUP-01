@@ -17,7 +17,7 @@ import java.time.Instant;
 		uniqueConstraints = @UniqueConstraint(name = "uk_document_folder_user_name", columnNames = {"user_id", "name"})
 )
 /**
- * User-owned folder metadata referenced by document.folder_id after upload.
+ * Metadata folder thuộc user, được document.folder_id tham chiếu sau upload.
  */
 public class DocumentFolder {
 

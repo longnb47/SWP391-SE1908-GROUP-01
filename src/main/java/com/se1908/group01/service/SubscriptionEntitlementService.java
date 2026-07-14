@@ -16,8 +16,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Service
 /**
- * Centralizes subscription checks shared by upload and AI workflows.
- * Upload-specific rules here include video availability and total active storage consumption.
+ * Tập trung các subscription check dùng chung cho upload và AI workflow.
+ * Rule riêng của upload gồm quyền video và tổng storage đang active.
  */
 public class SubscriptionEntitlementService {
 
@@ -43,7 +43,7 @@ public class SubscriptionEntitlementService {
 
 	@Transactional
 	public SubscriptionPlan getActivePlan(Long userId) {
-		// Resolve or create the user's active subscription before reading any upload entitlement.
+		// Lấy hoặc tạo subscription active của user trước khi đọc entitlement upload.
 		if (userId == null) {
 			throw new IllegalArgumentException("userId is required");
 		}
@@ -64,11 +64,11 @@ public class SubscriptionEntitlementService {
 			SubscriptionPlan plan,
 			boolean video
 	) {
-		// A valid video file is still rejected when the active plan does not enable video uploads.
+		// File video hợp lệ vẫn bị từ chối nếu plan active không bật quyền upload video.
 		if (video && !Boolean.TRUE.equals(plan.getVideoUpload())) {
 			throw new IllegalArgumentException("Video upload is not allowed by your subscription plan");
 		}
-		// Storage is checked against existing active documents plus the incoming file size.
+		// Storage được kiểm tra bằng các document active hiện có cộng với size file sắp upload.
 		enforceStorageLimit(userId, plan, file.getSize());
 	}
 
@@ -113,7 +113,7 @@ public class SubscriptionEntitlementService {
 			throw new IllegalStateException("Active subscription plan storage limit is not configured");
 		}
 		var storageLimitBytes = storageLimitGb * BYTES_PER_GB;
-		// The repository sum excludes deleted documents, matching the user's active storage usage.
+		// Tổng từ repository loại document đã xóa, đúng với storage active user đang sử dụng.
 		var usedBytes = documentRepository.sumActiveStorageBytesByUserId(userId);
 		if (usedBytes + incomingBytes > storageLimitBytes) {
 			throw new IllegalArgumentException("Storage limit exceeded for your subscription plan");

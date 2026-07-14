@@ -28,8 +28,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Service
 /**
- * Calls the optional Docling service for structured extraction and chunking.
- * DOCX conversion uses Markdown; other supported formats use the hybrid chunk endpoint.
+ * Gọi Docling service tùy chọn để extract và chunk tài liệu có cấu trúc.
+ * DOCX được convert qua Markdown; format khác dùng hybrid chunk endpoint.
  */
 public class DoclingServiceImpl implements DoclingService {
 
@@ -83,7 +83,7 @@ public class DoclingServiceImpl implements DoclingService {
 
 	@Override
 	public boolean supports(MultipartFile file) {
-		// Docling is selected only when enabled and the file extension is in its supported set.
+		// Chỉ chọn Docling khi service được bật và extension nằm trong tập được hỗ trợ.
 		if (!properties.isEnabled() || file == null) {
 			return false;
 		}
@@ -115,7 +115,7 @@ public class DoclingServiceImpl implements DoclingService {
 		DoclingUnavailableException lastUnavailableException = null;
 		for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
 			try {
-				// Retry transient service unavailability before the ingestion layer decides whether to fall back.
+				// Retry lỗi service tạm thời trước khi ingestion quyết định có fallback hay không.
 				return requestChunks(file, extension);
 			} catch (DoclingUnavailableException exception) {
 				lastUnavailableException = exception;

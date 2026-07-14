@@ -4,7 +4,7 @@ import com.se1908.group01.entity.DocumentStatus;
 import java.time.Instant;
 
 /**
- * Metadata returned immediately after upload; ingestion status may later change from UPLOADED to READY or FAILED.
+ * Metadata trả về ngay sau upload; status ingestion có thể đổi từ UPLOADED sang READY hoặc FAILED.
  */
 public class DocumentUploadResponse {
 

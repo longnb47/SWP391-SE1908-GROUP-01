@@ -6,7 +6,7 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 /**
- * Resolves folders by owner so post-upload folder placement cannot target another user's folder.
+ * Tìm folder theo owner để thao tác sau upload không thể trỏ tới folder của user khác.
  */
 public interface DocumentFolderRepository extends JpaRepository<DocumentFolder, Long> {
 

@@ -1,6 +1,6 @@
 package com.se1908.group01.entity;
 
-/** Lifecycle states returned to the UI while document ingestion runs asynchronously. */
+/** Các lifecycle state trả về UI trong khi ingestion tài liệu chạy bất đồng bộ. */
 public enum DocumentStatus {
 	UPLOADED,
 	PARSING,

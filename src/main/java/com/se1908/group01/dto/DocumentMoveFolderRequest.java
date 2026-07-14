@@ -1,6 +1,6 @@
 package com.se1908.group01.dto;
 
-/** Request body used by the post-upload folder placement endpoint. */
+/** Request body được dùng bởi endpoint đưa tài liệu vào folder sau upload. */
 public class DocumentMoveFolderRequest {
 
 	private Long folderId;

@@ -43,8 +43,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Service
 /**
- * Implements the document upload transaction and coordinates storage with asynchronous indexing.
- * The method first accepts the file into private S3 storage, then saves database metadata and a temp copy for ingestion.
+ * Cài đặt transaction upload tài liệu và điều phối storage với indexing bất đồng bộ.
+ * Method đưa file vào S3 private trước, sau đó lưu metadata database và bản copy tạm cho ingestion.
  */
 public class DocumentServiceImpl implements DocumentService {
 
@@ -106,16 +106,16 @@ public class DocumentServiceImpl implements DocumentService {
 	@Transactional(rollbackFor = Exception.class)
 	@Override
 	/**
-	 * Uploads one document for the authenticated user.
-	 * Business flow: resolve active plan -> validate file and entitlement -> upload to S3 -> save metadata -> schedule ingestion.
+	 * Upload một tài liệu cho user đã xác thực.
+	 * Business flow: lấy plan active -> validate file và entitlement -> upload S3 -> lưu metadata -> schedule ingestion.
 	 */
 	public DocumentUploadResponse upload(MultipartFile file, Boolean isPublic) throws IOException {
-		// Resolve the authenticated owner before applying plan-specific upload rules.
+		// Xác định owner đã xác thực trước khi áp dụng rule upload theo plan.
 		var userId = currentUserService.getCurrentUserId();
 		var activePlan = subscriptionEntitlementService.getActivePlan(userId);
-		// Enforce type and per-file size rules before any external storage side effect occurs.
+		// Enforce type và size từng file trước khi tạo side effect với external storage.
 		fileValidationService.validateForUpload(file, activePlan.getMaxUploadSizeMb());
-		// Enforce video permission and aggregate storage quota for the active subscription.
+		// Enforce quyền video và storage quota tổng của subscription active.
 		subscriptionEntitlementService.enforceUploadEntitlements(
 				userId,
 				file,
@@ -126,13 +126,13 @@ public class DocumentServiceImpl implements DocumentService {
 		var originalName = FilenameSanitizer.sanitize(file.getOriginalFilename());
 		var key = buildObjectKey(userId, originalName);
 
-		// Store the original file privately in S3; the database stores only metadata and the object key.
+		// Lưu file gốc ở chế độ private trong S3; database chỉ lưu metadata và object key.
 		s3StorageService.uploadPrivate(file, key);
 
 		Document doc;
 		Path ingestionFile = null;
 		try {
-			// Create the database record in UPLOADED state before asynchronous parsing begins.
+			// Tạo record database ở state UPLOADED trước khi parsing bất đồng bộ bắt đầu.
 			doc = new Document();
 			doc.setUserId(userId);
 			doc.setOriginalFileName(originalName);
@@ -143,12 +143,12 @@ public class DocumentServiceImpl implements DocumentService {
 			doc.setStatus(DocumentStatus.UPLOADED);
 
 			doc = documentRepository.save(doc);
-			// MultipartFile is request-scoped, so copy it to disk for the async ingestion worker.
+			// MultipartFile chỉ thuộc request, nên copy xuống disk cho async ingestion worker.
 			ingestionFile = documentIngestionJobService.copyToTempFile(file);
-			// Start ingestion only after the metadata transaction commits successfully.
+			// Chỉ bắt đầu ingestion sau khi transaction metadata commit thành công.
 			registerIngestionAfterCommit(doc.getDocumentId(), ingestionFile, originalName, file.getContentType());
 		} catch (RuntimeException | IOException ex) {
-			// Remove the S3 object and temp file when metadata setup fails after the S3 upload.
+			// Xóa object S3 và temp file nếu setup metadata thất bại sau khi upload S3.
 			try {
 				s3StorageService.delete(key);
 			} catch (RuntimeException ignored) {
@@ -215,7 +215,7 @@ public class DocumentServiceImpl implements DocumentService {
 		var userId = currentUserService.getCurrentUserId();
 		var doc = findOwnedActiveDocument(userId, documentId);
 		if (folderId != null) {
-			// A document can only be moved into a folder owned by the same authenticated user.
+			// Document chỉ được đưa vào folder thuộc cùng user đã xác thực.
 			documentFolderRepository.findByFolderIdAndUserId(folderId, userId)
 					.orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
 		}
@@ -588,7 +588,7 @@ public class DocumentServiceImpl implements DocumentService {
 			String contentType
 	) {
 		if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-			// There is no active transaction to wait for, so dispatch the async job immediately.
+			// Không có transaction active để chờ, nên dispatch async job ngay lập tức.
 			documentIngestionJobService.ingestAsync(documentId, ingestionFile, originalFilename, contentType);
 			return;
 		}
@@ -596,14 +596,14 @@ public class DocumentServiceImpl implements DocumentService {
 		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
 			@Override
 			public void afterCommit() {
-				// The document id is now durable, so the worker can safely reload it and index the temp file.
+				// Document id đã bền vững, worker có thể load lại và index temp file an toàn.
 				documentIngestionJobService.ingestAsync(documentId, ingestionFile, originalFilename, contentType);
 			}
 
 			@Override
 			public void afterCompletion(int status) {
 				if (status != STATUS_COMMITTED) {
-					// Do not leave a temp copy when the surrounding database transaction rolls back.
+					// Không để lại bản copy tạm khi transaction database bao quanh bị rollback.
 					deleteTempFileQuietly(ingestionFile);
 				}
 			}

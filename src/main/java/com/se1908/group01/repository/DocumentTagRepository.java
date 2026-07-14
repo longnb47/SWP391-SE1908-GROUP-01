@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 /**
- * Repository for the many-to-many document/tag links created after upload.
+ * Repository cho các liên kết nhiều-nhiều document/tag được tạo sau upload.
  */
 public interface DocumentTagRepository extends JpaRepository<DocumentTag, DocumentTagId> {
 

@@ -18,8 +18,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Service
 /**
- * Bridges the synchronous upload request and the asynchronous document indexing pipeline.
- * It owns the temp-file lifecycle because MultipartFile cannot be relied on after the HTTP request ends.
+ * Kết nối request upload đồng bộ với pipeline indexing tài liệu bất đồng bộ.
+ * Service quản lý vòng đời temp file vì không thể dùng MultipartFile sau khi HTTP request kết thúc.
  */
 public class DocumentIngestionJobServiceImpl implements DocumentIngestionJobService {
 
@@ -37,7 +37,7 @@ public class DocumentIngestionJobServiceImpl implements DocumentIngestionJobServ
 
 	@Override
 	public Path copyToTempFile(MultipartFile file) throws IOException {
-		// Preserve the request bytes on disk so the async worker can read them after the request returns.
+		// Lưu bytes của request xuống disk để async worker đọc được sau khi request kết thúc.
 		var tempFile = Files.createTempFile("document-ingestion-", ".tmp");
 		try (var inputStream = file.getInputStream()) {
 			Files.copy(inputStream, tempFile, StandardCopyOption.REPLACE_EXISTING);
@@ -48,26 +48,26 @@ public class DocumentIngestionJobServiceImpl implements DocumentIngestionJobServ
 	@Async
 	@Override
 	/**
-	 * Parses, chunks and embeds the document outside the upload request thread.
-	 * Any ingestion failure marks the document FAILED, and the temp file is deleted in all cases.
+	 * Parse, chunk và embed tài liệu bên ngoài thread xử lý upload.
+	 * Mọi lỗi ingestion đều chuyển document thành FAILED và temp file luôn được xóa.
 	 */
 	public void ingestAsync(Long documentId, Path filePath, String originalFilename, String contentType) {
 		try {
-			// Reload the committed entity because this method executes in a different thread and transaction context.
+			// Load lại entity đã commit vì method chạy ở thread và transaction context khác.
 			var document = documentRepository.findById(documentId)
 					.orElseThrow(() -> new IllegalArgumentException("Document not found"));
 			var multipartFile = new PathMultipartFile(filePath, originalFilename, contentType);
 			documentIngestionService.ingest(document, multipartFile);
 			log.info("Document ingestion completed for documentId={}", documentId);
 		} catch (Exception ex) {
-			// Keep the upload record visible while exposing that its searchable index was not created successfully.
+			// Giữ record upload để UI thấy được, đồng thời thể hiện index tìm kiếm chưa tạo thành công.
 			log.error("Document ingestion failed for documentId={}", documentId, ex);
 			documentRepository.findById(documentId).ifPresent(document -> {
 				document.setStatus(DocumentStatus.FAILED);
 				documentRepository.save(document);
 			});
 		} finally {
-			// The temp file is no longer needed after success or failure of ingestion.
+			// Temp file không còn cần thiết sau khi ingestion thành công hoặc thất bại.
 			deleteTempFile(filePath);
 		}
 	}

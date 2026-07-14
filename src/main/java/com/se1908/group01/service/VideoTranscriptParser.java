@@ -27,7 +27,7 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 
 @Service
 /**
- * Produces transcript text for uploaded videos so video content can enter the same chunk/embedding pipeline.
+ * Tạo transcript cho video đã upload để nội dung video đi vào cùng pipeline chunk/embedding.
  */
 public class VideoTranscriptParser {
 
@@ -54,7 +54,7 @@ public class VideoTranscriptParser {
     }
 
     public String parse(Long documentId, String s3Key, String contentType) {
-        // Video parsing reads the original object using its document id/S3 key and returns text for embedding.
+        // Video parsing đọc object gốc bằng document id/S3 key và trả về text cho embedding.
         if (speechClient == null || storage == null) {
             throw new IllegalStateException(
                     "Google Cloud Speech-to-Text is not configured. "

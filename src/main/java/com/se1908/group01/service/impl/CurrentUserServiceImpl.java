@@ -12,8 +12,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 /**
- * Resolves the authenticated application's user id from the Spring Security context.
- * Upload ownership and subscription checks use this id instead of trusting a client-supplied owner id.
+ * Xác định user id của application đã xác thực từ Spring Security context.
+ * Ownership upload và subscription check dùng id này thay vì tin owner id do client gửi lên.
  */
 public class CurrentUserServiceImpl implements CurrentUserService {
 
@@ -25,7 +25,7 @@ public class CurrentUserServiceImpl implements CurrentUserService {
 
 	@Override
 	public Long getCurrentUserId() {
-		// Reject upload requests that did not produce an authenticated JWT security context.
+		// Từ chối request upload không tạo được security context đã xác thực bằng JWT.
 		var authentication = SecurityContextHolder.getContext().getAuthentication();
 		if (authentication == null
 				|| !authentication.isAuthenticated()

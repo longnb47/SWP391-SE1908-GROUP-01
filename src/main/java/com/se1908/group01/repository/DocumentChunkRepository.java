@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 /**
- * Stores and retrieves the chunks created by the asynchronous document ingestion pipeline.
+ * Lưu và truy vấn các chunk được tạo bởi pipeline ingestion tài liệu bất đồng bộ.
  */
 public interface DocumentChunkRepository extends JpaRepository<DocumentChunk, Long> {
 

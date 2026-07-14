@@ -21,8 +21,8 @@ import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignReques
 
 @Service
 /**
- * Stores original document bytes in the configured private S3 bucket.
- * The upload service keeps the generated object key in the database and later creates signed read URLs when needed.
+ * Lưu bytes tài liệu gốc vào private S3 bucket đã cấu hình.
+ * Upload service giữ object key trong database và tạo signed read URL khi cần đọc file.
  */
 public class S3StorageServiceImpl implements S3StorageService {
 
@@ -38,7 +38,7 @@ public class S3StorageServiceImpl implements S3StorageService {
 
 	@Override
 	public void uploadPrivate(MultipartFile file, String objectKey) throws IOException {
-		// Fail fast when storage configuration is missing instead of creating incomplete document metadata.
+		// Fail fast khi thiếu cấu hình storage thay vì tạo metadata tài liệu không hoàn chỉnh.
 		if (s3Client == null) {
 			throw new IllegalStateException("S3 is not configured (missing aws.region/AWS credentials)");
 		}
@@ -53,7 +53,7 @@ public class S3StorageServiceImpl implements S3StorageService {
 				.contentLength(file.getSize())
 				.build();
 
-		// Stream the request file directly to S3 and keep the object private by default.
+		// Stream file từ request trực tiếp lên S3 và mặc định giữ object ở chế độ private.
 		try (var in = file.getInputStream()) {
 			s3Client.putObject(request, RequestBody.fromInputStream(in, file.getSize()));
 		}

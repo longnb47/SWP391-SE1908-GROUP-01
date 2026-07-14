@@ -16,7 +16,7 @@ import java.time.Instant;
 @Entity
 @Table(name = "document_chunk")
 /**
- * Stores one searchable text chunk and its serialized embedding vector for a document.
+ * Lưu một text chunk có thể tìm kiếm và embedding vector đã serialize của tài liệu.
  */
 public class DocumentChunk {
 

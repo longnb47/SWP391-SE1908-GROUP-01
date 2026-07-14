@@ -22,8 +22,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Service
 /**
- * Converts an uploaded document into searchable vector chunks.
- * Runtime stages: PARSING -> chunk creation -> INDEXING/embedding -> document_chunk persistence -> READY.
+ * Chuyển tài liệu đã upload thành các vector chunk có thể tìm kiếm.
+ * Các stage runtime: PARSING -> tạo chunk -> INDEXING/embedding -> lưu document_chunk -> READY.
  */
 public class DocumentIngestionServiceImpl implements DocumentIngestionService {
 
@@ -53,15 +53,15 @@ public class DocumentIngestionServiceImpl implements DocumentIngestionService {
 
 	@Override
 	/**
-	 * Builds and stores the complete searchable representation for one document.
-	 * Called by DocumentIngestionJobServiceImpl after the upload transaction has committed.
+	 * Tạo và lưu toàn bộ representation có thể tìm kiếm của một tài liệu.
+	 * Được DocumentIngestionJobServiceImpl gọi sau khi transaction upload đã commit.
 	 */
 	public int ingest(Document document, MultipartFile file) throws IOException {
 		if (document == null || document.getDocumentId() == null) {
 			throw new IllegalArgumentException("Document is required");
 		}
 
-		// Mark the document as being parsed before extracting text from the uploaded bytes.
+		// Đánh dấu document đang parse trước khi extract text từ bytes đã upload.
 		updateStatus(document, DocumentStatus.PARSING);
 		var chunks = createChunks(document, file);
 
@@ -73,7 +73,7 @@ public class DocumentIngestionServiceImpl implements DocumentIngestionService {
 			throw new IllegalStateException("No text content could be extracted from document");
 		}
 
-		// Embedding starts only after text extraction succeeds; vectors are required for semantic search/chat.
+		// Chỉ embedding sau khi extract text thành công; vector cần cho semantic search/chat.
 		updateStatus(document, DocumentStatus.INDEXING);
 		var texts = chunks.stream().map(ChunkData::getContent).toList();
 		var vectors = embeddingService.embedVectors(texts);
@@ -82,7 +82,7 @@ public class DocumentIngestionServiceImpl implements DocumentIngestionService {
 		}
 
 		List<DocumentChunk> entities = new ArrayList<>(chunks.size());
-		// Map each text chunk to its document, page metadata and serialized embedding vector.
+		// Gắn mỗi text chunk với document, page metadata và embedding vector đã serialize.
 		for (int i = 0; i < chunks.size(); i++) {
 			var c = chunks.get(i);
 			var e = new DocumentChunk();
@@ -94,7 +94,7 @@ public class DocumentIngestionServiceImpl implements DocumentIngestionService {
 			entities.add(e);
 		}
 
-		// Persist chunks and vectors together so READY means the document has searchable indexed content.
+		// Lưu chunk và vector cùng nhau để READY có nghĩa document đã có nội dung được index.
 		documentChunkRepository.saveAll(entities);
 		updateStatus(document, DocumentStatus.READY);
 		return entities.size();
@@ -106,7 +106,7 @@ public class DocumentIngestionServiceImpl implements DocumentIngestionService {
 	) throws IOException {
 		if (doclingService.supports(file)) {
 			try {
-				// Prefer Docling for formats it supports because it preserves structured document content.
+				// Ưu tiên Docling cho format được hỗ trợ vì nó giữ nội dung tài liệu có cấu trúc.
 				var chunks = doclingService.chunk(file);
 				log.info(
 						"Docling created {} chunks for documentId={}",
@@ -116,7 +116,7 @@ public class DocumentIngestionServiceImpl implements DocumentIngestionService {
 				return chunks;
 			} catch (DoclingUnavailableException exception) {
 				if (!doclingService.isFallbackEnabled()) {
-					// Without fallback, Docling availability is required for this file type.
+					// Nếu không bật fallback, file type này bắt buộc phải dùng được Docling.
 					throw exception;
 				}
 				log.warn(
@@ -133,7 +133,7 @@ public class DocumentIngestionServiceImpl implements DocumentIngestionService {
 			}
 		}
 
-		// Use the legacy parser/chunker for unsupported formats or an allowed Docling fallback.
+		// Dùng parser/chunker cũ cho format không hỗ trợ hoặc khi Docling được phép fallback.
 		var segments = parsingService.extractSegments(file, document);
 		return chunkingService.chunk(segments);
 	}
