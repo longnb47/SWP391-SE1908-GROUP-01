@@ -7,6 +7,10 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
+/**
+ * Performs server-side validation for uploaded document and video files.
+ * This is the authoritative guard even when the frontend already rejected an invalid file.
+ */
 public class FileValidationService {
 
 	private static final int DEFAULT_MAX_DOC_MB = 20;
@@ -34,6 +38,7 @@ public class FileValidationService {
 	}
 
 	public void validateForUpload(MultipartFile file, Integer maxNonVideoUploadSizeMb) {
+		// Reject missing or empty input before reading filename, type or size metadata.
 		if (file == null) {
 			throw new IllegalArgumentException("File is required");
 		}
@@ -51,15 +56,18 @@ public class FileValidationService {
 		var isImage = StringUtils.hasText(contentType) && contentType.toLowerCase().startsWith("image/");
 		var isVideo = isVideoFile(ext, contentType);
 
+		// The extension/content-type combination must belong to a supported document, image or video category.
 		if (!StringUtils.hasText(ext) || (!ALLOWED_DOC_EXTENSIONS.contains(ext) && !isImage && !isVideo)) {
 			throw new IllegalArgumentException("Unsupported file extension: " + ext);
 		}
 
 		if (isVideo) {
+			// Videos use the application-wide byte limit; plan video permission is checked separately.
 			if (file.getSize() > maxVideoFileSize) {
 				throw new IllegalArgumentException("Video file exceeds " + (maxVideoFileSize / 1024 / 1024) + "MB limit");
 			}
 		} else {
+			// Non-video files use maxUploadSizeMb from the user's active subscription plan.
 			var maxNonVideoBytes = toBytes(maxNonVideoUploadSizeMb);
 			if (file.getSize() > maxNonVideoBytes) {
 				throw new IllegalArgumentException("File exceeds " + maxNonVideoUploadSizeMb + "MB limit");

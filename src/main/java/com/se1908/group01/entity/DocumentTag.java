@@ -13,6 +13,9 @@ import java.time.Instant;
 
 @Entity
 @Table(name = "document_tag")
+/**
+ * Join entity connecting a document and a user-owned tag after upload.
+ */
 public class DocumentTag {
 
 	@EmbeddedId

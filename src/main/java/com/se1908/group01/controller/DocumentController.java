@@ -32,6 +32,10 @@ import software.amazon.awssdk.services.s3.model.S3Exception;
 
 @RestController
 @RequestMapping("/api/documents")
+/**
+ * Exposes document APIs used by the dashboard, including multipart upload.
+ * Runtime flow: React UploadModal -> POST /api/documents/upload -> DocumentService.
+ */
 public class DocumentController {
 
 	private final DocumentService documentService;
@@ -55,6 +59,10 @@ public class DocumentController {
 	}
 
 	@PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	/**
+	 * Accepts the uploaded multipart file and delegates all validation and persistence decisions to the service layer.
+	 * The response contains document metadata; parsing and embedding continue asynchronously after the transaction commits.
+	 */
 	public ApiResponse<DocumentUploadResponse> upload(
 			@RequestParam("file") MultipartFile file,
 			@RequestParam(value = "isPublic", required = false) Boolean isPublic
@@ -145,6 +153,9 @@ public class DocumentController {
 	}
 
 	@PatchMapping("/{documentId}/folder")
+	/**
+	 * Applies the optional folder placement requested by UploadModal after the upload response returns a document id.
+	 */
 	public ApiResponse<DocumentUploadResponse> moveDocumentToFolder(
 			@PathVariable Long documentId,
 			@RequestBody DocumentMoveFolderRequest request

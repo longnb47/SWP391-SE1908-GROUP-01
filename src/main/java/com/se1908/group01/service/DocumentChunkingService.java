@@ -12,6 +12,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 @Service
+/**
+ * Splits extracted text into bounded chunks while preserving page metadata for later citations.
+ */
 public class DocumentChunkingService {
 
 	private static final String PAGE_NUMBER_METADATA = "pageNumber";
@@ -33,6 +36,7 @@ public class DocumentChunkingService {
 		int chunkIndex = 0;
 
 		for (TextSegment segment : segments) {
+			// Skip empty parser output so the embedding provider receives only meaningful text.
 			if (segment == null || !StringUtils.hasText(segment.getText())) {
 				continue;
 			}
@@ -43,6 +47,7 @@ public class DocumentChunkingService {
 				metadata.put(PAGE_NUMBER_METADATA, pageNumber);
 			}
 
+			// Split each parsed segment with the configured token/character limits and retain its page number.
 			for (Document splitDocument : textSplitter.split(Document.builder().text(text).metadata(metadata).build())) {
 				var piece = splitDocument.getText();
 				if (StringUtils.hasText(piece)) {

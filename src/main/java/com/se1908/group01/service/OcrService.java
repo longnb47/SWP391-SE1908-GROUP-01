@@ -17,6 +17,9 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
+/**
+ * Extracts text from uploaded image content or rendered PDF pages when direct text is insufficient.
+ */
 public class OcrService {
 
 	private final OcrProperties properties;
@@ -30,6 +33,7 @@ public class OcrService {
 	}
 
 	public String extractText(MultipartFile file) throws IOException {
+		// Image uploads reach the ingestion pipeline as OCR text segments.
 		if (!isEnabled()) {
 			return "";
 		}

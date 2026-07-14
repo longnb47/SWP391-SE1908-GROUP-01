@@ -15,6 +15,9 @@ import java.time.Instant;
 
 @Entity
 @Table(name = "document_chunk")
+/**
+ * Stores one searchable text chunk and its serialized embedding vector for a document.
+ */
 public class DocumentChunk {
 
 	@Id

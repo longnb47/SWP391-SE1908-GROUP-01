@@ -27,6 +27,10 @@ import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
+/**
+ * Calls the optional Docling service for structured extraction and chunking.
+ * DOCX conversion uses Markdown; other supported formats use the hybrid chunk endpoint.
+ */
 public class DoclingServiceImpl implements DoclingService {
 
 	private static final Logger log = LoggerFactory.getLogger(DoclingServiceImpl.class);
@@ -79,6 +83,7 @@ public class DoclingServiceImpl implements DoclingService {
 
 	@Override
 	public boolean supports(MultipartFile file) {
+		// Docling is selected only when enabled and the file extension is in its supported set.
 		if (!properties.isEnabled() || file == null) {
 			return false;
 		}
@@ -110,6 +115,7 @@ public class DoclingServiceImpl implements DoclingService {
 		DoclingUnavailableException lastUnavailableException = null;
 		for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
 			try {
+				// Retry transient service unavailability before the ingestion layer decides whether to fall back.
 				return requestChunks(file, extension);
 			} catch (DoclingUnavailableException exception) {
 				lastUnavailableException = exception;

@@ -15,6 +15,10 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
+/**
+ * Centralizes subscription checks shared by upload and AI workflows.
+ * Upload-specific rules here include video availability and total active storage consumption.
+ */
 public class SubscriptionEntitlementService {
 
 	private static final long BYTES_PER_GB = 1024L * 1024L * 1024L;
@@ -39,6 +43,7 @@ public class SubscriptionEntitlementService {
 
 	@Transactional
 	public SubscriptionPlan getActivePlan(Long userId) {
+		// Resolve or create the user's active subscription before reading any upload entitlement.
 		if (userId == null) {
 			throw new IllegalArgumentException("userId is required");
 		}
@@ -59,9 +64,11 @@ public class SubscriptionEntitlementService {
 			SubscriptionPlan plan,
 			boolean video
 	) {
+		// A valid video file is still rejected when the active plan does not enable video uploads.
 		if (video && !Boolean.TRUE.equals(plan.getVideoUpload())) {
 			throw new IllegalArgumentException("Video upload is not allowed by your subscription plan");
 		}
+		// Storage is checked against existing active documents plus the incoming file size.
 		enforceStorageLimit(userId, plan, file.getSize());
 	}
 
@@ -106,6 +113,7 @@ public class SubscriptionEntitlementService {
 			throw new IllegalStateException("Active subscription plan storage limit is not configured");
 		}
 		var storageLimitBytes = storageLimitGb * BYTES_PER_GB;
+		// The repository sum excludes deleted documents, matching the user's active storage usage.
 		var usedBytes = documentRepository.sumActiveStorageBytesByUserId(userId);
 		if (usedBytes + incomingBytes > storageLimitBytes) {
 			throw new IllegalArgumentException("Storage limit exceeded for your subscription plan");

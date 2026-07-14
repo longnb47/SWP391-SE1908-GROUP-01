@@ -42,6 +42,10 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
+/**
+ * Extracts text segments from supported documents, images and videos for indexing.
+ * The selected parser depends on content type/extension and may include OCR or video transcription.
+ */
 public class DocumentParsingService {
 
 	private final OcrService ocrService;
@@ -60,15 +64,18 @@ public class DocumentParsingService {
 		var ext = FileExtensionUtil.getExtensionLower(filename);
 		var contentType = file.getContentType();
 		if (StringUtils.hasText(contentType) && contentType.toLowerCase().startsWith("image/")) {
+			// Images become searchable through OCR text rather than raw binary content.
 			return extractImage(file);
 		}
 		if (StringUtils.hasText(contentType) && contentType.toLowerCase().startsWith("video/")) {
+			// Videos are represented by a transcript generated from the stored object.
 			return extractVideo(document, contentType);
 		}
 		if (!StringUtils.hasText(ext)) {
 			throw new IllegalArgumentException("Cannot detect file extension");
 		}
 
+		// Route each supported extension to the parser that can preserve its text/page structure.
 		return switch (ext) {
 			case "pdf" -> extractPdf(file);
 			case "docx" -> extractDocx(file);
@@ -94,6 +101,7 @@ public class DocumentParsingService {
 
 			List<TextSegment> segments = new ArrayList<>();
 			int pages = doc.getNumberOfPages();
+			// Process every PDF page independently so page numbers can be retained in document_chunk.
 			for (int i = 1; i <= pages; i++) {
 				stripper.setStartPage(i);
 				stripper.setEndPage(i);
@@ -102,6 +110,7 @@ public class DocumentParsingService {
 				int imageCount = countImages(doc.getPage(i - 1));
 				var ocrText = "";
 				if (shouldOcrPdfPage(pageText)) {
+					// OCR is used for scanned or nearly empty pages where direct PDF text extraction is insufficient.
 					var pageImage = renderer.renderImageWithDPI(i - 1, ocrProperties.getPdfDpi(), ImageType.RGB);
 					ocrText = ocrService.extractText(pageImage);
 				}

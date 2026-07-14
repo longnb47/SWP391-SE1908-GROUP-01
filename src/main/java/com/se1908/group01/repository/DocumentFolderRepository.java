@@ -5,6 +5,9 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+/**
+ * Resolves folders by owner so post-upload folder placement cannot target another user's folder.
+ */
 public interface DocumentFolderRepository extends JpaRepository<DocumentFolder, Long> {
 
 	List<DocumentFolder> findByUserIdOrderByNameAsc(Long userId);

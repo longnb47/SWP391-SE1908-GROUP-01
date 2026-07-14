@@ -12,6 +12,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 public interface DocumentService {
 
+	/**
+	 * Creates document metadata and schedules ingestion for a newly uploaded file.
+	 * Called by DocumentController for POST /api/documents/upload.
+	 */
 	DocumentUploadResponse upload(MultipartFile file, Boolean isPublic) throws IOException;
 
 	DocumentUploadResponse moveToTrash(Long documentId);

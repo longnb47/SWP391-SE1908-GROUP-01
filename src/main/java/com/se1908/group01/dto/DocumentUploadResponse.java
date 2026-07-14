@@ -3,6 +3,9 @@ package com.se1908.group01.dto;
 import com.se1908.group01.entity.DocumentStatus;
 import java.time.Instant;
 
+/**
+ * Metadata returned immediately after upload; ingestion status may later change from UPLOADED to READY or FAILED.
+ */
 public class DocumentUploadResponse {
 
 	private Long documentId;

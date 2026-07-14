@@ -20,6 +20,10 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 
 @Service
+/**
+ * Stores original document bytes in the configured private S3 bucket.
+ * The upload service keeps the generated object key in the database and later creates signed read URLs when needed.
+ */
 public class S3StorageServiceImpl implements S3StorageService {
 
 	private final S3Client s3Client;
@@ -34,6 +38,7 @@ public class S3StorageServiceImpl implements S3StorageService {
 
 	@Override
 	public void uploadPrivate(MultipartFile file, String objectKey) throws IOException {
+		// Fail fast when storage configuration is missing instead of creating incomplete document metadata.
 		if (s3Client == null) {
 			throw new IllegalStateException("S3 is not configured (missing aws.region/AWS credentials)");
 		}
@@ -48,6 +53,7 @@ public class S3StorageServiceImpl implements S3StorageService {
 				.contentLength(file.getSize())
 				.build();
 
+		// Stream the request file directly to S3 and keep the object private by default.
 		try (var in = file.getInputStream()) {
 			s3Client.putObject(request, RequestBody.fromInputStream(in, file.getSize()));
 		}

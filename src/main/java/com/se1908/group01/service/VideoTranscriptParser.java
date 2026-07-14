@@ -26,6 +26,9 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 
 @Service
+/**
+ * Produces transcript text for uploaded videos so video content can enter the same chunk/embedding pipeline.
+ */
 public class VideoTranscriptParser {
 
     private static final Logger log = LoggerFactory.getLogger(VideoTranscriptParser.class);
@@ -51,6 +54,7 @@ public class VideoTranscriptParser {
     }
 
     public String parse(Long documentId, String s3Key, String contentType) {
+        // Video parsing reads the original object using its document id/S3 key and returns text for embedding.
         if (speechClient == null || storage == null) {
             throw new IllegalStateException(
                     "Google Cloud Speech-to-Text is not configured. "

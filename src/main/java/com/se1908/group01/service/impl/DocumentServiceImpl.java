@@ -42,6 +42,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 
 @Service
+/**
+ * Implements the document upload transaction and coordinates storage with asynchronous indexing.
+ * The method first accepts the file into private S3 storage, then saves database metadata and a temp copy for ingestion.
+ */
 public class DocumentServiceImpl implements DocumentService {
 
 	private static final int MAX_PAGE_SIZE = 100;
@@ -101,10 +105,17 @@ public class DocumentServiceImpl implements DocumentService {
 
 	@Transactional(rollbackFor = Exception.class)
 	@Override
+	/**
+	 * Uploads one document for the authenticated user.
+	 * Business flow: resolve active plan -> validate file and entitlement -> upload to S3 -> save metadata -> schedule ingestion.
+	 */
 	public DocumentUploadResponse upload(MultipartFile file, Boolean isPublic) throws IOException {
+		// Resolve the authenticated owner before applying plan-specific upload rules.
 		var userId = currentUserService.getCurrentUserId();
 		var activePlan = subscriptionEntitlementService.getActivePlan(userId);
+		// Enforce type and per-file size rules before any external storage side effect occurs.
 		fileValidationService.validateForUpload(file, activePlan.getMaxUploadSizeMb());
+		// Enforce video permission and aggregate storage quota for the active subscription.
 		subscriptionEntitlementService.enforceUploadEntitlements(
 				userId,
 				file,
@@ -115,11 +126,13 @@ public class DocumentServiceImpl implements DocumentService {
 		var originalName = FilenameSanitizer.sanitize(file.getOriginalFilename());
 		var key = buildObjectKey(userId, originalName);
 
+		// Store the original file privately in S3; the database stores only metadata and the object key.
 		s3StorageService.uploadPrivate(file, key);
 
 		Document doc;
 		Path ingestionFile = null;
 		try {
+			// Create the database record in UPLOADED state before asynchronous parsing begins.
 			doc = new Document();
 			doc.setUserId(userId);
 			doc.setOriginalFileName(originalName);
@@ -130,9 +143,12 @@ public class DocumentServiceImpl implements DocumentService {
 			doc.setStatus(DocumentStatus.UPLOADED);
 
 			doc = documentRepository.save(doc);
+			// MultipartFile is request-scoped, so copy it to disk for the async ingestion worker.
 			ingestionFile = documentIngestionJobService.copyToTempFile(file);
+			// Start ingestion only after the metadata transaction commits successfully.
 			registerIngestionAfterCommit(doc.getDocumentId(), ingestionFile, originalName, file.getContentType());
 		} catch (RuntimeException | IOException ex) {
+			// Remove the S3 object and temp file when metadata setup fails after the S3 upload.
 			try {
 				s3StorageService.delete(key);
 			} catch (RuntimeException ignored) {
@@ -199,6 +215,7 @@ public class DocumentServiceImpl implements DocumentService {
 		var userId = currentUserService.getCurrentUserId();
 		var doc = findOwnedActiveDocument(userId, documentId);
 		if (folderId != null) {
+			// A document can only be moved into a folder owned by the same authenticated user.
 			documentFolderRepository.findByFolderIdAndUserId(folderId, userId)
 					.orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
 		}
@@ -571,6 +588,7 @@ public class DocumentServiceImpl implements DocumentService {
 			String contentType
 	) {
 		if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+			// There is no active transaction to wait for, so dispatch the async job immediately.
 			documentIngestionJobService.ingestAsync(documentId, ingestionFile, originalFilename, contentType);
 			return;
 		}
@@ -578,12 +596,14 @@ public class DocumentServiceImpl implements DocumentService {
 		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
 			@Override
 			public void afterCommit() {
+				// The document id is now durable, so the worker can safely reload it and index the temp file.
 				documentIngestionJobService.ingestAsync(documentId, ingestionFile, originalFilename, contentType);
 			}
 
 			@Override
 			public void afterCompletion(int status) {
 				if (status != STATUS_COMMITTED) {
+					// Do not leave a temp copy when the surrounding database transaction rolls back.
 					deleteTempFileQuietly(ingestionFile);
 				}
 			}

@@ -15,6 +15,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 @Service
+/**
+ * Generates and serializes embedding vectors for document chunks.
+ * The service batches requests and retries recognized provider quota failures before failing ingestion.
+ */
 public class DocumentEmbeddingService {
 
 	private static final Logger log = LoggerFactory.getLogger(DocumentEmbeddingService.class);
@@ -60,11 +64,13 @@ public class DocumentEmbeddingService {
 
 		List<String> vectors = new ArrayList<>(cleaned.size());
 		for (int start = 0; start < cleaned.size(); start += MAX_EMBEDDING_BATCH_SIZE) {
+			// Keep provider requests below the configured batch size while preserving input order.
 			var end = Math.min(start + MAX_EMBEDDING_BATCH_SIZE, cleaned.size());
 			var batch = cleaned.subList(start, end);
 			var response = embedBatchWithRetry(batch);
 			var results = response.getResults();
 			if (results == null || results.size() != batch.size()) {
+				// A size mismatch would associate vectors with the wrong chunks, so ingestion must stop.
 				throw new IllegalStateException("Embedding response size mismatch");
 			}
 			for (var r : results) {
@@ -87,6 +93,7 @@ public class DocumentEmbeddingService {
 				if (!isQuotaError(ex) || attempt >= MAX_RETRY_ATTEMPTS) {
 					throw ex;
 				}
+				// Respect the provider's retry delay for quota responses before trying the same batch again.
 				var delay = extractRetryDelay(ex);
 				log.warn(
 						"Gemini embedding quota reached. Retrying batch in {} seconds. attempt={}/{} batchSize={}",

@@ -10,6 +10,9 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.Query;
 
+/**
+ * Persists document metadata and supplies ownership/storage queries used by upload entitlement checks.
+ */
 public interface DocumentRepository extends JpaRepository<Document, Long>, JpaSpecificationExecutor<Document> {
 
 	Optional<Document> findByDocumentIdAndUserId(Long documentId, Long userId);
@@ -34,6 +37,7 @@ public interface DocumentRepository extends JpaRepository<Document, Long>, JpaSp
 			WHERE d.userId = :userId
 			  AND d.isDeleted = false
 			""")
+	// Sum only non-deleted documents because soft-deleted files no longer consume active upload quota.
 	long sumActiveStorageBytesByUserId(@Param("userId") Long userId);
 
 	@Modifying

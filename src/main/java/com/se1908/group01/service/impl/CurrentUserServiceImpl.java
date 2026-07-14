@@ -11,6 +11,10 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
+/**
+ * Resolves the authenticated application's user id from the Spring Security context.
+ * Upload ownership and subscription checks use this id instead of trusting a client-supplied owner id.
+ */
 public class CurrentUserServiceImpl implements CurrentUserService {
 
 	private final UserRepository userRepository;
@@ -21,6 +25,7 @@ public class CurrentUserServiceImpl implements CurrentUserService {
 
 	@Override
 	public Long getCurrentUserId() {
+		// Reject upload requests that did not produce an authenticated JWT security context.
 		var authentication = SecurityContextHolder.getContext().getAuthentication();
 		if (authentication == null
 				|| !authentication.isAuthenticated()

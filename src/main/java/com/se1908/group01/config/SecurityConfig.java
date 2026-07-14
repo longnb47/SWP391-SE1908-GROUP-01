@@ -130,6 +130,7 @@ public class SecurityConfig {
                                 "/api/admin/users/**"
                         ).hasRole("ADMIN")
 
+                        // Upload and all other document APIs require the JWT-authenticated user unless explicitly permitted above.
                         .anyRequest()
                         .authenticated()
                 )

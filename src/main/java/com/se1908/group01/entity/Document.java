@@ -20,6 +20,10 @@ import java.time.Instant;
 				@Index(name = "idx_document_content_type", columnList = "content_type")
 		}
 )
+/**
+ * JPA representation of the uploaded file metadata and its processing status.
+ * Binary content is stored in S3; this table stores ownership, object key, size, visibility and lifecycle state.
+ */
 public class Document {
 
 	@Id
@@ -66,6 +70,7 @@ public class Document {
 
 	@PrePersist
 	void prePersist() {
+		// Supply defaults so every newly persisted upload starts with timestamps and a predictable lifecycle state.
 		if (uploadedAt == null) {
 			uploadedAt = Instant.now();
 		}
