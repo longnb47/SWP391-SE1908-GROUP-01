@@ -65,10 +65,11 @@ public class DocumentController {
 	 */
 	public ApiResponse<DocumentUploadResponse> upload(
 			@RequestParam("file") MultipartFile file,
-			@RequestParam(value = "isPublic", required = false) Boolean isPublic
+			@RequestParam(value = "isPublic", required = false) Boolean isPublic,
+			@RequestParam(value = "folderId", required = false) Long folderId
 	) {
 		try {
-			var response = documentService.upload(file, isPublic);
+			var response = documentService.upload(file, isPublic, folderId);
 			return ApiResponse.success("Upload document successfully", response);
 		} catch (S3Exception ex) {
 			throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "S3 upload failed", ex);

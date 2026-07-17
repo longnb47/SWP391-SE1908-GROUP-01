@@ -109,7 +109,7 @@ public class DocumentServiceImpl implements DocumentService {
 	 * Upload một tài liệu cho user đã xác thực.
 	 * Business flow: lấy plan active -> validate file và entitlement -> upload S3 -> lưu metadata -> schedule ingestion.
 	 */
-	public DocumentUploadResponse upload(MultipartFile file, Boolean isPublic) throws IOException {
+	public DocumentUploadResponse upload(MultipartFile file, Boolean isPublic, Long folderId) throws IOException {
 		// Xác định owner đã xác thực trước khi áp dụng rule upload theo plan.
 		var userId = currentUserService.getCurrentUserId();
 		var activePlan = subscriptionEntitlementService.getActivePlan(userId);
@@ -122,6 +122,10 @@ public class DocumentServiceImpl implements DocumentService {
 				activePlan,
 				fileValidationService.isVideo(file)
 		);
+		if (folderId != null) {
+			documentFolderRepository.findByFolderIdAndUserId(folderId, userId)
+					.orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
+		}
 
 		var originalName = FilenameSanitizer.sanitize(file.getOriginalFilename());
 		var key = buildObjectKey(userId, originalName);
@@ -135,6 +139,7 @@ public class DocumentServiceImpl implements DocumentService {
 			// Tạo record database ở state UPLOADED trước khi parsing bất đồng bộ bắt đầu.
 			doc = new Document();
 			doc.setUserId(userId);
+			doc.setFolderId(folderId);
 			doc.setOriginalFileName(originalName);
 			doc.setS3Key(key);
 			doc.setContentType(file.getContentType());
