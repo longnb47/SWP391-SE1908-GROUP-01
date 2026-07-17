@@ -50,11 +50,16 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update # chú ý: chỉ dùng update trong lúc phát triển, sau chuyển thành validate hoặc none
+      ddl-auto: validate
     show-sql: true
     properties:
       hibernate:
         format_sql: true
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
 
   mail:
     host: smtp.gmail.com
