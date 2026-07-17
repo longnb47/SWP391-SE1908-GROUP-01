@@ -14,6 +14,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 @Service
+/**
+ * Tìm các document chunk gần câu hỏi nhất bằng cosine similarity.
+ * Vector được lưu dưới dạng JSON text trong document_chunk và được tính toán trong Java.
+ */
 public class VectorSearchServiceImpl implements VectorSearchService {
 
 	private final DocumentChunkRepository documentChunkRepository;
@@ -26,6 +30,7 @@ public class VectorSearchServiceImpl implements VectorSearchService {
 
 	@Override
 	public List<RetrievedChunk> search(Long documentId, String queryEmbeddingVector, int limit) {
+		// Nhánh single-document chỉ đọc chunk thuộc đúng document đã được access check ở service phía trên.
 		if (documentId == null) {
 			throw new IllegalArgumentException("Document ID is required");
 		}
@@ -34,8 +39,10 @@ public class VectorSearchServiceImpl implements VectorSearchService {
 		}
 
 		var queryVector = parseVector(queryEmbeddingVector);
+		// Repository lấy toàn bộ chunk của document; sau đó service xếp hạng semantic trong bộ nhớ.
 		return documentChunkRepository.findByDocumentDocumentIdOrderByChunkIndexAsc(documentId)
 				.stream()
+				// Bỏ chunk không có embedding hoặc khác chiều vector để tránh đưa context không hợp lệ vào LLM.
 				.map(chunk -> score(chunk, queryVector))
 				.filter(result -> result != null)
 				.sorted(Comparator.comparingDouble(RetrievedChunk::getScore).reversed())

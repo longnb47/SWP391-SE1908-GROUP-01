@@ -18,6 +18,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 @Service
+/**
+ * Xử lý nhánh hỏi đáp single-document stateless qua POST /api/chat/ask.
+ * Nhánh này đọc các chunk đã index, sinh embedding cho câu hỏi, gọi AI và chỉ ghi usage token.
+ * Lịch sử session được xử lý bởi ChatSessionServiceImpl.
+ */
 public class ChatServiceImpl implements ChatService {
 
 	private static final int TOP_K = 5;
@@ -53,6 +58,12 @@ public class ChatServiceImpl implements ChatService {
 
 	@Override
 	public ChatAskResponse ask(ChatAskRequest request) {
+		/**
+		 * Hỏi AI trong phạm vi một document.
+		 *
+		 * Business flow: validate request -> kiểm tra document accessible/READY -> embedding câu hỏi
+		 * -> cosine search tối đa 5 chunk -> enforce entitlement -> gọi AI -> ghi token usage -> trả sources.
+		 */
 		if (request == null) {
 			throw new IllegalArgumentException("Chat request is required");
 		}
@@ -60,20 +71,28 @@ public class ChatServiceImpl implements ChatService {
 			throw new IllegalArgumentException("Question is required");
 		}
 
+		// User hiện tại được lấy từ JWT context, không tin userId do client tự gửi lên.
 		var userId = currentUserService.getCurrentUserId();
 		var generationOptions = aiGenerationOptionsService.resolve(
 				request.getModel(),
 				request.getTemperature()
 		);
+		// Chỉ document của user hoặc public document, chưa xóa và đã ingest READY mới được chat.
 		var document = documentAccessService.getReadyDocumentForChat(userId, request.getDocumentId());
+		// Embed nguyên câu hỏi để so sánh semantic với embedding của các chunk trong document.
 		var queryVector = documentEmbeddingService.embedQuestion(request.getQuestion());
+		// Lấy tối đa 5 chunk có cosine similarity cao nhất làm context cho prompt.
 		var chunks = vectorSearchService.search(document.getDocumentId(), queryVector, TOP_K);
 		if (chunks.isEmpty()) {
+			// Không có chunk đã index thì không thể trả lời dựa trên document.
 			throw new IllegalArgumentException("Document has no indexed content for chat");
 		}
 
+		// Prompt yêu cầu model chỉ dùng context document, không dùng kiến thức bên ngoài.
 		var prompt = promptBuilderService.buildDocumentQuestionPrompt(request.getQuestion(), chunks);
+		// Kiểm tra giới hạn chat/token theo subscription trước khi gọi provider bên ngoài.
 		subscriptionEntitlementService.enforceAiRequestEntitlements(userId, 1, prompt);
+		// Chỉ ghi usage sau khi provider sinh answer thành công.
 		var answer = aiChatClientService.ask(prompt, generationOptions);
 		subscriptionEntitlementService.recordAiTokenUsage(userId, prompt, answer);
 		return new ChatAskResponse(

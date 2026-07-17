@@ -78,6 +78,7 @@ public class SubscriptionEntitlementService {
 			int documentCount,
 			String prompt
 	) {
+		// Stateless single-document vẫn chịu monthly token limit dù chỉ có một document.
 		var plan = getActivePlan(userId);
 		enforceMultipleDocumentLimit(plan, documentCount);
 		enforceMonthlyTokenLimit(userId, plan, estimateTokens(prompt));
@@ -85,18 +86,21 @@ public class SubscriptionEntitlementService {
 
 	@Transactional
 	public void enforceDocumentChatEntitlement(Long userId, int documentCount) {
+		// Session chat kiểm tra số document ở cả lúc tạo session và lúc gửi message.
 		var plan = getActivePlan(userId);
 		enforceMultipleDocumentLimit(plan, documentCount);
 	}
 
 	@Transactional
 	public void enforceAiTokenBudget(Long userId, String prompt) {
+		// Kiểm tra prompt ước lượng trước khi gọi LLM để không vượt ngân sách tháng của plan.
 		var plan = getActivePlan(userId);
 		enforceMonthlyTokenLimit(userId, plan, estimateTokens(prompt));
 	}
 
 	@Transactional
 	public void recordAiTokenUsage(Long userId, String prompt, String answer) {
+		// Chỉ ghi usage sau khi answer đã sinh; source dùng ước lượng theo số ký tự thay vì usage provider.
 		var estimatedTokens = estimateTokens(prompt) + estimateTokens(answer);
 		if (estimatedTokens <= 0) {
 			return;

@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.util.List;
 
+/** Request tạo session; single-document dùng mode SelectedDocuments và selectedDocumentIds gồm một phần tử. */
 public record CreateChatSessionRequest(
 		@Size(max = 200, message = "Title must not exceed 200 characters")
 		String title,

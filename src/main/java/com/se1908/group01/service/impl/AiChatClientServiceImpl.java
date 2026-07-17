@@ -10,6 +10,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
+/**
+ * Adapter nối service nghiệp vụ với Spring AI Google GenAI ChatClient.
+ * Lớp này nhận prompt đã bị giới hạn theo document context và trả nội dung answer từ model.
+ */
 public class AiChatClientServiceImpl implements AiChatClientService {
 
 	private final ObjectProvider<ChatClient.Builder> chatClientBuilderProvider;
@@ -20,6 +24,7 @@ public class AiChatClientServiceImpl implements AiChatClientService {
 
 	@Override
 	public String ask(String prompt, AiGenerationOptions options) {
+		// Lấy ChatClient do Spring cấu hình; thiếu provider thì trả SERVICE_UNAVAILABLE thay vì giả lập answer.
 		var builder = chatClientBuilderProvider.getIfAvailable();
 		if (builder == null) {
 			throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
@@ -27,6 +32,7 @@ public class AiChatClientServiceImpl implements AiChatClientService {
 		}
 
 		try {
+			// Truyền model/temperature đã được resolve và prompt RAG vào Google GenAI.
 			var chatOptions = GoogleGenAiChatOptions.builder()
 					.model(options.model().getProviderModel())
 					.temperature(options.temperature());

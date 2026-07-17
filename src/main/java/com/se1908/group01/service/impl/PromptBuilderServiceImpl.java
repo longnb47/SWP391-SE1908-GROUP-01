@@ -9,12 +9,17 @@ import org.springframework.ai.chat.messages.Message;
 import org.springframework.stereotype.Service;
 
 @Service
+/**
+ * Đóng gói question và các chunk được truy xuất thành prompt cho model AI.
+ * Prompt single-document ép model chỉ trả lời từ context của document được chọn.
+ */
 public class PromptBuilderServiceImpl implements PromptBuilderService {
 
 	private static final int MAX_CHUNK_CHARACTERS = 2000;
 
 	@Override
 	public String buildDocumentQuestionPrompt(String question, List<RetrievedChunk> chunks) {
+		// Tạo prompt stateless cho một document, giữ metadata chunk/page để FE có thể hiển thị citation.
 		var prompt = new StringBuilder();
 		prompt.append("""
 				You are an AI study assistant.
@@ -26,6 +31,7 @@ public class PromptBuilderServiceImpl implements PromptBuilderService {
 				Document context:
 				""");
 
+		// Ghép từng chunk theo thứ tự similarity; nội dung quá dài được cắt ở truncate().
 		for (int i = 0; i < chunks.size(); i++) {
 			var retrieved = chunks.get(i);
 			var chunk = retrieved.getChunk();
@@ -71,6 +77,7 @@ public class PromptBuilderServiceImpl implements PromptBuilderService {
 			List<Message> conversationMemory,
 			String question
 	) {
+		// Session prompt thêm tối đa phần conversation memory gần đây nhưng vẫn yêu cầu fact phải có trong document context.
 		var prompt = new StringBuilder();
 		prompt.append("[SYSTEM]\n")
 				.append(resolveSystemMessage(mode, knowledgePolicy))
@@ -78,6 +85,7 @@ public class PromptBuilderServiceImpl implements PromptBuilderService {
 				.append("All factual claims must still be supported by the document context.\n\n");
 
 		if (conversationMemory != null && !conversationMemory.isEmpty()) {
+			// Lịch sử chỉ giúp hiểu câu hỏi follow-up, không được thay thế nguồn dữ liệu của document.
 			prompt.append("[CONVERSATION HISTORY - LAST ")
 					.append(conversationMemory.size())
 					.append(" MESSAGES]\n");
@@ -102,6 +110,7 @@ public class PromptBuilderServiceImpl implements PromptBuilderService {
 
 	private String resolveSystemMessage(ChatMode mode, KnowledgePolicy policy) {
 		if (mode == ChatMode.SELECTED_DOCUMENTS) {
+			// SelectedDocuments, bao gồm single-document, luôn bị ép về policy DOCUMENTS_ONLY.
 			return """
 					You are an AI study assistant.
 					Answer the user's question using ONLY the information contained in the provided context from the documents explicitly selected by the user.
@@ -118,7 +127,7 @@ public class PromptBuilderServiceImpl implements PromptBuilderService {
 					- Base every statement strictly on the provided context from the selected documents.
 					- If something is not in the context, treat it as unknown and say that the selected documents do not contain that information.""";
 		}
-		// USER_STORAGE — split by policy
+		// USER_STORAGE — split by policy; nhánh này không phải luồng single-document chính.
 		if (policy == KnowledgePolicy.DOCUMENTS_PLUS_GENERAL) {
 			return """
 					You are an assistant that answers questions using ONLY the information contained in the provided context.
@@ -139,7 +148,7 @@ public class PromptBuilderServiceImpl implements PromptBuilderService {
 					- Base every statement strictly on the provided context.
 					- If something is not in the context, treat it as unknown and say that the documents do not contain that information.""";
 		}
-		// USER_STORAGE + DOCUMENTS_ONLY
+		// USER_STORAGE + DOCUMENTS_ONLY; đây không phải nhánh single-document chính.
 		return """
 				You are an AI study assistant.
 				Answer the user's question using ONLY the information contained in the provided context from the user's stored documents.

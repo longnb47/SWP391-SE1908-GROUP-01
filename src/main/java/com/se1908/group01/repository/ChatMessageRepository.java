@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+/** Repository lưu lịch sử message và lấy cửa sổ message gần nhất cho conversation memory. */
 public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> {
 
 	Page<ChatMessage> findByChatSessionSessionIdOrderByCreatedAtAscMessageIdAsc(

@@ -25,6 +25,10 @@ import java.util.List;
 
 @Configuration
 @RequiredArgsConstructor
+/**
+ * Cấu hình security dùng chung cho API.
+ * /api/chat không nằm trong permitAll nên request chat phải mang JWT hợp lệ.
+ */
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;

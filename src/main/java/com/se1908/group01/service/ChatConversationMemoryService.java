@@ -15,6 +15,10 @@ import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.stereotype.Service;
 
 @Service
+/**
+ * Đọc một cửa sổ nhỏ lịch sử chat đã COMPLETED để hỗ trợ câu hỏi follow-up.
+ * Memory chỉ bổ sung ngữ cảnh hội thoại; nguồn sự thật vẫn là document chunks được truy xuất.
+ */
 public class ChatConversationMemoryService {
 
 	public static final int MAX_MEMORY_MESSAGES = 5;
@@ -26,6 +30,7 @@ public class ChatConversationMemoryService {
 	}
 
 	public List<Message> getRecentMessages(Long sessionId) {
+		// Lấy tối đa 5 message mới nhất rồi đảo lại thứ tự cũ -> mới trước khi đưa vào prompt.
 		List<ChatMessage> recentMessages = new ArrayList<>(
 				chatMessageRepository.findTop5ByChatSessionSessionIdAndStatusOrderByCreatedAtDescMessageIdDesc(
 						sessionId,

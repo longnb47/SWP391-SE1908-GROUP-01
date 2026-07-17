@@ -40,6 +40,7 @@ public class DocumentEmbeddingService {
 	}
 
 	public String embedQuestion(String question) {
+		// API chat dùng method này để biến câu hỏi thành cùng loại vector với document chunks.
 		if (!StringUtils.hasText(question)) {
 			throw new IllegalArgumentException("Question is required");
 		}
@@ -63,6 +64,7 @@ public class DocumentEmbeddingService {
 	}
 
 	private List<String> embedPreparedVectors(List<String> texts) {
+		// Giữ nguyên thứ tự vector theo input để kết quả embedding luôn khớp đúng với chunk/câu hỏi ban đầu.
 		if (embeddingModel == null) {
 			throw new IllegalStateException("EmbeddingModel is not configured. Set SPRING_AI_MODEL_EMBEDDING_TEXT=google-genai and GEMINI_API_KEY.");
 		}

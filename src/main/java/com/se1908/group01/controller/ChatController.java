@@ -28,6 +28,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/chat")
+/**
+ * REST entry point cho toàn bộ chức năng hỏi đáp AI.
+ *
+ * Luồng chính của single-document:
+ * FE DocumentChat -> endpoint session -> ChatSessionService -> RAG/LLM -> ApiResponse.
+ * Endpoint /ask là đường stateless được FE dùng khi không tạo hoặc gửi được session.
+ */
 public class ChatController {
 
 	private final ChatService chatService;
@@ -46,6 +53,7 @@ public class ChatController {
 
 	@PostMapping("/ask")
 	public ApiResponse<ChatAskResponse> ask(@Valid @RequestBody ChatAskRequest request) {
+		// Chuyển câu hỏi single-document stateless xuống service; @Valid chặn request thiếu documentId/question.
 		var response = chatService.ask(request);
 		return ApiResponse.success("Ask document successfully", response);
 	}
@@ -60,6 +68,7 @@ public class ChatController {
 	public ApiResponse<ChatSessionResponse> createSession(
 			@Valid @RequestBody CreateChatSessionRequest request
 	) {
+		// Tạo session SelectedDocuments và gắn document được chọn trước khi user gửi message đầu tiên.
 		return ApiResponse.success(
 				"Create chat session successfully",
 				chatSessionService.createSession(request)
@@ -68,6 +77,7 @@ public class ChatController {
 
 	@GetMapping("/sessions")
 	public ApiResponse<List<ChatSessionResponse>> getMySessions() {
+		// Chỉ trả session chưa bị soft-delete của user đang đăng nhập để FE tìm lại chat tương ứng.
 		return ApiResponse.success(
 				"Get chat sessions successfully",
 				chatSessionService.getMySessions()
@@ -97,6 +107,7 @@ public class ChatController {
 			@RequestParam(defaultValue = "0") int page,
 			@RequestParam(defaultValue = "50") int size
 	) {
+		// Tải lịch sử message theo trang, đồng thời service ghép các source citation của từng message.
 		return ApiResponse.success(
 				"Get chat messages successfully",
 				chatSessionService.getMessages(sessionId, page, size)
@@ -108,6 +119,7 @@ public class ChatController {
 			@PathVariable Long sessionId,
 			@Valid @RequestBody SendChatMessageRequest request
 	) {
+		// Gửi câu hỏi vào session; service thực hiện access check, vector search, gọi LLM và lưu kết quả.
 		return ApiResponse.success(
 				"Send chat message successfully",
 				chatSessionService.sendMessage(sessionId, request)

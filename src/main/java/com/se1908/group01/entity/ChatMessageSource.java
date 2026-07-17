@@ -12,6 +12,7 @@ import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "chat_message_source")
+/** Lưu chunk/page và điểm similarity đã được dùng để sinh một assistant message. */
 public class ChatMessageSource {
 
 	@Id

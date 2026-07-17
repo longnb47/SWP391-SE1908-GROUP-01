@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 
+/** Request cho nhánh stateless hỏi một câu về một document cụ thể. */
 public class ChatAskRequest {
 
 	@NotNull(message = "Document ID is required")
