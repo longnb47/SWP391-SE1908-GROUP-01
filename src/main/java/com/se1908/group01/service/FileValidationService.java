@@ -7,9 +7,13 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
+/**
+ * Thực hiện validation phía server cho document và video đã upload.
+ * Đây là lớp kiểm tra cuối cùng dù frontend đã reject file không hợp lệ.
+ */
 public class FileValidationService {
 
-	private static final long MAX_DOC_BYTES = 20L * 1024L * 1024L;
+	private static final int DEFAULT_MAX_DOC_MB = 20;
 
 	private static final Set<String> ALLOWED_DOC_EXTENSIONS = Set.of(
 			"pdf", "doc", "docx", "pptx", "xls", "xlsx", "png"
@@ -30,6 +34,11 @@ public class FileValidationService {
 	private long maxAvatarFileSize;
 
 	public void validateForUpload(MultipartFile file) {
+		validateForUpload(file, DEFAULT_MAX_DOC_MB);
+	}
+
+	public void validateForUpload(MultipartFile file, Integer maxNonVideoUploadSizeMb) {
+		// Từ chối input thiếu hoặc rỗng trước khi đọc filename, type hay size metadata.
 		if (file == null) {
 			throw new IllegalArgumentException("File is required");
 		}
@@ -47,17 +56,21 @@ public class FileValidationService {
 		var isImage = StringUtils.hasText(contentType) && contentType.toLowerCase().startsWith("image/");
 		var isVideo = isVideoFile(ext, contentType);
 
+		// Extension/content-type phải thuộc nhóm document, image hoặc video được hỗ trợ.
 		if (!StringUtils.hasText(ext) || (!ALLOWED_DOC_EXTENSIONS.contains(ext) && !isImage && !isVideo)) {
 			throw new IllegalArgumentException("Unsupported file extension: " + ext);
 		}
 
 		if (isVideo) {
+			// Video dùng giới hạn bytes chung của application; quyền video của plan được kiểm tra riêng.
 			if (file.getSize() > maxVideoFileSize) {
 				throw new IllegalArgumentException("Video file exceeds " + (maxVideoFileSize / 1024 / 1024) + "MB limit");
 			}
 		} else {
-			if (file.getSize() > MAX_DOC_BYTES) {
-				throw new IllegalArgumentException("File exceeds 20MB limit");
+			// File không phải video dùng maxUploadSizeMb từ subscription plan đang active của user.
+			var maxNonVideoBytes = toBytes(maxNonVideoUploadSizeMb);
+			if (file.getSize() > maxNonVideoBytes) {
+				throw new IllegalArgumentException("File exceeds " + maxNonVideoUploadSizeMb + "MB limit");
 			}
 		}
 	}
@@ -88,11 +101,27 @@ public class FileValidationService {
 		}
 	}
 
+	public boolean isVideo(MultipartFile file) {
+		if (file == null) {
+			return false;
+		}
+		var originalFilename = file.getOriginalFilename();
+		var ext = StringUtils.hasText(originalFilename) ? getExtensionLower(originalFilename) : "";
+		return isVideoFile(ext, file.getContentType());
+	}
+
 	private static boolean isVideoFile(String ext, String contentType) {
 		if (VIDEO_EXTENSIONS.contains(ext)) {
 			return true;
 		}
 		return StringUtils.hasText(contentType) && contentType.toLowerCase().startsWith("video/");
+	}
+
+	private static long toBytes(Integer sizeMb) {
+		if (sizeMb == null || sizeMb <= 0) {
+			throw new IllegalStateException("Active subscription plan upload limit is not configured");
+		}
+		return sizeMb * 1024L * 1024L;
 	}
 
 	private static String getExtensionLower(String filename) {

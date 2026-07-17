@@ -12,6 +12,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 @Service
+/**
+ * Chia text đã extract thành các chunk có giới hạn và giữ page metadata cho việc trích dẫn sau này.
+ */
 public class DocumentChunkingService {
 
 	private static final String PAGE_NUMBER_METADATA = "pageNumber";
@@ -33,6 +36,7 @@ public class DocumentChunkingService {
 		int chunkIndex = 0;
 
 		for (TextSegment segment : segments) {
+			// Bỏ qua output rỗng để embedding provider chỉ nhận text có ý nghĩa.
 			if (segment == null || !StringUtils.hasText(segment.getText())) {
 				continue;
 			}
@@ -43,6 +47,7 @@ public class DocumentChunkingService {
 				metadata.put(PAGE_NUMBER_METADATA, pageNumber);
 			}
 
+			// Chia từng segment theo giới hạn token/character đã cấu hình và giữ lại số trang.
 			for (Document splitDocument : textSplitter.split(Document.builder().text(text).metadata(metadata).build())) {
 				var piece = splitDocument.getText();
 				if (StringUtils.hasText(piece)) {

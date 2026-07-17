@@ -17,6 +17,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
+/**
+ * Kết nối request upload đồng bộ với pipeline indexing tài liệu bất đồng bộ.
+ * Service quản lý vòng đời temp file vì không thể dùng MultipartFile sau khi HTTP request kết thúc.
+ */
 public class DocumentIngestionJobServiceImpl implements DocumentIngestionJobService {
 
 	private static final Logger log = LoggerFactory.getLogger(DocumentIngestionJobServiceImpl.class);
@@ -33,6 +37,7 @@ public class DocumentIngestionJobServiceImpl implements DocumentIngestionJobServ
 
 	@Override
 	public Path copyToTempFile(MultipartFile file) throws IOException {
+		// Lưu bytes của request xuống disk để async worker đọc được sau khi request kết thúc.
 		var tempFile = Files.createTempFile("document-ingestion-", ".tmp");
 		try (var inputStream = file.getInputStream()) {
 			Files.copy(inputStream, tempFile, StandardCopyOption.REPLACE_EXISTING);
@@ -42,20 +47,27 @@ public class DocumentIngestionJobServiceImpl implements DocumentIngestionJobServ
 
 	@Async
 	@Override
+	/**
+	 * Parse, chunk và embed tài liệu bên ngoài thread xử lý upload.
+	 * Mọi lỗi ingestion đều chuyển document thành FAILED và temp file luôn được xóa.
+	 */
 	public void ingestAsync(Long documentId, Path filePath, String originalFilename, String contentType) {
 		try {
+			// Load lại entity đã commit vì method chạy ở thread và transaction context khác.
 			var document = documentRepository.findById(documentId)
 					.orElseThrow(() -> new IllegalArgumentException("Document not found"));
 			var multipartFile = new PathMultipartFile(filePath, originalFilename, contentType);
 			documentIngestionService.ingest(document, multipartFile);
 			log.info("Document ingestion completed for documentId={}", documentId);
 		} catch (Exception ex) {
+			// Giữ record upload để UI thấy được, đồng thời thể hiện index tìm kiếm chưa tạo thành công.
 			log.error("Document ingestion failed for documentId={}", documentId, ex);
 			documentRepository.findById(documentId).ifPresent(document -> {
 				document.setStatus(DocumentStatus.FAILED);
 				documentRepository.save(document);
 			});
 		} finally {
+			// Temp file không còn cần thiết sau khi ingestion thành công hoặc thất bại.
 			deleteTempFile(filePath);
 		}
 	}

@@ -42,6 +42,10 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
+/**
+ * Extract text segment từ document, image và video được hỗ trợ để indexing.
+ * Parser được chọn theo content type/extension và có thể dùng OCR hoặc video transcription.
+ */
 public class DocumentParsingService {
 
 	private final OcrService ocrService;
@@ -60,15 +64,18 @@ public class DocumentParsingService {
 		var ext = FileExtensionUtil.getExtensionLower(filename);
 		var contentType = file.getContentType();
 		if (StringUtils.hasText(contentType) && contentType.toLowerCase().startsWith("image/")) {
+			// Image trở thành dữ liệu có thể tìm kiếm thông qua text OCR thay vì binary thô.
 			return extractImage(file);
 		}
 		if (StringUtils.hasText(contentType) && contentType.toLowerCase().startsWith("video/")) {
+			// Video được đại diện bằng transcript tạo từ object đã lưu.
 			return extractVideo(document, contentType);
 		}
 		if (!StringUtils.hasText(ext)) {
 			throw new IllegalArgumentException("Cannot detect file extension");
 		}
 
+		// Điều hướng mỗi extension được hỗ trợ tới parser có thể giữ cấu trúc text/page.
 		return switch (ext) {
 			case "pdf" -> extractPdf(file);
 			case "docx" -> extractDocx(file);
@@ -94,6 +101,7 @@ public class DocumentParsingService {
 
 			List<TextSegment> segments = new ArrayList<>();
 			int pages = doc.getNumberOfPages();
+			// Xử lý từng trang PDF độc lập để giữ số trang trong document_chunk.
 			for (int i = 1; i <= pages; i++) {
 				stripper.setStartPage(i);
 				stripper.setEndPage(i);
@@ -102,6 +110,7 @@ public class DocumentParsingService {
 				int imageCount = countImages(doc.getPage(i - 1));
 				var ocrText = "";
 				if (shouldOcrPdfPage(pageText)) {
+					// Dùng OCR cho trang scan hoặc gần như rỗng khi extract text trực tiếp từ PDF không đủ.
 					var pageImage = renderer.renderImageWithDPI(i - 1, ocrProperties.getPdfDpi(), ImageType.RGB);
 					ocrText = ocrService.extractText(pageImage);
 				}

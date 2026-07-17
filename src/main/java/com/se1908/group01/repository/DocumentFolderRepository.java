@@ -5,6 +5,9 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+/**
+ * Tìm folder theo owner để thao tác sau upload không thể trỏ tới folder của user khác.
+ */
 public interface DocumentFolderRepository extends JpaRepository<DocumentFolder, Long> {
 
 	List<DocumentFolder> findByUserIdOrderByNameAsc(Long userId);

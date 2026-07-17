@@ -12,6 +12,10 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Service
+/**
+ * Tập trung kiểm tra document có được phép đưa vào AI chat hay không.
+ * Đây là lớp bảo vệ backend độc lập với việc FE đã disable ô nhập khi document chưa READY.
+ */
 public class DocumentAccessServiceImpl implements DocumentAccessService {
 
 	private final DocumentRepository documentRepository;
@@ -27,6 +31,7 @@ public class DocumentAccessServiceImpl implements DocumentAccessService {
 
 	@Override
 	public Document getReadyDocumentForChat(Long userId, Long documentId) {
+		// Single-document chat chỉ resolve document owner hoặc public; share riêng không được nhánh này mở quyền.
 		if (documentId == null) {
 			throw new IllegalArgumentException("Document ID is required");
 		}
@@ -36,6 +41,7 @@ public class DocumentAccessServiceImpl implements DocumentAccessService {
 				.orElseThrow(() -> new ResourceNotFoundException("Document not found or not accessible"));
 
 		if (document.getStatus() != DocumentStatus.READY) {
+			// READY chứng minh ingestion đã tạo chunk/embedding để vector search có dữ liệu sử dụng.
 			throw new IllegalArgumentException("Document is not ready for chat");
 		}
 
@@ -44,6 +50,7 @@ public class DocumentAccessServiceImpl implements DocumentAccessService {
 
 	@Override
 	public List<Document> getReadyDocumentsForChat(Long userId, List<Long> documentIds) {
+		// Session SelectedDocuments phải resolve đủ toàn bộ danh sách client gửi, không được âm thầm bỏ document lỗi.
 		if (documentIds == null || documentIds.isEmpty()) {
 			throw new IllegalArgumentException("Document IDs are required for SelectedDocuments mode");
 		}

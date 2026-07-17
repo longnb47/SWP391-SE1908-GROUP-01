@@ -25,6 +25,10 @@ import java.util.List;
 
 @Configuration
 @RequiredArgsConstructor
+/**
+ * Cấu hình security dùng chung cho API.
+ * /api/chat không nằm trong permitAll nên request chat phải mang JWT hợp lệ.
+ */
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -130,6 +134,7 @@ public class SecurityConfig {
                                 "/api/admin/users/**"
                         ).hasRole("ADMIN")
 
+                        // Upload và các API tài liệu khác yêu cầu user đã xác thực bằng JWT, trừ các API được cho phép ở trên.
                         .anyRequest()
                         .authenticated()
                 )

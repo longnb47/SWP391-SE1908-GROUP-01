@@ -7,6 +7,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+/**
+ * Lưu và truy vấn các chunk được tạo bởi pipeline ingestion tài liệu bất đồng bộ.
+ */
 public interface DocumentChunkRepository extends JpaRepository<DocumentChunk, Long> {
 
 	void deleteByDocumentDocumentId(Long documentId);

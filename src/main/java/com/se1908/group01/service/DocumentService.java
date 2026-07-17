@@ -12,7 +12,11 @@ import org.springframework.web.multipart.MultipartFile;
 
 public interface DocumentService {
 
-	DocumentUploadResponse upload(MultipartFile file, Boolean isPublic) throws IOException;
+	/**
+	 * Tạo metadata tài liệu và schedule ingestion cho file mới upload.
+	 * Được DocumentController gọi qua POST /api/documents/upload.
+	 */
+	DocumentUploadResponse upload(MultipartFile file, Boolean isPublic, Long folderId) throws IOException;
 
 	DocumentUploadResponse moveToTrash(Long documentId);
 

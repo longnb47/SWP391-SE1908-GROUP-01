@@ -18,6 +18,7 @@ import java.time.Instant;
 
 @Entity
 @Table(name = "chat_message")
+/** Lưu từng câu hỏi USER và câu trả lời ASSISTANT trong một chat session. */
 public class ChatMessage {
 
 	@Id

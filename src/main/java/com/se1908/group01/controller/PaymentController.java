@@ -33,6 +33,7 @@ public class PaymentController {
     @Value("${app.frontend-base-url:http://localhost:5173}")
     private String frontendBaseUrl;
 
+
     @PostMapping("/purchase")
     @SecurityRequirement(name = "bearerAuth")
     public ApiResponse<PaymentPurchaseResponse> purchase(

@@ -15,9 +15,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 @Service
+/**
+ * Tạo và serialize embedding vector cho các chunk tài liệu.
+ * Service chia request thành batch và retry lỗi quota đã nhận diện trước khi ingestion thất bại.
+ */
 public class DocumentEmbeddingService {
 
 	private static final Logger log = LoggerFactory.getLogger(DocumentEmbeddingService.class);
+	private static final String DOCUMENT_PREFIX = "title: none | text: ";
+	private static final String QUESTION_PREFIX = "task: question answering | query: ";
 	private static final int MAX_EMBEDDING_BATCH_SIZE = 90;
 	private static final int MAX_RETRY_ATTEMPTS = 3;
 	private static final Duration DEFAULT_RETRY_DELAY = Duration.ofSeconds(30);
@@ -34,10 +40,11 @@ public class DocumentEmbeddingService {
 	}
 
 	public String embedQuestion(String question) {
+		// API chat dùng method này để biến câu hỏi thành cùng loại vector với document chunks.
 		if (!StringUtils.hasText(question)) {
 			throw new IllegalArgumentException("Question is required");
 		}
-		var results = embedVectors(List.of(question));
+		var results = embedPreparedVectors(List.of(QUESTION_PREFIX + question));
 		if (results.isEmpty()) {
 			throw new IllegalStateException("Failed to embed question");
 		}
@@ -49,6 +56,15 @@ public class DocumentEmbeddingService {
 			return List.of();
 		}
 
+		var prepared = new ArrayList<String>(texts.size());
+		for (String text : texts) {
+			prepared.add(StringUtils.hasText(text) ? DOCUMENT_PREFIX + text : "");
+		}
+		return embedPreparedVectors(prepared);
+	}
+
+	private List<String> embedPreparedVectors(List<String> texts) {
+		// Giữ nguyên thứ tự vector theo input để kết quả embedding luôn khớp đúng với chunk/câu hỏi ban đầu.
 		if (embeddingModel == null) {
 			throw new IllegalStateException("EmbeddingModel is not configured. Set SPRING_AI_MODEL_EMBEDDING_TEXT=google-genai and GEMINI_API_KEY.");
 		}
@@ -60,11 +76,13 @@ public class DocumentEmbeddingService {
 
 		List<String> vectors = new ArrayList<>(cleaned.size());
 		for (int start = 0; start < cleaned.size(); start += MAX_EMBEDDING_BATCH_SIZE) {
+			// Giữ request gửi provider dưới batch size đã cấu hình và bảo toàn thứ tự input.
 			var end = Math.min(start + MAX_EMBEDDING_BATCH_SIZE, cleaned.size());
 			var batch = cleaned.subList(start, end);
 			var response = embedBatchWithRetry(batch);
 			var results = response.getResults();
 			if (results == null || results.size() != batch.size()) {
+				// Sai số lượng sẽ gán vector nhầm chunk, vì vậy phải dừng ingestion.
 				throw new IllegalStateException("Embedding response size mismatch");
 			}
 			for (var r : results) {
@@ -87,6 +105,7 @@ public class DocumentEmbeddingService {
 				if (!isQuotaError(ex) || attempt >= MAX_RETRY_ATTEMPTS) {
 					throw ex;
 				}
+				// Tôn trọng retry delay của provider khi quota bị vượt trước khi thử lại batch.
 				var delay = extractRetryDelay(ex);
 				log.warn(
 						"Gemini embedding quota reached. Retrying batch in {} seconds. attempt={}/{} batchSize={}",

@@ -42,6 +42,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 
 @Service
+/**
+ * Cài đặt transaction upload tài liệu và điều phối storage với indexing bất đồng bộ.
+ * Method đưa file vào S3 private trước, sau đó lưu metadata database và bản copy tạm cho ingestion.
+ */
 public class DocumentServiceImpl implements DocumentService {
 
 	private static final int MAX_PAGE_SIZE = 100;
@@ -61,6 +65,7 @@ public class DocumentServiceImpl implements DocumentService {
 	private final DocumentIngestionJobService documentIngestionJobService;
 	private final CurrentUserService currentUserService;
 	private final ChatSessionDocumentRepository chatSessionDocumentRepository;
+	private final SubscriptionEntitlementService subscriptionEntitlementService;
 
 	public DocumentServiceImpl(
 			FileValidationService fileValidationService,
@@ -77,7 +82,8 @@ public class DocumentServiceImpl implements DocumentService {
 			UserRepository userRepository,
 			DocumentIngestionJobService documentIngestionJobService,
 			CurrentUserService currentUserService,
-			ChatSessionDocumentRepository chatSessionDocumentRepository
+			ChatSessionDocumentRepository chatSessionDocumentRepository,
+			SubscriptionEntitlementService subscriptionEntitlementService
 	) {
 		this.fileValidationService = fileValidationService;
 		this.s3StorageService = s3StorageService;
@@ -94,24 +100,46 @@ public class DocumentServiceImpl implements DocumentService {
 		this.documentIngestionJobService = documentIngestionJobService;
 		this.currentUserService = currentUserService;
 		this.chatSessionDocumentRepository = chatSessionDocumentRepository;
+		this.subscriptionEntitlementService = subscriptionEntitlementService;
 	}
 
 	@Transactional(rollbackFor = Exception.class)
 	@Override
-	public DocumentUploadResponse upload(MultipartFile file, Boolean isPublic) throws IOException {
+	/**
+	 * Upload một tài liệu cho user đã xác thực.
+	 * Business flow: lấy plan active -> validate file và entitlement -> upload S3 -> lưu metadata -> schedule ingestion.
+	 */
+	public DocumentUploadResponse upload(MultipartFile file, Boolean isPublic, Long folderId) throws IOException {
+		// Xác định owner đã xác thực trước khi áp dụng rule upload theo plan.
 		var userId = currentUserService.getCurrentUserId();
-		fileValidationService.validateForUpload(file);
+		var activePlan = subscriptionEntitlementService.getActivePlan(userId);
+		// Enforce type và size từng file trước khi tạo side effect với external storage.
+		fileValidationService.validateForUpload(file, activePlan.getMaxUploadSizeMb());
+		// Enforce quyền video và storage quota tổng của subscription active.
+		subscriptionEntitlementService.enforceUploadEntitlements(
+				userId,
+				file,
+				activePlan,
+				fileValidationService.isVideo(file)
+		);
+		if (folderId != null) {
+			documentFolderRepository.findByFolderIdAndUserId(folderId, userId)
+					.orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
+		}
 
 		var originalName = FilenameSanitizer.sanitize(file.getOriginalFilename());
 		var key = buildObjectKey(userId, originalName);
 
+		// Lưu file gốc ở chế độ private trong S3; database chỉ lưu metadata và object key.
 		s3StorageService.uploadPrivate(file, key);
 
 		Document doc;
 		Path ingestionFile = null;
 		try {
+			// Tạo record database ở state UPLOADED trước khi parsing bất đồng bộ bắt đầu.
 			doc = new Document();
 			doc.setUserId(userId);
+			doc.setFolderId(folderId);
 			doc.setOriginalFileName(originalName);
 			doc.setS3Key(key);
 			doc.setContentType(file.getContentType());
@@ -120,9 +148,12 @@ public class DocumentServiceImpl implements DocumentService {
 			doc.setStatus(DocumentStatus.UPLOADED);
 
 			doc = documentRepository.save(doc);
+			// MultipartFile chỉ thuộc request, nên copy xuống disk cho async ingestion worker.
 			ingestionFile = documentIngestionJobService.copyToTempFile(file);
+			// Chỉ bắt đầu ingestion sau khi transaction metadata commit thành công.
 			registerIngestionAfterCommit(doc.getDocumentId(), ingestionFile, originalName, file.getContentType());
 		} catch (RuntimeException | IOException ex) {
+			// Xóa object S3 và temp file nếu setup metadata thất bại sau khi upload S3.
 			try {
 				s3StorageService.delete(key);
 			} catch (RuntimeException ignored) {
@@ -189,6 +220,7 @@ public class DocumentServiceImpl implements DocumentService {
 		var userId = currentUserService.getCurrentUserId();
 		var doc = findOwnedActiveDocument(userId, documentId);
 		if (folderId != null) {
+			// Document chỉ được đưa vào folder thuộc cùng user đã xác thực.
 			documentFolderRepository.findByFolderIdAndUserId(folderId, userId)
 					.orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
 		}
@@ -242,6 +274,18 @@ public class DocumentServiceImpl implements DocumentService {
 		return toFileAccessUrlResponse(findPublicActiveDocument(documentId), true);
 	}
 
+	/**
+	 * Tạo một liên kết chia sẻ (share link) mới cho tài liệu được chỉ định.
+	 * <p>
+	 * Phương thức này thực hiện xác thực quyền sở hữu của người dùng đối với tài liệu gốc.
+	 * Nếu tài liệu đã có một liên kết chia sẻ đang hoạt động và chưa hết hạn, hệ thống sẽ trả về luôn liên kết đó.
+	 * Ngược lại, nếu liên kết cũ đã hết hạn, hệ thống sẽ vô hiệu hóa liên kết cũ và tạo ra một liên kết chia sẻ mới
+	 * với mã token ngẫu nhiên và duy nhất.
+	 *
+	 * @param documentId ID của tài liệu cần tạo liên kết chia sẻ
+	 * @return một đối tượng {@link DocumentShareLinkResponse} chứa thông tin chi tiết của liên kết chia sẻ vừa tạo
+	 * @throws ResourceNotFoundException nếu không tìm thấy tài liệu đang hoạt động hoặc người dùng không sở hữu tài liệu đó
+	 */
 	@Transactional
 	@Override
 	public DocumentShareLinkResponse createShareLink(Long documentId) {
@@ -267,6 +311,16 @@ public class DocumentServiceImpl implements DocumentService {
 		return toShareLinkResponse(documentShareLinkRepository.save(shareLink));
 	}
 
+	/**
+	 * Vô hiệu hóa (tắt) liên kết chia sẻ đang hoạt động của tài liệu.
+	 * <p>
+	 * Phương thức này kiểm tra xem người dùng hiện tại có sở hữu tài liệu hay không, tìm liên kết chia sẻ đang hoạt động
+	 * và cập nhật trạng thái của liên kết đó thành vô hiệu hóa (enabled = false).
+	 *
+	 * @param documentId ID của tài liệu cần vô hiệu hóa liên kết chia sẻ
+	 * @return đối tượng {@link DocumentShareLinkResponse} chứa thông tin liên kết chia sẻ sau khi đã bị vô hiệu hóa
+	 * @throws ResourceNotFoundException nếu không tìm thấy liên kết chia sẻ đang hoạt động của tài liệu
+	 */
 	@Transactional
 	@Override
 	public DocumentShareLinkResponse disableShareLink(Long documentId) {
@@ -281,24 +335,70 @@ public class DocumentServiceImpl implements DocumentService {
 		return toShareLinkResponse(documentShareLinkRepository.save(shareLink));
 	}
 
+	/**
+	 * Lấy thông tin chi tiết của tài liệu thông qua mã token của liên kết chia sẻ.
+	 * <p>
+	 * Phương thức này thực hiện tìm kiếm tài liệu từ token, kiểm tra xem liên kết chia sẻ có hợp lệ
+	 * (chưa hết hạn, đang kích hoạt) và tài liệu gốc chưa bị xóa vào thùng rác.
+	 *
+	 * @param token mã token của liên kết chia sẻ
+	 * @return một đối tượng {@link DocumentUploadResponse} chứa thông tin chi tiết của tài liệu được chia sẻ
+	 * @throws ResourceNotFoundException nếu liên kết chia sẻ không tồn tại, đã hết hạn hoặc tài liệu gốc đã bị xóa
+	 */
 	@Transactional(readOnly = true)
 	@Override
 	public DocumentUploadResponse getDocumentByShareLink(String token) {
 		return toResponse(findDocumentByShareLink(token));
 	}
 
+	/**
+	 * Lấy đường dẫn xem trước (preview URL) tạm thời của tài liệu thông qua mã token của liên kết chia sẻ.
+	 * <p>
+	 * Phương thức này tìm kiếm tài liệu tương ứng với token chia sẻ hợp lệ, sau đó yêu cầu dịch vụ lưu trữ S3
+	 * sinh ra một đường dẫn tạm thời (Presigned URL) cho phép truy cập xem trước file mà không cần đăng nhập.
+	 *
+	 * @param token mã token của liên kết chia sẻ
+	 * @return đối tượng {@link FileAccessUrlResponse} chứa đường dẫn xem trước tạm thời
+	 * @throws ResourceNotFoundException nếu không tìm thấy liên kết chia sẻ hợp lệ
+	 */
 	@Transactional(readOnly = true)
 	@Override
 	public FileAccessUrlResponse getShareLinkPreviewUrl(String token) {
 		return toFileAccessUrlResponse(findDocumentByShareLink(token), false);
 	}
 
+	/**
+	 * Lấy đường dẫn tải xuống (download URL) tạm thời của tài liệu thông qua mã token của liên kết chia sẻ.
+	 * <p>
+	 * Phương thức này tìm kiếm tài liệu tương ứng với token chia sẻ hợp lệ, sau đó yêu cầu dịch vụ lưu trữ S3
+	 * sinh ra một đường dẫn tạm thời (Presigned URL) được cấu hình chế độ tải file trực tiếp (attachment) về máy.
+	 *
+	 * @param token mã token của liên kết chia sẻ
+	 * @return đối tượng {@link FileAccessUrlResponse} chứa đường dẫn tải xuống tạm thời
+	 * @throws ResourceNotFoundException nếu không tìm thấy liên kết chia sẻ hợp lệ
+	 */
 	@Transactional(readOnly = true)
 	@Override
 	public FileAccessUrlResponse getShareLinkDownloadUrl(String token) {
 		return toFileAccessUrlResponse(findDocumentByShareLink(token), true);
 	}
 
+	/**
+	 * Lưu một tài liệu được chia sẻ qua liên kết vào danh mục tài liệu được chia sẻ với tôi (Shared with me).
+	 * <p>
+	 * Phương thức này thực hiện các bước kiểm tra an toàn và nghiệp vụ:
+	 * <ul>
+	 *   <li>Tìm kiếm tài liệu gốc và kiểm tra tính hợp lệ của token chia sẻ (chưa hết hạn, chưa bị vô hiệu hóa).</li>
+	 *   <li>Ngăn chặn chủ sở hữu tài liệu tự thực hiện hành động chia sẻ/lưu với chính mình.</li>
+	 *   <li>Kiểm tra xem tài liệu đã từng được lưu/chia sẻ trước đó với người dùng hiện tại chưa để tránh tạo bản ghi trùng lặp.</li>
+	 * </ul>
+	 * Nếu hợp lệ, hệ thống tạo bản ghi liên kết chia sẻ mới trong bảng {@code document_shares}.
+	 *
+	 * @param token mã token của liên kết chia sẻ tài liệu
+	 * @return đối tượng {@link DocumentShareResponse} chứa thông tin chia sẻ tài liệu thành công
+	 * @throws ResourceNotFoundException nếu không tìm thấy liên kết chia sẻ hợp lệ hoặc tài liệu đã bị xóa
+	 * @throws IllegalArgumentException  nếu người dùng cố tình tự lưu tài liệu của chính mình
+	 */
 	@Transactional
 	@Override
 	public DocumentShareResponse saveShareLinkToSharedWithMe(String token) {
@@ -326,6 +426,25 @@ public class DocumentServiceImpl implements DocumentService {
 		return toDocumentShareResponse(documentShareRepository.save(documentShare));
 	}
 
+	/**
+	 * Chia sẻ quyền truy cập tài liệu trực tiếp cho một người dùng khác thông qua email của họ.
+	 * <p>
+	 * Các bước kiểm tra nghiệp vụ và an toàn:
+	 * <ul>
+	 *   <li>Xác thực người dùng hiện tại là chủ sở hữu của tài liệu đang hoạt động.</li>
+	 *   <li>Tìm kiếm tài khoản người nhận thông qua email và đảm bảo họ tồn tại trong hệ thống.</li>
+	 *   <li>Ngăn chặn chủ sở hữu tự chia sẻ tài liệu với chính bản thân mình.</li>
+	 *   <li>Đảm bảo người sở hữu và người được chia sẻ đã là bạn bè của nhau (quan hệ tồn tại trong bảng {@code friendships}).</li>
+	 *   <li>Đảm bảo tài liệu chưa từng được chia sẻ với người dùng này trước đó để tránh tạo bản ghi trùng lặp.</li>
+	 * </ul>
+	 * Nếu hợp lệ, hệ thống tạo bản ghi liên kết chia sẻ trong bảng {@code document_shares}.
+	 *
+	 * @param documentId ID của tài liệu muốn chia sẻ
+	 * @param email      Email của người dùng được chia sẻ tài liệu
+	 * @return một đối tượng {@link DocumentShareResponse} chứa thông tin chi tiết của việc chia sẻ tài liệu
+	 * @throws ResourceNotFoundException nếu không tìm thấy tài liệu hoặc tài khoản người nhận
+	 * @throws IllegalArgumentException  nếu tự chia sẻ với chính mình, hai người chưa kết bạn, hoặc tài liệu đã được chia sẻ trước đó
+	 */
 	@Transactional
 	@Override
 	public DocumentShareResponse shareDocumentWithUser(Long documentId, String email) {
@@ -357,6 +476,16 @@ public class DocumentServiceImpl implements DocumentService {
 		return toDocumentShareResponse(documentShareRepository.save(documentShare));
 	}
 
+	/**
+	 * Thu hồi quyền truy cập tài liệu đã chia sẻ trực tiếp với một người dùng cụ thể.
+	 * <p>
+	 * Phương thức này thực hiện xác thực quyền sở hữu của người dùng hiện tại đối với tài liệu gốc,
+	 * sau đó tìm kiếm và xóa bản ghi chia sẻ tương ứng trong bảng {@code document_shares}.
+	 *
+	 * @param documentId ID của tài liệu cần thu hồi quyền chia sẻ
+	 * @param userId     ID của người dùng bị thu hồi quyền truy cập tài liệu
+	 * @throws ResourceNotFoundException nếu không tìm thấy bản ghi chia sẻ tài liệu tương ứng
+	 */
 	@Transactional
 	@Override
 	public void removeUserShare(Long documentId, Long userId) {
@@ -369,6 +498,14 @@ public class DocumentServiceImpl implements DocumentService {
 		documentShareRepository.delete(documentShare);
 	}
 
+	/**
+	 * Lấy danh sách toàn bộ các tài liệu đang hoạt động được người khác chia sẻ với người dùng hiện tại.
+	 * <p>
+	 * Phương thức này truy vấn bảng {@code document_shares} để tìm kiếm các bản ghi được chia sẻ với
+	 * người dùng hiện tại, kiểm tra xem tài liệu gốc chưa bị xóa và chuyển đổi kết quả thành danh sách DTO.
+	 *
+	 * @return một {@link List} chứa các đối tượng DTO {@link DocumentUploadResponse} đại diện cho các tài liệu được chia sẻ
+	 */
 	@Transactional(readOnly = true)
 	@Override
 	public List<DocumentUploadResponse> getSharedWithMeDocuments() {
@@ -561,6 +698,7 @@ public class DocumentServiceImpl implements DocumentService {
 			String contentType
 	) {
 		if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+			// Không có transaction active để chờ, nên dispatch async job ngay lập tức.
 			documentIngestionJobService.ingestAsync(documentId, ingestionFile, originalFilename, contentType);
 			return;
 		}
@@ -568,12 +706,14 @@ public class DocumentServiceImpl implements DocumentService {
 		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
 			@Override
 			public void afterCommit() {
+				// Document id đã bền vững, worker có thể load lại và index temp file an toàn.
 				documentIngestionJobService.ingestAsync(documentId, ingestionFile, originalFilename, contentType);
 			}
 
 			@Override
 			public void afterCompletion(int status) {
 				if (status != STATUS_COMMITTED) {
+					// Không để lại bản copy tạm khi transaction database bao quanh bị rollback.
 					deleteTempFileQuietly(ingestionFile);
 				}
 			}

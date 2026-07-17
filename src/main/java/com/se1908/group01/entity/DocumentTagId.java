@@ -6,6 +6,7 @@ import java.io.Serializable;
 import java.util.Objects;
 
 @Embeddable
+/** Composite key cho một dòng liên kết trong document_tag. */
 public class DocumentTagId implements Serializable {
 
 	@Column(name = "document_id")

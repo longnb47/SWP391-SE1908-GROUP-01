@@ -17,6 +17,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api")
+/**
+ * Cung cấp các API tag để UploadModal tải, tạo và gắn tag cho tài liệu mới.
+ */
 public class TagController {
 
 	private final TagService tagService;
@@ -50,6 +53,7 @@ public class TagController {
 	}
 
 	@PostMapping("/documents/{documentId}/tags/{tagId}")
+	/** Luồng upload gọi endpoint này sau khi metadata tài liệu đã được tạo. */
 	public ApiResponse<TagResponse> addTagToDocument(@PathVariable Long documentId, @PathVariable Long tagId) {
 		var response = tagService.addTagToDocument(documentId, tagId);
 		return ApiResponse.success("Add tag to document successfully", response);

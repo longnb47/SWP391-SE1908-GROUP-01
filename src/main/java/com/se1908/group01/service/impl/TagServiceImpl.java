@@ -19,6 +19,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 @Service
+/**
+ * Quản lý tag thuộc user và các dòng liên kết document_tag được dùng sau upload.
+ */
 public class TagServiceImpl implements TagService {
 
 	private final CurrentUserService currentUserService;
@@ -92,11 +95,16 @@ public class TagServiceImpl implements TagService {
 
 	@Transactional
 	@Override
+	/**
+	 * Liên kết tag thuộc user với document active cũng thuộc user.
+	 * Method được gọi sau upload vì document id do transaction upload sinh ra.
+	 */
 	public TagResponse addTagToDocument(Long documentId, Long tagId) {
 		var userId = currentUserService.getCurrentUserId();
 		var document = findOwnedActiveDocument(userId, documentId);
 		var tag = findOwnedTag(userId, tagId);
 		if (!documentTagRepository.existsByDocumentDocumentIdAndTagTagId(document.getDocumentId(), tag.getTagId())) {
+			// Tránh tạo dòng trùng trong bảng liên kết nhiều-nhiều document_tag.
 			var documentTag = new DocumentTag();
 			documentTag.setId(new DocumentTagId(document.getDocumentId(), tag.getTagId()));
 			documentTag.setDocument(document);

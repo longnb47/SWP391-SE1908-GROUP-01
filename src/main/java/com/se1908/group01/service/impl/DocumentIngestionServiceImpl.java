@@ -21,6 +21,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
+/**
+ * Chuyển tài liệu đã upload thành các vector chunk có thể tìm kiếm.
+ * Các stage runtime: PARSING -> tạo chunk -> INDEXING/embedding -> lưu document_chunk -> READY.
+ */
 public class DocumentIngestionServiceImpl implements DocumentIngestionService {
 
 	private static final Logger log = LoggerFactory.getLogger(DocumentIngestionServiceImpl.class);
@@ -48,11 +52,16 @@ public class DocumentIngestionServiceImpl implements DocumentIngestionService {
 	}
 
 	@Override
+	/**
+	 * Tạo và lưu toàn bộ representation có thể tìm kiếm của một tài liệu.
+	 * Được DocumentIngestionJobServiceImpl gọi sau khi transaction upload đã commit.
+	 */
 	public int ingest(Document document, MultipartFile file) throws IOException {
 		if (document == null || document.getDocumentId() == null) {
 			throw new IllegalArgumentException("Document is required");
 		}
 
+		// Đánh dấu document đang parse trước khi extract text từ bytes đã upload.
 		updateStatus(document, DocumentStatus.PARSING);
 		var chunks = createChunks(document, file);
 
@@ -64,6 +73,7 @@ public class DocumentIngestionServiceImpl implements DocumentIngestionService {
 			throw new IllegalStateException("No text content could be extracted from document");
 		}
 
+		// Chỉ embedding sau khi extract text thành công; vector cần cho semantic search/chat.
 		updateStatus(document, DocumentStatus.INDEXING);
 		var texts = chunks.stream().map(ChunkData::getContent).toList();
 		var vectors = embeddingService.embedVectors(texts);
@@ -72,6 +82,7 @@ public class DocumentIngestionServiceImpl implements DocumentIngestionService {
 		}
 
 		List<DocumentChunk> entities = new ArrayList<>(chunks.size());
+		// Gắn mỗi text chunk với document, page metadata và embedding vector đã serialize.
 		for (int i = 0; i < chunks.size(); i++) {
 			var c = chunks.get(i);
 			var e = new DocumentChunk();
@@ -83,6 +94,7 @@ public class DocumentIngestionServiceImpl implements DocumentIngestionService {
 			entities.add(e);
 		}
 
+		// Lưu chunk và vector cùng nhau để READY có nghĩa document đã có nội dung được index.
 		documentChunkRepository.saveAll(entities);
 		updateStatus(document, DocumentStatus.READY);
 		return entities.size();
@@ -94,6 +106,7 @@ public class DocumentIngestionServiceImpl implements DocumentIngestionService {
 	) throws IOException {
 		if (doclingService.supports(file)) {
 			try {
+				// Ưu tiên Docling cho format được hỗ trợ vì nó giữ nội dung tài liệu có cấu trúc.
 				var chunks = doclingService.chunk(file);
 				log.info(
 						"Docling created {} chunks for documentId={}",
@@ -103,6 +116,7 @@ public class DocumentIngestionServiceImpl implements DocumentIngestionService {
 				return chunks;
 			} catch (DoclingUnavailableException exception) {
 				if (!doclingService.isFallbackEnabled()) {
+					// Nếu không bật fallback, file type này bắt buộc phải dùng được Docling.
 					throw exception;
 				}
 				log.warn(
@@ -119,6 +133,7 @@ public class DocumentIngestionServiceImpl implements DocumentIngestionService {
 			}
 		}
 
+		// Dùng parser/chunker cũ cho format không hỗ trợ hoặc khi Docling được phép fallback.
 		var segments = parsingService.extractSegments(file, document);
 		return chunkingService.chunk(segments);
 	}

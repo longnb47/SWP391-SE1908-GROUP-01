@@ -26,6 +26,9 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 
 @Service
+/**
+ * Tạo transcript cho video đã upload để nội dung video đi vào cùng pipeline chunk/embedding.
+ */
 public class VideoTranscriptParser {
 
     private static final Logger log = LoggerFactory.getLogger(VideoTranscriptParser.class);
@@ -50,7 +53,18 @@ public class VideoTranscriptParser {
         this.googleSpeechProperties = googleSpeechProperties;
     }
 
+    /**
+     * Tải video từ S3, trích xuất âm thanh và chuyển đổi nội dung giọng nói thành văn bản.
+     *
+     * @param documentId mã định danh của tài liệu cần xử lý
+     * @param s3Key đường dẫn đối tượng video trong S3
+     * @param contentType kiểu nội dung của video
+     * @return nội dung văn bản được nhận dạng từ video
+     * @throws IllegalStateException khi dịch vụ Google Speech-to-Text hoặc AWS S3 chưa được cấu hình
+     * @throws RuntimeException khi quá trình tải, chuyển đổi hoặc nhận dạng video thất bại
+     */
     public String parse(Long documentId, String s3Key, String contentType) {
+        // Video parsing đọc object gốc bằng document id/S3 key và trả về text cho embedding.
         if (speechClient == null || storage == null) {
             throw new IllegalStateException(
                     "Google Cloud Speech-to-Text is not configured. "
@@ -110,6 +124,14 @@ public class VideoTranscriptParser {
         }
     }
 
+    /**
+     * Trích xuất luồng âm thanh từ video MP4 sang định dạng FLAC 16 kHz, một kênh bằng FFmpeg.
+     *
+     * @param inputMp4 đường dẫn đến tệp video MP4 đầu vào
+     * @param outputFlac đường dẫn đến tệp âm thanh FLAC đầu ra
+     * @throws IOException khi không thể khởi chạy FFmpeg hoặc đọc kết quả xử lý
+     * @throws InterruptedException khi luồng đang chờ tiến trình FFmpeg bị gián đoạn
+     */
     private void extractAudio(Path inputMp4, Path outputFlac) throws IOException, InterruptedException {
         log.debug("FFmpeg: extracting audio {} → {}", inputMp4, outputFlac);
         var process = new ProcessBuilder(

@@ -16,6 +16,7 @@ import java.time.Instant;
 
 @Entity
 @Table(name = "chat_session")
+/** Lưu cấu hình, phạm vi document và trạng thái soft-delete của một cuộc trò chuyện. */
 public class ChatSession {
 
 	@Id

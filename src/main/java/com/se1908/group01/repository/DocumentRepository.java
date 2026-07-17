@@ -10,6 +10,9 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.Query;
 
+/**
+ * Lưu metadata tài liệu và cung cấp query ownership/storage cho việc kiểm tra entitlement upload.
+ */
 public interface DocumentRepository extends JpaRepository<Document, Long>, JpaSpecificationExecutor<Document> {
 
 	Optional<Document> findByDocumentIdAndUserId(Long documentId, Long userId);
@@ -27,6 +30,15 @@ public interface DocumentRepository extends JpaRepository<Document, Long>, JpaSp
 	List<Document> findByIsPublicTrueAndIsDeletedFalseOrderByUploadedAtDesc();
 
 	List<Document> findByUserIdAndIsDeletedTrueOrderByDeletedAtDesc(Long userId);
+
+	@Query("""
+			SELECT COALESCE(SUM(d.fileSize), 0)
+			FROM Document d
+			WHERE d.userId = :userId
+			  AND d.isDeleted = false
+			""")
+	// Chỉ cộng tài liệu chưa bị xóa vì file soft-delete không còn tính vào quota storage đang dùng.
+	long sumActiveStorageBytesByUserId(@Param("userId") Long userId);
 
 	@Modifying
 	@Query("update Document d set d.folderId = null where d.userId = :userId and d.folderId = :folderId")

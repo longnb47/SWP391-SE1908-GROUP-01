@@ -15,6 +15,9 @@ import java.time.Instant;
 
 @Entity
 @Table(name = "document_chunk")
+/**
+ * Lưu một text chunk có thể tìm kiếm và embedding vector đã serialize của tài liệu.
+ */
 public class DocumentChunk {
 
 	@Id

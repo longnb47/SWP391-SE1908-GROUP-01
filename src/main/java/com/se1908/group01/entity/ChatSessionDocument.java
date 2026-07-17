@@ -10,6 +10,7 @@ import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "chat_session_document")
+/** Entity trung gian nối session với document; single-document tạo một dòng liên kết. */
 public class ChatSessionDocument {
 
 	@EmbeddedId

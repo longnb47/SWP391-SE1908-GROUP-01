@@ -20,6 +20,10 @@ import java.time.Instant;
 				@Index(name = "idx_document_content_type", columnList = "content_type")
 		}
 )
+/**
+ * Đại diện JPA cho metadata và trạng thái xử lý của file đã upload.
+ * Nội dung binary nằm trong S3; bảng này lưu owner, object key, kích thước, visibility và lifecycle state.
+ */
 public class Document {
 
 	@Id
@@ -66,6 +70,7 @@ public class Document {
 
 	@PrePersist
 	void prePersist() {
+		// Gán giá trị mặc định để mọi upload mới đều có timestamp và lifecycle state xác định.
 		if (uploadedAt == null) {
 			uploadedAt = Instant.now();
 		}

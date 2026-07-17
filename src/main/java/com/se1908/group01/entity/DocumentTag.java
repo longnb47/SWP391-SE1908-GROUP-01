@@ -13,6 +13,9 @@ import java.time.Instant;
 
 @Entity
 @Table(name = "document_tag")
+/**
+ * Entity trung gian liên kết tài liệu với tag thuộc user sau upload.
+ */
 public class DocumentTag {
 
 	@EmbeddedId

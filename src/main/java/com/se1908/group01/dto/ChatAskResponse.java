@@ -2,6 +2,7 @@ package com.se1908.group01.dto;
 
 import java.util.List;
 
+/** Response stateless gồm answer và metadata các chunk được dùng làm nguồn. */
 public class ChatAskResponse {
 
 	private Long documentId;

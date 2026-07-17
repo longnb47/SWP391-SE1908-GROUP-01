@@ -32,6 +32,7 @@ import com.se1908.group01.service.DocumentAccessService;
 import com.se1908.group01.service.DocumentEmbeddingService;
 import com.se1908.group01.service.LlmClient;
 import com.se1908.group01.service.PromptBuilderService;
+import com.se1908.group01.service.SubscriptionEntitlementService;
 import com.se1908.group01.service.VectorSearchService;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -44,6 +45,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 @Service
+/**
+ * Xử lý persistent chat session, là nhánh chính của DocumentChat.
+ * Với single-document, session có mode SELECTED_DOCUMENTS và liên kết đúng một document.
+ * Service quản lý cả RAG, conversation memory, lưu message/source và trả response cho controller.
+ */
 public class ChatSessionServiceImpl implements ChatSessionService {
 
 	private static final int TOP_K = 10;
@@ -63,6 +69,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 	private final ChatMessageRepository chatMessageRepository;
 	private final ChatMessageSourceRepository chatMessageSourceRepository;
 	private final RagProperties ragProperties;
+	private final SubscriptionEntitlementService subscriptionEntitlementService;
 
 	public ChatSessionServiceImpl(
 			CurrentUserService currentUserService,
@@ -77,7 +84,8 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 			ChatSessionDocumentRepository chatSessionDocumentRepository,
 			ChatMessageRepository chatMessageRepository,
 			ChatMessageSourceRepository chatMessageSourceRepository,
-			RagProperties ragProperties
+			RagProperties ragProperties,
+			SubscriptionEntitlementService subscriptionEntitlementService
 	) {
 		this.currentUserService = currentUserService;
 		this.documentAccessService = documentAccessService;
@@ -92,18 +100,25 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 		this.chatMessageRepository = chatMessageRepository;
 		this.chatMessageSourceRepository = chatMessageSourceRepository;
 		this.ragProperties = ragProperties;
+		this.subscriptionEntitlementService = subscriptionEntitlementService;
 	}
 
 	@Transactional
 	@Override
 	public ChatSessionResponse createSession(CreateChatSessionRequest request) {
+		/**
+		 * Tạo session và liên kết document được chọn.
+		 * @Transactional bảo đảm việc lưu chat_session và chat_session_document cùng nằm trong một transaction.
+		 */
 		var userId = currentUserService.getCurrentUserId();
 		var mode = resolveMode(request.mode());
 		var policy = resolvePolicy(mode, request.useGeneralKnowledge());
 		var options = aiGenerationOptionsService.resolve(request.model(), request.temperature());
 		List<Document> selectedDocuments = List.of();
+		List<Document> userStorageDocuments = List.of();
 
 		if (mode == ChatMode.SELECTED_DOCUMENTS) {
+			// Single-document đi vào nhánh này; folderId bị cấm và danh sách phải chứa document READY accessible.
 			if (request.folderId() != null) {
 				throw new IllegalArgumentException("folderId is not supported in SelectedDocuments mode");
 			}
@@ -115,13 +130,19 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 			if (request.selectedDocumentIds() != null && !request.selectedDocumentIds().isEmpty()) {
 				throw new IllegalArgumentException("selectedDocumentIds is not supported in UserStorage mode");
 			}
-			documentAccessService.getAllReadyDocumentsForUser(
+			userStorageDocuments = documentAccessService.getAllReadyDocumentsForUser(
 					userId,
 					request.folderId(),
 					policy == KnowledgePolicy.DOCUMENTS_PLUS_GENERAL
 			);
 		}
+		// Plan được kiểm tra trước khi tạo session để chặn plan không cho phép nhiều document.
+		var entitlementDocumentCount = mode == ChatMode.SELECTED_DOCUMENTS
+				? selectedDocuments.size()
+				: userStorageDocuments.size();
+		subscriptionEntitlementService.enforceDocumentChatEntitlement(userId, entitlementDocumentCount);
 
+		// Lưu policy/model/temperature vào session để các message sau dùng đúng cấu hình ban đầu.
 		var session = new ChatSession();
 		session.setUserId(userId);
 		session.setTitle(normalizeTitle(request.title()));
@@ -132,6 +153,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 		session.setTemperature(options.temperature());
 		session = chatSessionRepository.save(session);
 
+		// Lưu bảng liên kết; single-document tạo đúng một dòng chat_session_document.
 		for (var document : selectedDocuments) {
 			var link = new ChatSessionDocument();
 			link.setId(new ChatSessionDocumentId(session.getSessionId(), document.getDocumentId()));
@@ -146,6 +168,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 	@Transactional(readOnly = true)
 	@Override
 	public List<ChatSessionResponse> getMySessions() {
+		// FE dùng danh sách này để tìm session có selectedDocumentIds đúng document đang mở.
 		var userId = currentUserService.getCurrentUserId();
 		return chatSessionRepository.findByUserIdAndIsDeletedFalseOrderByUpdatedAtDesc(userId)
 				.stream()
@@ -172,6 +195,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 	@Transactional(readOnly = true)
 	@Override
 	public ChatMessageListResponse getMessages(Long sessionId, int page, int size) {
+		// Chỉ đọc session thuộc user hiện tại, phân trang message và ghép source citation theo messageId.
 		var session = findOwnedSession(sessionId);
 		if (page < 0) {
 			throw new IllegalArgumentException("Page must be greater than or equal to 0");
@@ -206,8 +230,15 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 
 	@Override
 	public ChatMessageResponse sendMessage(Long sessionId, SendChatMessageRequest request) {
+		/**
+		 * Xử lý một câu hỏi trong persistent session.
+		 * Runtime flow: kiểm tra session -> lấy memory -> lưu USER message -> resolve document READY
+		 * -> embed/search -> build prompt -> kiểm tra token -> gọi LLM -> lưu ASSISTANT message/sources.
+		 */
 		var session = findOwnedSession(sessionId);
+		// Memory chỉ lấy các message COMPLETED gần nhất để hiểu câu hỏi follow-up.
 		var conversationMemory = chatConversationMemoryService.getRecentMessages(sessionId);
+		// Lưu câu hỏi trước khi gọi AI để lịch sử vẫn ghi nhận user đã gửi gì.
 		saveMessage(
 				session,
 				ChatMessageRole.USER,
@@ -216,15 +247,20 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 		);
 
 		try {
+			// Resolve lại document ở backend, tránh tin danh sách document cũ mà session từng lưu.
 			var documents = resolveDocuments(session);
 			var options = aiGenerationOptionsService.resolve(session.getModel(), session.getTemperature());
+			// Kiểm tra entitlement lần nữa ở thời điểm gửi message, không chỉ lúc tạo session.
+			subscriptionEntitlementService.enforceDocumentChatEntitlement(session.getUserId(), documents.size());
 			if (documents.isEmpty()) {
+				// Không còn document accessible thì lưu câu trả lời có kiểm soát, không gọi LLM.
 				return saveNoContextAnswer(session);
 			}
 
 			var resolvedDocumentIds = documents.stream()
 					.map(Document::getDocumentId)
 					.toList();
+			// Embed câu hỏi trực tiếp; source hiện tại không có bước dịch tiếng Việt sang tiếng Anh.
 			var questionEmbedding = documentEmbeddingService.embedQuestion(request.question());
 			var chunks = vectorSearchService.search(
 					questionEmbedding,
@@ -234,9 +270,11 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 					TOP_K
 			);
 			if (chunks.isEmpty()) {
+				// Không tìm thấy context phù hợp thì trả thông báo nghiệp vụ thay vì đoán câu trả lời.
 				return saveNoContextAnswer(session);
 			}
 
+			// Prompt gồm policy documents-only, memory hội thoại, context chunk và câu hỏi hiện tại.
 			var prompt = promptBuilderService.buildSessionQuestionPrompt(
 					session.getChatMode(),
 					session.getKnowledgePolicy(),
@@ -244,7 +282,11 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 					conversationMemory,
 					request.question()
 			);
+			// Chặn trước khi gọi provider nếu monthly token budget của plan đã hết.
+			subscriptionEntitlementService.enforceAiTokenBudget(session.getUserId(), prompt);
 			var answer = llmClient.generateAnswer(prompt, options);
+			// Ghi usage sau khi LLM trả lời thành công; token là giá trị ước lượng theo độ dài text.
+			subscriptionEntitlementService.recordAiTokenUsage(session.getUserId(), prompt, answer);
 			var assistantMessage = saveMessage(
 					session,
 					ChatMessageRole.ASSISTANT,
@@ -255,6 +297,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 			touchSession(session);
 			return toMessageResponse(assistantMessage, sources);
 		} catch (RuntimeException ex) {
+			// Nếu lỗi sau khi đã ghi USER message, lưu ASSISTANT FAILED để lịch sử phản ánh lần gọi lỗi.
 			saveMessage(
 					session,
 					ChatMessageRole.ASSISTANT,
@@ -268,6 +311,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 
 	private List<Document> resolveDocuments(ChatSession session) {
 		if (session.getChatMode() == ChatMode.SELECTED_DOCUMENTS) {
+			// Single-document lấy documentId từ bảng liên kết session-document rồi kiểm tra READY/access lần nữa.
 			var documentIds = chatSessionDocumentRepository.findDocumentIdsBySessionId(session.getSessionId());
 			if (documentIds.isEmpty()) {
 				return List.of();
@@ -282,6 +326,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 	}
 
 	private ChatMessageResponse saveNoContextAnswer(ChatSession session) {
+		// Câu trả lời này vẫn được lưu COMPLETED để FE hiển thị và lần sau không gọi LLM vô ích.
 		var answer = noContextMessage(session.getChatMode(), session.getKnowledgePolicy());
 		var assistantMessage = saveMessage(
 				session,
@@ -312,6 +357,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 			List<RetrievedChunk> chunks
 	) {
 		List<ChatMessageSource> entities = new ArrayList<>();
+		// Mỗi chunk được dùng làm context tạo một source record để trả citation về UI.
 		for (var retrieved : chunks) {
 			var chunk = retrieved.getChunk();
 			var source = new ChatMessageSource();
@@ -329,6 +375,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 	}
 
 	private Map<Long, List<ChatMessageSourceResponse>> loadSources(List<Long> messageIds) {
+		// Nạp source theo batch messageIds để response lịch sử có citation mà không query từng message.
 		Map<Long, List<ChatMessageSourceResponse>> result = new HashMap<>();
 		if (messageIds.isEmpty()) {
 			return result;
@@ -344,6 +391,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 			ChatMessage message,
 			List<ChatMessageSourceResponse> sources
 	) {
+		// Chuẩn hóa entity message và source thành DTO public, không trả trực tiếp entity JPA ra API.
 		return new ChatMessageResponse(
 				message.getMessageId(),
 				message.getRole(),
@@ -364,6 +412,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 	}
 
 	private ChatSessionResponse toSessionResponse(ChatSession session) {
+		// Response session chứa selectedDocumentIds để FE nhận diện chat single-document khi mở lại.
 		return new ChatSessionResponse(
 				session.getSessionId(),
 				session.getTitle(),
@@ -380,6 +429,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 
 	private ChatSession findOwnedSession(Long sessionId) {
 		var userId = currentUserService.getCurrentUserId();
+		// Điều kiện userId và isDeletedFalse ngăn user đọc hoặc gửi vào session của người khác/đã xóa.
 		return chatSessionRepository.findBySessionIdAndUserIdAndIsDeletedFalse(sessionId, userId)
 				.orElseThrow(() -> new ResourceNotFoundException("Chat session not found"));
 	}
@@ -415,6 +465,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 
 	private String buildContext(List<RetrievedChunk> chunks) {
 		var context = new StringBuilder();
+		// Ghép nội dung chunk kèm document/chunk index để prompt và citation giữ được nguồn truy xuất.
 		for (var retrieved : chunks) {
 			var chunk = retrieved.getChunk();
 			context.append("[Document ")

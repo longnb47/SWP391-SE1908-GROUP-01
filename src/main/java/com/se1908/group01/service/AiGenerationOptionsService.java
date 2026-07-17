@@ -7,6 +7,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 @Service
+/**
+ * Resolve model và temperature từ request hoặc cấu hình mặc định trước khi gọi AI provider.
+ */
 public class AiGenerationOptionsService {
 
 	private final AiChatProperties aiChatProperties;
@@ -16,6 +19,7 @@ public class AiGenerationOptionsService {
 	}
 
 	public AiGenerationOptions resolve(String requestedModel, Double requestedTemperature) {
+		// Chuẩn hóa và validate cấu hình để LLM luôn nhận model được hỗ trợ và temperature trong 0.0..1.0.
 		if (requestedModel != null && !StringUtils.hasText(requestedModel)) {
 			throw new IllegalArgumentException("AI model must not be blank");
 		}

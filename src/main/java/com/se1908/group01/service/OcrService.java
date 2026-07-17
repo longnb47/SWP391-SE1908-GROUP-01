@@ -17,6 +17,9 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
+/**
+ * Extract text từ image đã upload hoặc trang PDF được render khi text trực tiếp không đủ.
+ */
 public class OcrService {
 
 	private final OcrProperties properties;
@@ -30,6 +33,7 @@ public class OcrService {
 	}
 
 	public String extractText(MultipartFile file) throws IOException {
+		// Image upload đi vào pipeline ingestion dưới dạng các text segment từ OCR.
 		if (!isEnabled()) {
 			return "";
 		}

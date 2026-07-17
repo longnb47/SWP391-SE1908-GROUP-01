@@ -13,6 +13,7 @@ import com.se1908.group01.service.DocumentEmbeddingService;
 import com.se1908.group01.service.LlmClient;
 import com.se1908.group01.service.MultiChatService;
 import com.se1908.group01.service.PromptBuilderService;
+import com.se1908.group01.service.SubscriptionEntitlementService;
 import com.se1908.group01.service.VectorSearchService;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -30,6 +31,7 @@ public class MultiChatServiceImpl implements MultiChatService {
 	private final PromptBuilderService promptBuilderService;
 	private final LlmClient llmClient;
 	private final AiGenerationOptionsService aiGenerationOptionsService;
+	private final SubscriptionEntitlementService subscriptionEntitlementService;
 
 	public MultiChatServiceImpl(
 			DocumentAccessService documentAccessService,
@@ -38,7 +40,8 @@ public class MultiChatServiceImpl implements MultiChatService {
 			VectorSearchService vectorSearchService,
 			PromptBuilderService promptBuilderService,
 			LlmClient llmClient,
-			AiGenerationOptionsService aiGenerationOptionsService
+			AiGenerationOptionsService aiGenerationOptionsService,
+			SubscriptionEntitlementService subscriptionEntitlementService
 	) {
 		this.documentAccessService = documentAccessService;
 		this.currentUserService = currentUserService;
@@ -47,6 +50,7 @@ public class MultiChatServiceImpl implements MultiChatService {
 		this.promptBuilderService = promptBuilderService;
 		this.llmClient = llmClient;
 		this.aiGenerationOptionsService = aiGenerationOptionsService;
+		this.subscriptionEntitlementService = subscriptionEntitlementService;
 	}
 
 	@Override
@@ -72,6 +76,10 @@ public class MultiChatServiceImpl implements MultiChatService {
 					false
 			);
 		}
+		var entitlementDocumentCount = chatMode == ChatMode.SELECTED_DOCUMENTS
+				? request.getSelectedDocumentIds().size()
+				: documents.size();
+		subscriptionEntitlementService.enforceDocumentChatEntitlement(userId, entitlementDocumentCount);
 
 		var resolvedDocumentIds = documents.stream()
 				.map(Document::getDocumentId)
@@ -112,7 +120,9 @@ public class MultiChatServiceImpl implements MultiChatService {
 		var context = buildContext(chunks);
 		var prompt = promptBuilderService.buildMultiDocumentQuestionPrompt(chatMode, context, request.getQuestion());
 		var sources = buildSources(chunks);
+		subscriptionEntitlementService.enforceAiTokenBudget(userId, prompt);
 		var answer = llmClient.generateAnswer(prompt, generationOptions);
+		subscriptionEntitlementService.recordAiTokenUsage(userId, prompt, answer);
 
 		var usedDocumentIds = chunks.stream()
 				.map(rc -> rc.getChunk().getDocument().getDocumentId())

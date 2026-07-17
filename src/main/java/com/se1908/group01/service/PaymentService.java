@@ -48,6 +48,21 @@ public class PaymentService {
     private final SubscriptionLifecycleService subscriptionLifecycleService;
     private final VNPayConfig vnPayConfig;
 
+    /**
+     * Tạo một giao dịch thanh toán cho gói đăng ký đã chọn và
+     * sinh URL thanh toán VNPay để người dùng thực hiện thanh toán.
+     *
+     * @param email email của người dùng đang thực hiện thanh toán
+     * @param request thông tin gói đăng ký và phương thức thanh toán
+     * @return thông tin giao dịch bao gồm mã thanh toán, mã giao dịch,
+     *         URL thanh toán và trạng thái hiện tại
+     * @throws ResourceNotFoundException nếu không tìm thấy người dùng
+     *                                   hoặc gói đăng ký
+     * @throws IllegalArgumentException nếu gói đăng ký không khả dụng,
+     *                                  là gói miễn phí hoặc phương thức
+     *                                  thanh toán không hợp lệ
+     * @throws IllegalStateException nếu cấu hình VNPay chưa đầy đủ
+     */
     public PaymentPurchaseResponse purchase(
             String email,
             PurchaseRequest request) {
@@ -94,6 +109,20 @@ public class PaymentService {
                 .build();
     }
 
+    /**
+     * Xử lý callback từ VNPay sau khi người dùng hoàn tất hoặc hủy thanh toán.
+     * Phương thức sẽ kiểm tra chữ ký, mã merchant, số tiền thanh toán và
+     * cập nhật trạng thái giao dịch tương ứng. Nếu thanh toán thành công,
+     * hệ thống sẽ kích hoạt gói đăng ký cho người dùng.
+     *
+     * @param params tập các tham số callback do VNPay gửi về
+     * @return kết quả xử lý callback bao gồm trạng thái giao dịch
+     *         và thông tin giao dịch đã được xử lý hay chưa
+     * @throws IllegalArgumentException nếu callback không hợp lệ, thiếu tham số,
+     *                                  sai chữ ký, sai merchant hoặc sai số tiền
+     * @throws ResourceNotFoundException nếu không tìm thấy giao dịch thanh toán
+     * @throws IllegalStateException nếu cấu hình callback của VNPay chưa đầy đủ
+     */
     @Transactional
     public PaymentCallbackResponse handleVNPayCallback(
             Map<String, String> params) {
@@ -149,6 +178,15 @@ public class PaymentService {
         return callbackResponse(payment, false);
     }
 
+    /**
+     * Lấy lịch sử thanh toán của người dùng theo email.
+     *
+     * @param email email của người dùng cần lấy lịch sử thanh toán
+     * @return danh sách các giao dịch thanh toán của người dùng,
+     *         bao gồm thông tin gói đăng ký, số tiền, phương thức
+     *         thanh toán, trạng thái và thời điểm thanh toán
+     * @throws ResourceNotFoundException nếu không tìm thấy người dùng
+     */
     public List<PaymentHistoryResponse> getMyPaymentHistory(
             String email) {
 
@@ -167,6 +205,18 @@ public class PaymentService {
                 .toList();
     }
 
+    /**
+     * Lấy danh sách tất cả giao dịch thanh toán theo phân trang.
+     * Có thể lọc kết quả theo trạng thái thanh toán nếu được cung cấp.
+     *
+     * @param status trạng thái thanh toán cần lọc; nếu {@code null}
+     *               hoặc rỗng thì trả về tất cả giao dịch
+     * @param page số trang cần lấy (bắt đầu từ 0)
+     * @param size số lượng bản ghi trên mỗi trang
+     * @return danh sách giao dịch thanh toán theo phân trang
+     * @throws IllegalArgumentException nếu tham số phân trang không hợp lệ
+     *                                  hoặc trạng thái thanh toán không hợp lệ
+     */
     @Transactional(readOnly = true)
     public AdminPaymentListResponse getAllPayments(
             String status,
@@ -205,7 +255,12 @@ public class PaymentService {
                 paymentPage.getTotalPages()
         );
     }
-
+    /**
+     * Lấy thông tin tổng quan về doanh thu từ các giao dịch thanh toán thành công.
+     *
+     * @return thông tin doanh thu bao gồm tổng doanh thu và
+     *         tổng số giao dịch thanh toán thành công
+     */
     public RevenueResponse getRevenue() {
         return RevenueResponse.builder()
                 .totalRevenue(paymentRepository.getTotalRevenue())
@@ -215,6 +270,15 @@ public class PaymentService {
                 .build();
     }
 
+    /**
+     * Lấy thông tin gói đăng ký hiện tại của người dùng.
+     * Nếu người dùng chưa có gói đăng ký đang hoạt động,
+     * hệ thống sẽ lấy hoặc khởi tạo gói đăng ký theo quy tắc hiện có.
+     *
+     * @param email email của người dùng
+     * @return thông tin gói đăng ký hiện tại của người dùng
+     * @throws ResourceNotFoundException nếu không tìm thấy người dùng
+     */
     public SubscriptionResponse getMySubscription(String email) {
         User user = findUser(email);
 

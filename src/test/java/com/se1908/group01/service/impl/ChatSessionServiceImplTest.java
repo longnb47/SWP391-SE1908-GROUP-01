@@ -24,6 +24,7 @@ import com.se1908.group01.service.DocumentAccessService;
 import com.se1908.group01.service.DocumentEmbeddingService;
 import com.se1908.group01.service.LlmClient;
 import com.se1908.group01.service.PromptBuilderService;
+import com.se1908.group01.service.SubscriptionEntitlementService;
 import com.se1908.group01.service.VectorSearchService;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -59,6 +60,8 @@ class ChatSessionServiceImplTest {
 	private ChatMessageRepository chatMessageRepository;
 	@Mock
 	private ChatMessageSourceRepository chatMessageSourceRepository;
+	@Mock
+	private SubscriptionEntitlementService subscriptionEntitlementService;
 
 	private ChatSessionServiceImpl chatSessionService;
 
@@ -77,7 +80,8 @@ class ChatSessionServiceImplTest {
 				chatSessionDocumentRepository,
 				chatMessageRepository,
 				chatMessageSourceRepository,
-				new RagProperties()
+				new RagProperties(),
+				subscriptionEntitlementService
 		);
 	}
 

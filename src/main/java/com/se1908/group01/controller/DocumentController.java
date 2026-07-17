@@ -32,6 +32,10 @@ import software.amazon.awssdk.services.s3.model.S3Exception;
 
 @RestController
 @RequestMapping("/api/documents")
+/**
+ * Cung cấp các API tài liệu được dashboard sử dụng, bao gồm upload multipart.
+ * Luồng runtime: React UploadModal -> POST /api/documents/upload -> DocumentService.
+ */
 public class DocumentController {
 
 	private final DocumentService documentService;
@@ -55,12 +59,17 @@ public class DocumentController {
 	}
 
 	@PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	/**
+	 * Nhận file multipart và giao toàn bộ việc validation, persistence cho service layer.
+	 * Response chứa metadata tài liệu; parsing và embedding tiếp tục bất đồng bộ sau khi transaction commit.
+	 */
 	public ApiResponse<DocumentUploadResponse> upload(
 			@RequestParam("file") MultipartFile file,
-			@RequestParam(value = "isPublic", required = false) Boolean isPublic
+			@RequestParam(value = "isPublic", required = false) Boolean isPublic,
+			@RequestParam(value = "folderId", required = false) Long folderId
 	) {
 		try {
-			var response = documentService.upload(file, isPublic);
+			var response = documentService.upload(file, isPublic, folderId);
 			return ApiResponse.success("Upload document successfully", response);
 		} catch (S3Exception ex) {
 			throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "S3 upload failed", ex);
@@ -145,6 +154,9 @@ public class DocumentController {
 	}
 
 	@PatchMapping("/{documentId}/folder")
+	/**
+	 * Áp dụng folder tùy chọn mà UploadModal yêu cầu sau khi upload trả về document id.
+	 */
 	public ApiResponse<DocumentUploadResponse> moveDocumentToFolder(
 			@PathVariable Long documentId,
 			@RequestBody DocumentMoveFolderRequest request
