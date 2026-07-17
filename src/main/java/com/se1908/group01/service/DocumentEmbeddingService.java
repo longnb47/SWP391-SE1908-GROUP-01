@@ -22,6 +22,8 @@ import org.springframework.util.StringUtils;
 public class DocumentEmbeddingService {
 
 	private static final Logger log = LoggerFactory.getLogger(DocumentEmbeddingService.class);
+	private static final String DOCUMENT_PREFIX = "title: none | text: ";
+	private static final String QUESTION_PREFIX = "task: question answering | query: ";
 	private static final int MAX_EMBEDDING_BATCH_SIZE = 90;
 	private static final int MAX_RETRY_ATTEMPTS = 3;
 	private static final Duration DEFAULT_RETRY_DELAY = Duration.ofSeconds(30);
@@ -41,7 +43,7 @@ public class DocumentEmbeddingService {
 		if (!StringUtils.hasText(question)) {
 			throw new IllegalArgumentException("Question is required");
 		}
-		var results = embedVectors(List.of(question));
+		var results = embedPreparedVectors(List.of(QUESTION_PREFIX + question));
 		if (results.isEmpty()) {
 			throw new IllegalStateException("Failed to embed question");
 		}
@@ -53,6 +55,14 @@ public class DocumentEmbeddingService {
 			return List.of();
 		}
 
+		var prepared = new ArrayList<String>(texts.size());
+		for (String text : texts) {
+			prepared.add(StringUtils.hasText(text) ? DOCUMENT_PREFIX + text : "");
+		}
+		return embedPreparedVectors(prepared);
+	}
+
+	private List<String> embedPreparedVectors(List<String> texts) {
 		if (embeddingModel == null) {
 			throw new IllegalStateException("EmbeddingModel is not configured. Set SPRING_AI_MODEL_EMBEDDING_TEXT=google-genai and GEMINI_API_KEY.");
 		}

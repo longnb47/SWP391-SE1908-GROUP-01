@@ -41,8 +41,7 @@ spring:
           api-key: ${GEMINI_EMBEDDING_API_KEY:}
           text:
             options:
-              model: gemini-embedding-001
-              task-type: RETRIEVAL_DOCUMENT
+              model: ${GEMINI_EMBEDDING_MODEL:gemini-embedding-2}
   datasource:
     url: ${SQLSERVER_DATASOURCE_URL:jdbc:sqlserver://localhost:1433;databaseName=lms_ai;encrypt=true;trustServerCertificate=true}
     username: ${SQLSERVER_DATASOURCE_USERNAME:sa}

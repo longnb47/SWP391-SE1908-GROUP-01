@@ -41,5 +41,23 @@ class DocumentEmbeddingServiceTest {
 		var batches = ArgumentCaptor.<List<String>>captor();
 		verify(embeddingModel, org.mockito.Mockito.times(3)).embedForResponse(batches.capture());
 		assertEquals(List.of(90, 90, 20), batches.getAllValues().stream().map(List::size).toList());
+		assertEquals("title: none | text: chunk-0", batches.getAllValues().getFirst().getFirst());
+		assertEquals("title: none | text: chunk-199", batches.getAllValues().getLast().getLast());
+	}
+
+	@Test
+	void embedQuestionAddsQuestionAnsweringInstruction() {
+		when(embeddingModel.embedForResponse(anyList()))
+				.thenReturn(new EmbeddingResponse(List.of(new Embedding(new float[]{0.1F}, 0))));
+		var service = new DocumentEmbeddingService(embeddingModel, new ObjectMapper());
+
+		service.embedQuestion("What is this document about?");
+
+		var batch = ArgumentCaptor.<List<String>>captor();
+		verify(embeddingModel).embedForResponse(batch.capture());
+		assertEquals(
+				List.of("task: question answering | query: What is this document about?"),
+				batch.getValue()
+		);
 	}
 }

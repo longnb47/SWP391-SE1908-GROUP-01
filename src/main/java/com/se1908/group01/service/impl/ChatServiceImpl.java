@@ -66,9 +66,7 @@ public class ChatServiceImpl implements ChatService {
 				request.getTemperature()
 		);
 		var document = documentAccessService.getReadyDocumentForChat(userId, request.getDocumentId());
-		var queryVector = documentEmbeddingService.embedVectors(List.of(request.getQuestion())).stream()
-				.findFirst()
-				.orElseThrow(() -> new IllegalStateException("Failed to generate question embedding"));
+		var queryVector = documentEmbeddingService.embedQuestion(request.getQuestion());
 		var chunks = vectorSearchService.search(document.getDocumentId(), queryVector, TOP_K);
 		if (chunks.isEmpty()) {
 			throw new IllegalArgumentException("Document has no indexed content for chat");
