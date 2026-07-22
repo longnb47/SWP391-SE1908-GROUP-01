@@ -42,6 +42,15 @@ public interface DocumentService {
 
 	FileAccessUrlResponse getPublicDownloadUrl(Long documentId);
 
+	/**
+	 * Lưu một tài liệu công khai từ Community về kho tài liệu cá nhân (My Files).
+	 *
+	 * @param documentId ID của tài liệu công khai trên Community
+	 * @param folderId   ID của thư mục đích trong My Files (tùy chọn, có thể null)
+	 * @return thông tin chi tiết của tài liệu mới được tạo trong My Files
+	 */
+	DocumentUploadResponse savePublicDocumentToMyFiles(Long documentId, Long folderId);
+
 	DocumentShareLinkResponse createShareLink(Long documentId);
 
 	DocumentShareLinkResponse disableShareLink(Long documentId);
@@ -65,6 +74,15 @@ public interface DocumentService {
 	FileAccessUrlResponse getSharedWithMePreviewUrl(Long documentId);
 
 	FileAccessUrlResponse getSharedWithMeDownloadUrl(Long documentId);
+
+	/**
+	 * Lưu một tài liệu được chia sẻ trực tiếp với tôi về kho tài liệu cá nhân (My Files).
+	 *
+	 * @param documentId ID của tài liệu được chia sẻ
+	 * @param folderId   ID của thư mục đích trong My Files (tùy chọn, có thể null)
+	 * @return thông tin chi tiết của tài liệu mới được tạo trong My Files
+	 */
+	DocumentUploadResponse saveSharedWithMeDocumentToMyFiles(Long documentId, Long folderId);
 
 	DocumentUploadResponse updateVisibility(Long documentId, Boolean isPublic);
 

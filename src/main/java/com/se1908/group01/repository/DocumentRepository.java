@@ -31,6 +31,8 @@ public interface DocumentRepository extends JpaRepository<Document, Long>, JpaSp
 
 	List<Document> findByUserIdAndIsDeletedTrueOrderByDeletedAtDesc(Long userId);
 
+	boolean existsByUserIdAndOriginalFileNameAndFileSizeAndIsDeletedFalse(Long userId, String originalFileName, Long fileSize);
+
 	@Query("""
 			SELECT COALESCE(SUM(d.fileSize), 0)
 			FROM Document d

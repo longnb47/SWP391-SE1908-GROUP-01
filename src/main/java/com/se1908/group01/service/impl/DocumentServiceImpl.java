@@ -7,6 +7,7 @@ import com.se1908.group01.dto.DocumentShareResponse;
 import com.se1908.group01.dto.DocumentUploadResponse;
 import com.se1908.group01.dto.FileAccessUrlResponse;
 import com.se1908.group01.entity.Document;
+import com.se1908.group01.entity.DocumentChunk;
 import com.se1908.group01.entity.DocumentShare;
 import com.se1908.group01.entity.DocumentShareLink;
 import com.se1908.group01.entity.DocumentStatus;
@@ -275,6 +276,95 @@ public class DocumentServiceImpl implements DocumentService {
 	}
 
 	/**
+	 * Lưu một tài liệu công khai từ Community về kho lưu trữ cá nhân (My Files) của người dùng hiện tại.
+	 * <p>
+	 * Quy tắc nghiệp vụ kiểm tra bên trong:
+	 * <ul>
+	 *   <li>Xác thực người dùng hiện tại từ phiên đăng nhập JWT.</li>
+	 *   <li>Tìm kiếm tài liệu công khai theo {@code documentId} (yêu cầu tài liệu tồn tại, {@code isPublic = true} và chưa bị xóa).</li>
+	 *   <li>Ngăn chặn tác giả tự lưu tài liệu của chính mình (ném ra {@link IllegalArgumentException} theo Lựa chọn A).</li>
+	 *   <li>Nếu {@code folderId} được cung cấp, xác thực thư mục thuộc về người dùng hiện tại.</li>
+	 *   <li>Kiểm tra hạn ngạch dung lượng lưu trữ của người dùng theo gói Subscription active (ném ra {@link IllegalArgumentException} nếu vượt quá).</li>
+	 *   <li>Thực hiện sao chép file object trực tiếp trên Amazon S3 với object key mới độc lập.</li>
+	 *   <li>Tạo mới bản ghi {@link Document} ở trạng thái riêng tư ({@code isPublic = false}).</li>
+	 *   <li>Nhân bản các bản ghi {@link DocumentChunk} từ tài liệu gốc sang tài liệu mới để hỗ trợ Chat AI tức thì.</li>
+	 * </ul>
+	 *
+	 * @param documentId ID của tài liệu công khai trên Community
+	 * @param folderId   ID của thư mục đích trong My Files (tùy chọn, có thể null)
+	 * @return một đối tượng DTO {@link DocumentUploadResponse} chứa thông tin tài liệu mới được tạo trong My Files
+	 * @throws ResourceNotFoundException nếu không tìm thấy tài liệu công khai hoặc thư mục đích
+	 * @throws IllegalArgumentException  nếu người dùng tự lưu tài liệu của chính mình hoặc vượt quá dung lượng lưu trữ cho phép
+	 */
+	@Transactional(rollbackFor = Exception.class)
+	@Override
+	public DocumentUploadResponse savePublicDocumentToMyFiles(Long documentId, Long folderId) {
+		var userId = currentUserService.getCurrentUserId();
+		var sourceDoc = findPublicActiveDocument(documentId);
+
+		if (sourceDoc.getUserId().equals(userId)) {
+			throw new IllegalArgumentException("You already own this document in My Files");
+		}
+
+		var originalName = FilenameSanitizer.sanitize(sourceDoc.getOriginalFileName());
+		boolean alreadySaved = documentRepository.existsByUserIdAndOriginalFileNameAndFileSizeAndIsDeletedFalse(
+				userId,
+				originalName,
+				sourceDoc.getFileSize()
+		);
+		if (alreadySaved) {
+			throw new IllegalArgumentException("You have already saved this document to My Files");
+		}
+
+		if (folderId != null) {
+			documentFolderRepository.findByFolderIdAndUserId(folderId, userId)
+					.orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
+		}
+
+		var activePlan = subscriptionEntitlementService.getActivePlan(userId);
+		var currentUsageBytes = documentRepository.sumActiveStorageBytesByUserId(userId);
+		long newTotalBytes = currentUsageBytes + (sourceDoc.getFileSize() != null ? sourceDoc.getFileSize() : 0L);
+		long maxStorageBytes = activePlan.getStorageLimitGb() * 1024L * 1024L * 1024L;
+		if (newTotalBytes > maxStorageBytes) {
+			throw new IllegalArgumentException("Storage limit exceeded for your active plan");
+		}
+
+		var destinationKey = buildObjectKey(userId, originalName);
+
+		s3StorageService.copyObject(sourceDoc.getS3Key(), destinationKey);
+
+		var newDoc = new Document();
+		newDoc.setUserId(userId);
+		newDoc.setFolderId(folderId);
+		newDoc.setOriginalFileName(originalName);
+		newDoc.setS3Key(destinationKey);
+		newDoc.setContentType(sourceDoc.getContentType());
+		newDoc.setFileSize(sourceDoc.getFileSize());
+		newDoc.setIsPublic(Boolean.FALSE);
+		newDoc.setIsStarred(Boolean.FALSE);
+		newDoc.setIsDeleted(Boolean.FALSE);
+		newDoc.setStatus(sourceDoc.getStatus() != null ? sourceDoc.getStatus() : DocumentStatus.READY);
+
+		var savedDoc = documentRepository.save(newDoc);
+
+		var chunks = documentChunkRepository.findByDocumentDocumentIdOrderByChunkIndexAsc(sourceDoc.getDocumentId());
+		if (chunks != null && !chunks.isEmpty()) {
+			var newChunks = chunks.stream().map(chunk -> {
+				var newChunk = new DocumentChunk();
+				newChunk.setDocument(savedDoc);
+				newChunk.setChunkIndex(chunk.getChunkIndex());
+				newChunk.setContent(chunk.getContent());
+				newChunk.setPageNumber(chunk.getPageNumber());
+				newChunk.setEmbeddingVector(chunk.getEmbeddingVector());
+				return newChunk;
+			}).toList();
+			documentChunkRepository.saveAll(newChunks);
+		}
+
+		return toResponse(savedDoc);
+	}
+
+	/**
 	 * Tạo một liên kết chia sẻ (share link) mới cho tài liệu được chỉ định.
 	 * <p>
 	 * Phương thức này thực hiện xác thực quyền sở hữu của người dùng đối với tài liệu gốc.
@@ -537,6 +627,91 @@ public class DocumentServiceImpl implements DocumentService {
 	public FileAccessUrlResponse getSharedWithMeDownloadUrl(Long documentId) {
 		var userId = currentUserService.getCurrentUserId();
 		return toFileAccessUrlResponse(findSharedWithMeActiveDocument(documentId, userId), true);
+	}
+
+	/**
+	 * Lưu một tài liệu được chia sẻ trực tiếp với tôi về kho lưu trữ cá nhân (My Files).
+	 * <p>
+	 * Quy tắc nghiệp vụ kiểm tra bên trong:
+	 * <ul>
+	 *   <li>Xác thực phiên đăng nhập của người dùng hiện tại (người nhận).</li>
+	 *   <li>Xác thực tài liệu được chia sẻ tồn tại và có hiệu lực thông qua {@link #findSharedWithMeActiveDocument}.</li>
+	 *   <li>Kiểm tra xem người dùng hiện tại đã lưu bản sao của tài liệu này trong My Files chưa (ném {@link IllegalArgumentException} nếu đã tồn tại).</li>
+	 *   <li>Nếu {@code folderId} được chỉ định, kiểm tra thư mục thuộc sở hữu của người dùng hiện tại.</li>
+	 *   <li>Kiểm tra hạn ngạch lưu trữ theo gói Subscription active.</li>
+	 *   <li>Sao chép file object trên Amazon S3 sang object key mới của người dùng hiện tại.</li>
+	 *   <li>Tạo bản ghi {@link Document} riêng tư mới trong My Files.</li>
+	 *   <li>Nhân bản các bản ghi {@link DocumentChunk} để hỗ trợ Chat AI tức thì.</li>
+	 * </ul>
+	 *
+	 * @param documentId ID của tài liệu được chia sẻ
+	 * @param folderId   ID của thư mục đích trong My Files (tùy chọn, có thể null)
+	 * @return một đối tượng DTO {@link DocumentUploadResponse} chứa thông tin tài liệu mới được tạo trong My Files
+	 * @throws ResourceNotFoundException nếu tài liệu chia sẻ hoặc thư mục không tồn tại
+	 * @throws IllegalArgumentException  nếu tài liệu đã được lưu trước đó hoặc vượt hạn ngạch dung lượng
+	 */
+	@Transactional(rollbackFor = Exception.class)
+	@Override
+	public DocumentUploadResponse saveSharedWithMeDocumentToMyFiles(Long documentId, Long folderId) {
+		var userId = currentUserService.getCurrentUserId();
+		var sourceDoc = findSharedWithMeActiveDocument(documentId, userId);
+
+		var originalName = FilenameSanitizer.sanitize(sourceDoc.getOriginalFileName());
+		boolean alreadySaved = documentRepository.existsByUserIdAndOriginalFileNameAndFileSizeAndIsDeletedFalse(
+				userId,
+				originalName,
+				sourceDoc.getFileSize()
+		);
+		if (alreadySaved) {
+			throw new IllegalArgumentException("You have already saved this document to My Files");
+		}
+
+		if (folderId != null) {
+			documentFolderRepository.findByFolderIdAndUserId(folderId, userId)
+					.orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
+		}
+
+		var activePlan = subscriptionEntitlementService.getActivePlan(userId);
+		var currentUsageBytes = documentRepository.sumActiveStorageBytesByUserId(userId);
+		long newTotalBytes = currentUsageBytes + (sourceDoc.getFileSize() != null ? sourceDoc.getFileSize() : 0L);
+		long maxStorageBytes = activePlan.getStorageLimitGb() * 1024L * 1024L * 1024L;
+		if (newTotalBytes > maxStorageBytes) {
+			throw new IllegalArgumentException("Storage limit exceeded for your active plan");
+		}
+
+		var destinationKey = buildObjectKey(userId, originalName);
+
+		s3StorageService.copyObject(sourceDoc.getS3Key(), destinationKey);
+
+		var newDoc = new Document();
+		newDoc.setUserId(userId);
+		newDoc.setFolderId(folderId);
+		newDoc.setOriginalFileName(originalName);
+		newDoc.setS3Key(destinationKey);
+		newDoc.setContentType(sourceDoc.getContentType());
+		newDoc.setFileSize(sourceDoc.getFileSize());
+		newDoc.setIsPublic(Boolean.FALSE);
+		newDoc.setIsStarred(Boolean.FALSE);
+		newDoc.setIsDeleted(Boolean.FALSE);
+		newDoc.setStatus(sourceDoc.getStatus() != null ? sourceDoc.getStatus() : DocumentStatus.READY);
+
+		var savedDoc = documentRepository.save(newDoc);
+
+		var chunks = documentChunkRepository.findByDocumentDocumentIdOrderByChunkIndexAsc(sourceDoc.getDocumentId());
+		if (chunks != null && !chunks.isEmpty()) {
+			var newChunks = chunks.stream().map(chunk -> {
+				var newChunk = new DocumentChunk();
+				newChunk.setDocument(savedDoc);
+				newChunk.setChunkIndex(chunk.getChunkIndex());
+				newChunk.setContent(chunk.getContent());
+				newChunk.setPageNumber(chunk.getPageNumber());
+				newChunk.setEmbeddingVector(chunk.getEmbeddingVector());
+				return newChunk;
+			}).toList();
+			documentChunkRepository.saveAll(newChunks);
+		}
+
+		return toResponse(savedDoc);
 	}
 
 	@Transactional

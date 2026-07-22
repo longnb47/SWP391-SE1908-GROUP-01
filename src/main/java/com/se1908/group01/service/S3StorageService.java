@@ -13,5 +13,7 @@ public interface S3StorageService {
 
 	String createPresignedGetUrl(String objectKey, String fileName, String contentType, boolean download);
 
+	void copyObject(String sourceKey, String destinationKey);
+
 	void delete(String objectKey);
 }

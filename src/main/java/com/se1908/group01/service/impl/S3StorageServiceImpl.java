@@ -12,6 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.model.ObjectCannedACL;
+import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
@@ -86,6 +87,29 @@ public class S3StorageServiceImpl implements S3StorageService {
 				.build();
 
 		return s3Presigner.presignGetObject(presignRequest).url().toString();
+	}
+
+	@Override
+	public void copyObject(String sourceKey, String destinationKey) {
+		if (s3Client == null) {
+			throw new IllegalStateException("S3 is not configured (missing aws.region/AWS credentials)");
+		}
+		if (!StringUtils.hasText(s3Properties.getBucketName())) {
+			throw new IllegalStateException("Missing required config: aws.s3.bucket-name (env AWS_S3_BUCKET_NAME)");
+		}
+		if (!StringUtils.hasText(sourceKey) || !StringUtils.hasText(destinationKey)) {
+			throw new IllegalArgumentException("Source and destination object keys are required");
+		}
+
+		var request = CopyObjectRequest.builder()
+				.sourceBucket(s3Properties.getBucketName())
+				.sourceKey(sourceKey)
+				.destinationBucket(s3Properties.getBucketName())
+				.destinationKey(destinationKey)
+				.acl(ObjectCannedACL.PRIVATE)
+				.build();
+
+		s3Client.copyObject(request);
 	}
 
 	@Override
