@@ -70,6 +70,8 @@ public class MultiChatServiceImpl implements MultiChatService {
 			documents = documentAccessService.getReadyDocumentsForChat(userId, request.getSelectedDocumentIds());
 		} else {
 			chatMode = ChatMode.USER_STORAGE;
+			// API stateless /ask-multi không có field useGeneralKnowledge nên cố định
+			// false: UserStorage ở flow này chỉ tìm trong tài liệu thuộc user.
 			documents = documentAccessService.getAllReadyDocumentsForUser(
 					userId,
 					request.getFolderId(),

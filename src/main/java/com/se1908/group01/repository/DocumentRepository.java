@@ -51,22 +51,26 @@ public interface DocumentRepository extends JpaRepository<Document, Long>, JpaSp
 			@Param("status") DocumentStatus status);
 
 	@Query("SELECT d FROM Document d WHERE d.isDeleted = false AND d.status = :status AND (d.userId = :userId OR d.isPublic = true)")
+	// Toàn bộ tài liệu READY mà user có thể dùng: tài liệu sở hữu hoặc tài liệu public.
 	List<Document> findAllAccessibleDocumentsByStatus(
 			@Param("userId") Long userId,
 			@Param("status") DocumentStatus status);
 
 	@Query("SELECT d FROM Document d WHERE d.isDeleted = false AND d.status = :status AND d.userId = :userId")
+	// Toàn bộ tài liệu READY thuộc user; không bao gồm public document của user khác.
 	List<Document> findOwnedDocumentsByStatus(
 			@Param("userId") Long userId,
 			@Param("status") DocumentStatus status);
 
 	@Query("SELECT d FROM Document d WHERE d.isDeleted = false AND d.status = :status AND d.userId = :userId AND d.folderId = :folderId")
+	// Tài liệu READY thuộc user trong đúng folder được yêu cầu.
 	List<Document> findOwnedDocumentsByFolderAndStatus(
 			@Param("userId") Long userId,
 			@Param("folderId") Long folderId,
 			@Param("status") DocumentStatus status);
 
 	@Query("SELECT d FROM Document d WHERE d.isDeleted = false AND d.status = :status AND ((d.userId = :userId AND d.folderId = :folderId) OR d.isPublic = true)")
+	// Folder chỉ giới hạn tài liệu thuộc user; mọi tài liệu public READY vẫn được lấy.
 	List<Document> findOwnedFolderAndPublicDocumentsByStatus(
 			@Param("userId") Long userId,
 			@Param("folderId") Long folderId,
