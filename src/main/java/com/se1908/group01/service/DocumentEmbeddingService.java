@@ -22,6 +22,7 @@ import org.springframework.util.StringUtils;
 public class DocumentEmbeddingService {
 
 	private static final Logger log = LoggerFactory.getLogger(DocumentEmbeddingService.class);
+	// Prefix khác nhau giúp embedding model phân biệt "đoạn tài liệu" và "truy vấn tìm kiếm".
 	private static final String DOCUMENT_PREFIX = "title: none | text: ";
 	private static final String QUESTION_PREFIX = "task: question answering | query: ";
 	private static final int MAX_EMBEDDING_BATCH_SIZE = 90;
@@ -32,9 +33,11 @@ public class DocumentEmbeddingService {
 	private static final Pattern PLEASE_RETRY_PATTERN = Pattern.compile("Please retry in\\s+([0-9]+(?:\\.[0-9]+)?)s");
 
 	private final EmbeddingModel embeddingModel;
+	// ObjectMapper chuyển mảng số embedding thành JSON để lưu DB và đọc lại ổn định.
 	private final ObjectMapper objectMapper;
 
 	public DocumentEmbeddingService(@Nullable EmbeddingModel embeddingModel, ObjectMapper objectMapper) {
+		// EmbeddingModel có thể null khi application chưa bật Spring AI embedding provider.
 		this.embeddingModel = embeddingModel;
 		this.objectMapper = objectMapper;
 	}
@@ -44,10 +47,12 @@ public class DocumentEmbeddingService {
 		if (!StringUtils.hasText(question)) {
 			throw new IllegalArgumentException("Question is required");
 		}
+		// Một câu hỏi cũng đi qua pipeline batch chung để dùng cùng cơ chế retry/serialize.
 		var results = embedPreparedVectors(List.of(QUESTION_PREFIX + question));
 		if (results.isEmpty()) {
 			throw new IllegalStateException("Failed to embed question");
 		}
+		// Input chỉ có một câu hỏi nên vector đầu tiên chính là query vector cần tìm kiếm.
 		return results.getFirst();
 	}
 
@@ -56,6 +61,7 @@ public class DocumentEmbeddingService {
 			return List.of();
 		}
 
+		// Chuẩn bị từng chunk theo định dạng document trước khi gửi batch sang embedding provider.
 		var prepared = new ArrayList<String>(texts.size());
 		for (String text : texts) {
 			prepared.add(StringUtils.hasText(text) ? DOCUMENT_PREFIX + text : "");
@@ -71,14 +77,18 @@ public class DocumentEmbeddingService {
 
 		var cleaned = new ArrayList<String>(texts.size());
 		for (String t : texts) {
+			// Thay input null/blank bằng chuỗi rỗng để giữ nguyên số lượng và vị trí phần tử.
 			cleaned.add(StringUtils.hasText(t) ? t : "");
 		}
 
+		// Danh sách này giữ vector JSON đúng thứ tự với danh sách text đầu vào.
 		List<String> vectors = new ArrayList<>(cleaned.size());
 		for (int start = 0; start < cleaned.size(); start += MAX_EMBEDDING_BATCH_SIZE) {
 			// Giữ request gửi provider dưới batch size đã cấu hình và bảo toàn thứ tự input.
 			var end = Math.min(start + MAX_EMBEDDING_BATCH_SIZE, cleaned.size());
+			// subList tạo view của đoạn [start, end), không sao chép hoặc đảo thứ tự dữ liệu.
 			var batch = cleaned.subList(start, end);
+			// Gọi provider và tự retry nếu lỗi được nhận diện là lỗi quota tạm thời.
 			var response = embedBatchWithRetry(batch);
 			var results = response.getResults();
 			if (results == null || results.size() != batch.size()) {
@@ -88,6 +98,7 @@ public class DocumentEmbeddingService {
 			for (var r : results) {
 				var output = r.getOutput();
 				try {
+					// Serialize float[] thành JSON để lưu trực tiếp vào cột embedding_vector.
 					vectors.add(objectMapper.writeValueAsString(output));
 				} catch (JsonProcessingException e) {
 					throw new IllegalStateException("Failed to serialize embedding vector", e);
@@ -98,10 +109,13 @@ public class DocumentEmbeddingService {
 	}
 
 	private EmbeddingResponse embedBatchWithRetry(List<String> batch) {
+		// attempt chạy từ 0 nên tổng số lần gọi tối đa là 1 lần đầu + 3 lần retry.
 		for (int attempt = 0; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
 			try {
+				// Spring AI gửi toàn bộ batch sang Gemini Embedding và trả vectors cùng thứ tự.
 				return embeddingModel.embedForResponse(batch);
 			} catch (RuntimeException ex) {
+				// Lỗi không phải quota hoặc đã hết số lần retry thì trả lỗi ngay cho tầng gọi.
 				if (!isQuotaError(ex) || attempt >= MAX_RETRY_ATTEMPTS) {
 					throw ex;
 				}
@@ -121,6 +135,7 @@ public class DocumentEmbeddingService {
 	}
 
 	private boolean isQuotaError(RuntimeException ex) {
+		// Provider không expose một exception quota thống nhất nên code nhận diện qua message.
 		var message = ex.getMessage();
 		if (!StringUtils.hasText(message)) {
 			return false;
@@ -132,6 +147,7 @@ public class DocumentEmbeddingService {
 	}
 
 	private Duration extractRetryDelay(RuntimeException ex) {
+		// Ưu tiên thời gian retry do provider trả về thay vì retry liên tục.
 		var message = ex.getMessage();
 		if (!StringUtils.hasText(message)) {
 			return DEFAULT_RETRY_DELAY;
@@ -139,11 +155,13 @@ public class DocumentEmbeddingService {
 
 		var retryInfoMatcher = RETRY_INFO_PATTERN.matcher(message);
 		if (retryInfoMatcher.find()) {
+			// Cộng một giây đệm rồi clamp để tránh retry sớm hơn thời điểm provider cho phép.
 			return clampRetryDelay(Duration.ofSeconds(Long.parseLong(retryInfoMatcher.group(1)) + 1));
 		}
 
 		var pleaseRetryMatcher = PLEASE_RETRY_PATTERN.matcher(message);
 		if (pleaseRetryMatcher.find()) {
+			// Làm tròn lên vì message có thể trả số giây dạng thập phân.
 			var seconds = Math.ceil(Double.parseDouble(pleaseRetryMatcher.group(1)));
 			return clampRetryDelay(Duration.ofSeconds((long) seconds + 1));
 		}
@@ -152,9 +170,11 @@ public class DocumentEmbeddingService {
 	}
 
 	private Duration clampRetryDelay(Duration delay) {
+		// Delay không hợp lệ được thay bằng giá trị mặc định an toàn.
 		if (delay.isNegative() || delay.isZero()) {
 			return DEFAULT_RETRY_DELAY;
 		}
+		// Không giữ request thread ngủ quá giới hạn 90 giây cho một lần retry.
 		if (delay.compareTo(MAX_RETRY_DELAY) > 0) {
 			return MAX_RETRY_DELAY;
 		}
@@ -163,8 +183,10 @@ public class DocumentEmbeddingService {
 
 	private void sleep(Duration delay) {
 		try {
+			// Tạm dừng đúng thời gian quota yêu cầu trước khi vòng lặp thử lại batch.
 			Thread.sleep(delay.toMillis());
 		} catch (InterruptedException ex) {
+			// Khôi phục interrupt flag để tầng runtime biết thread đã bị yêu cầu dừng.
 			Thread.currentThread().interrupt();
 			throw new IllegalStateException("Embedding retry was interrupted", ex);
 		}

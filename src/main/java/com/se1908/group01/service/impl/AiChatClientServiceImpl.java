@@ -16,9 +16,11 @@ import org.springframework.web.server.ResponseStatusException;
  */
 public class AiChatClientServiceImpl implements AiChatClientService {
 
+	// ObjectProvider cho phép application vẫn khởi động khi chưa cấu hình ChatClient/provider.
 	private final ObjectProvider<ChatClient.Builder> chatClientBuilderProvider;
 
 	public AiChatClientServiceImpl(ObjectProvider<ChatClient.Builder> chatClientBuilderProvider) {
+		// Spring inject provider; ChatClient thật chỉ được lấy khi có request AI.
 		this.chatClientBuilderProvider = chatClientBuilderProvider;
 	}
 
@@ -34,15 +36,23 @@ public class AiChatClientServiceImpl implements AiChatClientService {
 		try {
 			// Truyền model/temperature đã được resolve và prompt RAG vào Google GenAI.
 			var chatOptions = GoogleGenAiChatOptions.builder()
+					// Chuyển model nghiệp vụ sang tên model mà Google GenAI hiểu.
 					.model(options.model().getProviderModel())
+					// Temperature thấp cho câu trả lời bám sát tài liệu và ít ngẫu nhiên hơn.
 					.temperature(options.temperature());
 			return builder.build()
+					// Bắt đầu tạo một prompt request mới, độc lập với request trước đó.
 					.prompt()
+					// Gắn model và temperature đã resolve cho riêng lần gọi này.
 					.options(chatOptions)
+					// Toàn bộ RAG prompt được truyền như một user message tới model.
 					.user(prompt)
+					// Thực hiện synchronous network call tới AI provider.
 					.call()
+					// Chỉ lấy phần text answer, bỏ metadata provider khỏi response nghiệp vụ.
 					.content();
 		} catch (RuntimeException ex) {
+			// Không lộ chi tiết lỗi/key/provider cho client; giữ exception gốc làm cause để log/debug.
 			throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "AI service is unavailable", ex);
 		}
 	}

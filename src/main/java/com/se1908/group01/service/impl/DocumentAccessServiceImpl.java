@@ -71,6 +71,11 @@ public class DocumentAccessServiceImpl implements DocumentAccessService {
 		return documents;
 	}
 
+	/**
+	 * Chọn query theo hai điều kiện độc lập: có giới hạn folder hay không và có lấy
+	 * thêm public document hay không. Tham số includePublicDocuments chỉ được đọc,
+	 * không bị gán lại trong method này.
+	 */
 	@Override
 	public List<Document> getAllReadyDocumentsForUser(
 			Long userId,
@@ -78,15 +83,18 @@ public class DocumentAccessServiceImpl implements DocumentAccessService {
 			boolean includePublicDocuments
 	) {
 		if (folderId != null) {
+			// Không cho phép dùng folder không tồn tại hoặc không thuộc user hiện tại.
 			documentFolderRepository.findByFolderIdAndUserId(folderId, userId)
 					.orElseThrow(() -> new ResourceNotFoundException("Document folder not found"));
 			if (includePublicDocuments) {
+				// Tài liệu của user trong folder đã chọn + mọi tài liệu public READY.
 				return documentRepository.findOwnedFolderAndPublicDocumentsByStatus(
 						userId,
 						folderId,
 						DocumentStatus.READY
 				);
 			}
+			// Chỉ tài liệu READY thuộc user và nằm trong folder đã chọn.
 			return documentRepository.findOwnedDocumentsByFolderAndStatus(
 					userId,
 					folderId,
@@ -94,8 +102,10 @@ public class DocumentAccessServiceImpl implements DocumentAccessService {
 			);
 		}
 		if (includePublicDocuments) {
+			// Không giới hạn folder: lấy tài liệu của user + tài liệu public READY.
 			return documentRepository.findAllAccessibleDocumentsByStatus(userId, DocumentStatus.READY);
 		}
+		// Không giới hạn folder và không lấy public: chỉ lấy toàn bộ tài liệu READY của user.
 		return documentRepository.findOwnedDocumentsByStatus(userId, DocumentStatus.READY);
 	}
 }

@@ -10,6 +10,14 @@ public interface DocumentAccessService {
 
 	List<Document> getReadyDocumentsForChat(Long userId, List<Long> documentIds);
 
+	/**
+	 * Lấy các tài liệu READY dùng cho chế độ UserStorage.
+	 *
+	 * @param userId user đang thực hiện chat
+	 * @param folderId folder cần giới hạn; {@code null} nghĩa là toàn bộ kho của user
+	 * @param includePublicDocuments {@code true} để lấy thêm tài liệu public,
+	 *                               {@code false} để chỉ lấy tài liệu thuộc user
+	 */
 	List<Document> getAllReadyDocumentsForUser(
 			Long userId,
 			@Nullable Long folderId,

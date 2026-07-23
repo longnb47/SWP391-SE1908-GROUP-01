@@ -130,6 +130,8 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 			if (request.selectedDocumentIds() != null && !request.selectedDocumentIds().isEmpty()) {
 				throw new IllegalArgumentException("selectedDocumentIds is not supported in UserStorage mode");
 			}
+			// useGeneralKnowledge được đổi thành KnowledgePolicy; policy PLUS_GENERAL
+			// cũng là công tắc cho phép đưa public documents vào phạm vi tìm kiếm.
 			userStorageDocuments = documentAccessService.getAllReadyDocumentsForUser(
 					userId,
 					request.folderId(),
@@ -181,6 +183,18 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 	public ChatSessionResponse updateSession(Long sessionId, UpdateChatSessionRequest request) {
 		var session = findOwnedSession(sessionId);
 		session.setTitle(normalizeTitle(request.title()));
+		if (request.useGeneralKnowledge() != null) {
+			if (session.getChatMode() != ChatMode.USER_STORAGE) {
+				throw new IllegalArgumentException(
+						"General knowledge can only be changed in UserStorage mode"
+				);
+			}
+
+			var policy = request.useGeneralKnowledge()
+					? KnowledgePolicy.DOCUMENTS_PLUS_GENERAL
+					: KnowledgePolicy.DOCUMENTS_ONLY;
+			session.setKnowledgePolicy(policy);
+		}
 		return toSessionResponse(chatSessionRepository.save(session));
 	}
 
@@ -318,6 +332,8 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 			}
 			return documentAccessService.getReadyDocumentsForChat(session.getUserId(), documentIds);
 		}
+		// UserStorage không nhận lại lựa chọn từ request gửi message. Backend dùng
+		// KnowledgePolicy đã lưu khi tạo session để quyết định có lấy public hay không.
 		return documentAccessService.getAllReadyDocumentsForUser(
 				session.getUserId(),
 				session.getFolderId(),
@@ -444,8 +460,11 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 
 	private KnowledgePolicy resolvePolicy(ChatMode mode, Boolean useGeneralKnowledge) {
 		if (mode == ChatMode.SELECTED_DOCUMENTS) {
+			// SelectedDocuments luôn giới hạn trong danh sách document đã chọn.
 			return KnowledgePolicy.DOCUMENTS_ONLY;
 		}
+		// Giá trị request được ưu tiên. Nếu client bỏ trống, dùng cấu hình mặc định
+		// rag.user-storage.allow-general-knowledge (hiện tại là false).
 		var includePublicDocuments = useGeneralKnowledge != null
 				? useGeneralKnowledge
 				: ragProperties.getUserStorage().isAllowGeneralKnowledge();

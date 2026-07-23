@@ -37,8 +37,11 @@ import org.springframework.web.bind.annotation.RestController;
  */
 public class ChatController {
 
+	// Service xử lý câu hỏi một tài liệu, không lưu lịch sử.
 	private final ChatService chatService;
+	// Service xử lý câu hỏi trên nhiều tài liệu hoặc toàn bộ kho tài liệu.
 	private final MultiChatService multiChatService;
+	// Service quản lý session, lịch sử message và nguồn trích dẫn đã lưu.
 	private final ChatSessionService chatSessionService;
 
 	public ChatController(
@@ -46,6 +49,7 @@ public class ChatController {
 			MultiChatService multiChatService,
 			ChatSessionService chatSessionService
 	) {
+		// Spring inject implementation tương ứng qua constructor để controller không tự khởi tạo dependency.
 		this.chatService = chatService;
 		this.multiChatService = multiChatService;
 		this.chatSessionService = chatSessionService;
@@ -60,7 +64,9 @@ public class ChatController {
 
 	@PostMapping("/ask-multi")
 	public ApiResponse<MultiChatAskResponse> askMulti(@Valid @RequestBody MultiChatAskRequest request) {
+		// @Valid kiểm tra mode/question và service quyết định phạm vi document theo mode.
 		var response = multiChatService.askMulti(request);
+		// Chuẩn hóa payload thành format ApiResponse chung của toàn backend.
 		return ApiResponse.success("Multi-document chat processed", response);
 	}
 
@@ -97,6 +103,7 @@ public class ChatController {
 
 	@DeleteMapping("/sessions/{sessionId}")
 	public ApiResponse<Void> deleteSession(@PathVariable Long sessionId) {
+		// Service kiểm tra ownership rồi soft-delete session; controller không xóa trực tiếp trong DB.
 		chatSessionService.deleteSession(sessionId);
 		return ApiResponse.success("Delete chat session successfully", null);
 	}

@@ -231,6 +231,24 @@ public class DocumentController {
 		return ApiResponse.success("Get public document download URL successfully", response);
 	}
 
+	@PostMapping("/public/{documentId}/save-to-my-files")
+	public ApiResponse<DocumentUploadResponse> savePublicDocumentToMyFiles(
+			@PathVariable Long documentId,
+			@RequestParam(value = "folderId", required = false) Long folderId
+	) {
+		var response = documentService.savePublicDocumentToMyFiles(documentId, folderId);
+		return ApiResponse.success("Save public document to My Files successfully", response);
+	}
+
+	@PostMapping("/shared-with-me/{documentId}/save-to-my-files")
+	public ApiResponse<DocumentUploadResponse> saveSharedWithMeDocumentToMyFiles(
+			@PathVariable Long documentId,
+			@RequestParam(value = "folderId", required = false) Long folderId
+	) {
+		var response = documentService.saveSharedWithMeDocumentToMyFiles(documentId, folderId);
+		return ApiResponse.success("Save shared document to My Files successfully", response);
+	}
+
 	@PatchMapping("/{documentId}/visibility")
 	public ApiResponse<DocumentUploadResponse> updateVisibility(
 			@PathVariable Long documentId,

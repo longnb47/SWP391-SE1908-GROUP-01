@@ -10,6 +10,7 @@ public class DocumentUploadResponse {
 
 	private Long documentId;
 	private Long userId;
+	private String ownerEmail;
 	private Long folderId;
 	private String originalFileName;
 	private String s3Key;
@@ -36,6 +37,14 @@ public class DocumentUploadResponse {
 
 	public void setUserId(Long userId) {
 		this.userId = userId;
+	}
+
+	public String getOwnerEmail() {
+		return ownerEmail;
+	}
+
+	public void setOwnerEmail(String ownerEmail) {
+		this.ownerEmail = ownerEmail;
 	}
 
 	public Long getFolderId() {
