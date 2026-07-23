@@ -138,6 +138,30 @@ public class DocumentController {
 		return ApiResponse.success("Get shared document download URL successfully", response);
 	}
 
+	@DeleteMapping("/shared-with-me/{documentId}")
+	public ApiResponse<Void> removeSharedWithMeDocument(@PathVariable Long documentId) {
+		documentService.removeSharedWithMeDocument(documentId);
+		return ApiResponse.success("Remove shared document successfully", null);
+	}
+
+	@PostMapping("/shared-with-me/bulk-remove")
+	public ApiResponse<Void> bulkRemoveSharedWithMeDocuments(@RequestBody List<Long> documentIds) {
+		documentService.bulkRemoveSharedWithMeDocuments(documentIds);
+		return ApiResponse.success("Bulk remove shared documents successfully", null);
+	}
+
+	@PatchMapping("/bulk-move")
+	public ApiResponse<Void> bulkMoveDocuments(@RequestBody com.se1908.group01.dto.BulkMoveDocumentRequest request) {
+		documentService.bulkMoveDocuments(request.getDocumentIds(), request.getFolderId());
+		return ApiResponse.success("Bulk move documents successfully", null);
+	}
+
+	@PostMapping("/bulk-trash")
+	public ApiResponse<Void> bulkMoveToTrash(@RequestBody List<Long> documentIds) {
+		documentService.bulkMoveToTrash(documentIds);
+		return ApiResponse.success("Bulk move documents to trash successfully", null);
+	}
+
 	@GetMapping("/{documentId}")
 	public ApiResponse<DocumentUploadResponse> getDocumentDetail(@PathVariable Long documentId) {
 		var response = documentService.getDocumentDetail(documentId);
@@ -187,6 +211,12 @@ public class DocumentController {
 	public ApiResponse<DocumentShareLinkResponse> disableShareLink(@PathVariable Long documentId) {
 		var response = documentService.disableShareLink(documentId);
 		return ApiResponse.success("Disable document share link successfully", response);
+	}
+
+	@GetMapping("/{documentId}/shares/users")
+	public ApiResponse<List<DocumentShareResponse>> getDocumentShares(@PathVariable Long documentId) {
+		var response = documentService.getDocumentShares(documentId);
+		return ApiResponse.success("Get document shares successfully", response);
 	}
 
 	@PostMapping("/{documentId}/shares/users")

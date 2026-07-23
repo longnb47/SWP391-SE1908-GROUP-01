@@ -566,6 +566,18 @@ public class DocumentServiceImpl implements DocumentService {
 		return toDocumentShareResponse(documentShareRepository.save(documentShare));
 	}
 
+	@Transactional(readOnly = true)
+	@Override
+	public List<DocumentShareResponse> getDocumentShares(Long documentId) {
+		var ownerId = currentUserService.getCurrentUserId();
+		findOwnedActiveDocument(ownerId, documentId);
+		return documentShareRepository
+				.findByDocument_DocumentIdAndOwnerIdOrderByCreatedAtDesc(documentId, ownerId)
+				.stream()
+				.map(this::toDocumentShareResponse)
+				.toList();
+	}
+
 	/**
 	 * Thu hồi quyền truy cập tài liệu đã chia sẻ trực tiếp với một người dùng cụ thể.
 	 * <p>
@@ -627,6 +639,62 @@ public class DocumentServiceImpl implements DocumentService {
 	public FileAccessUrlResponse getSharedWithMeDownloadUrl(Long documentId) {
 		var userId = currentUserService.getCurrentUserId();
 		return toFileAccessUrlResponse(findSharedWithMeActiveDocument(documentId, userId), true);
+	}
+
+	@Transactional
+	@Override
+	public void removeSharedWithMeDocument(Long documentId) {
+		var userId = currentUserService.getCurrentUserId();
+		var documentShare = documentShareRepository
+				.findByDocument_DocumentIdAndSharedWithUser_UserId(documentId, userId)
+				.orElseThrow(() -> new ResourceNotFoundException("Shared document not found"));
+		documentShareRepository.delete(documentShare);
+	}
+
+	@Transactional
+	@Override
+	public void bulkRemoveSharedWithMeDocuments(List<Long> documentIds) {
+		if (documentIds == null || documentIds.isEmpty()) return;
+		var userId = currentUserService.getCurrentUserId();
+		for (var docId : documentIds) {
+			documentShareRepository
+					.findByDocument_DocumentIdAndSharedWithUser_UserId(docId, userId)
+					.ifPresent(documentShareRepository::delete);
+		}
+	}
+
+	@Transactional
+	@Override
+	public void bulkMoveDocuments(List<Long> documentIds, Long folderId) {
+		if (documentIds == null || documentIds.isEmpty()) return;
+		var userId = currentUserService.getCurrentUserId();
+		if (folderId != null) {
+			documentFolderRepository.findByFolderIdAndUserIdAndIsDeletedFalse(folderId, userId)
+					.orElseThrow(() -> new ResourceNotFoundException("Target folder not found"));
+		}
+		for (var docId : documentIds) {
+			documentRepository.findByDocumentIdAndUserIdAndIsDeletedFalse(docId, userId)
+					.ifPresent(doc -> {
+						doc.setFolderId(folderId);
+						documentRepository.save(doc);
+					});
+		}
+	}
+
+	@Transactional
+	@Override
+	public void bulkMoveToTrash(List<Long> documentIds) {
+		if (documentIds == null || documentIds.isEmpty()) return;
+		var userId = currentUserService.getCurrentUserId();
+		var now = Instant.now();
+		for (var docId : documentIds) {
+			documentRepository.findByDocumentIdAndUserIdAndIsDeletedFalse(docId, userId)
+					.ifPresent(doc -> {
+						doc.setIsDeleted(true);
+						doc.setDeletedAt(now);
+						documentRepository.save(doc);
+					});
+		}
 	}
 
 	/**
@@ -754,6 +822,12 @@ public class DocumentServiceImpl implements DocumentService {
 		var userId = currentUserService.getCurrentUserId();
 		var doc = findOwnedDocument(userId, documentId);
 		if (Boolean.TRUE.equals(doc.getIsDeleted())) {
+			if (doc.getFolderId() != null) {
+				var folderOpt = documentFolderRepository.findByFolderIdAndUserId(doc.getFolderId(), userId);
+				if (folderOpt.isEmpty() || Boolean.TRUE.equals(folderOpt.get().getIsDeleted())) {
+					doc.setFolderId(null);
+				}
+			}
 			doc.setIsDeleted(Boolean.FALSE);
 			doc.setDeletedAt(null);
 			doc = documentRepository.save(doc);

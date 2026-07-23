@@ -65,6 +65,8 @@ public interface DocumentService {
 
 	DocumentShareResponse shareDocumentWithUser(Long documentId, String email);
 
+	List<DocumentShareResponse> getDocumentShares(Long documentId);
+
 	void removeUserShare(Long documentId, Long userId);
 
 	List<DocumentUploadResponse> getSharedWithMeDocuments();
@@ -74,6 +76,14 @@ public interface DocumentService {
 	FileAccessUrlResponse getSharedWithMePreviewUrl(Long documentId);
 
 	FileAccessUrlResponse getSharedWithMeDownloadUrl(Long documentId);
+
+	void removeSharedWithMeDocument(Long documentId);
+
+	void bulkRemoveSharedWithMeDocuments(List<Long> documentIds);
+
+	void bulkMoveDocuments(List<Long> documentIds, Long folderId);
+
+	void bulkMoveToTrash(List<Long> documentIds);
 
 	/**
 	 * Lưu một tài liệu được chia sẻ trực tiếp với tôi về kho tài liệu cá nhân (My Files).
