@@ -183,6 +183,18 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 	public ChatSessionResponse updateSession(Long sessionId, UpdateChatSessionRequest request) {
 		var session = findOwnedSession(sessionId);
 		session.setTitle(normalizeTitle(request.title()));
+		if (request.useGeneralKnowledge() != null) {
+			if (session.getChatMode() != ChatMode.USER_STORAGE) {
+				throw new IllegalArgumentException(
+						"General knowledge can only be changed in UserStorage mode"
+				);
+			}
+
+			var policy = request.useGeneralKnowledge()
+					? KnowledgePolicy.DOCUMENTS_PLUS_GENERAL
+					: KnowledgePolicy.DOCUMENTS_ONLY;
+			session.setKnowledgePolicy(policy);
+		}
 		return toSessionResponse(chatSessionRepository.save(session));
 	}
 
