@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 public class PromptBuilderServiceImpl implements PromptBuilderService {
 
 	private static final int MAX_CHUNK_CHARACTERS = 2000;
+	private static final String INTERNAL_METADATA_RULE = "Never mention or expose internal retrieval metadata such as document IDs, chunk IDs, chunk indexes, page metadata, or bracketed context labels. Answer naturally without referencing those internal identifiers.";
 
 	@Override
 	public String buildDocumentQuestionPrompt(String question, List<RetrievedChunk> chunks) {
@@ -27,6 +28,7 @@ public class PromptBuilderServiceImpl implements PromptBuilderService {
 				If the answer is not present in the context, say: "The answer cannot be found in the selected document."
 				Do not use outside knowledge.
 				Do not invent citations, facts, or document content.
+				Never mention or expose internal retrieval metadata such as document IDs, chunk IDs, chunk indexes, page metadata, or bracketed context labels.
 
 				Document context:
 				""");
@@ -60,6 +62,7 @@ public class PromptBuilderServiceImpl implements PromptBuilderService {
 
 		return "[SYSTEM]\n"
 				+ systemMessage
+				+ "\n\n" + INTERNAL_METADATA_RULE
 				+ "\n\n[USER]\n"
 				+ "CONTEXT:\n"
 				+ "-----------\n"
@@ -81,6 +84,7 @@ public class PromptBuilderServiceImpl implements PromptBuilderService {
 		var prompt = new StringBuilder();
 		prompt.append("[SYSTEM]\n")
 				.append(resolveSystemMessage(mode, knowledgePolicy))
+				.append("\n\n").append(INTERNAL_METADATA_RULE)
 				.append("\nConversation history is provided only to understand follow-up questions. ")
 				.append("All factual claims must still be supported by the document context.\n\n");
 

@@ -1030,6 +1030,7 @@ public class DocumentServiceImpl implements DocumentService {
 		var res = new DocumentUploadResponse();
 		res.setDocumentId(doc.getDocumentId());
 		res.setUserId(doc.getUserId());
+		userRepository.findById(doc.getUserId()).map(User::getEmail).ifPresent(res::setOwnerEmail);
 		res.setFolderId(doc.getFolderId());
 		res.setOriginalFileName(doc.getOriginalFileName());
 		res.setS3Key(doc.getS3Key());
