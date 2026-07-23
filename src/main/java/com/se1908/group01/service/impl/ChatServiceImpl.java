@@ -25,15 +25,24 @@ import org.springframework.util.StringUtils;
  */
 public class ChatServiceImpl implements ChatService {
 
+	// Single-document chỉ đưa tối đa 5 chunk gần câu hỏi nhất vào prompt để giới hạn token.
 	private static final int TOP_K = 5;
 
+	// Đọc danh tính user đã xác thực từ Security/JWT context.
 	private final CurrentUserService currentUserService;
+	// Kiểm tra document tồn tại, có quyền truy cập và đã ở trạng thái READY.
 	private final DocumentAccessService documentAccessService;
+	// Chuyển câu hỏi thành embedding vector bằng embedding provider.
 	private final DocumentEmbeddingService documentEmbeddingService;
+	// So sánh vector câu hỏi với vector chunk và trả về các chunk gần nhất.
 	private final VectorSearchService vectorSearchService;
+	// Ghép system rule, document context và câu hỏi thành prompt RAG.
 	private final PromptBuilderService promptBuilderService;
+	// Adapter gọi Gemini Chat thông qua Spring AI.
 	private final AiChatClientService aiChatClientService;
+	// Kiểm tra và chuẩn hóa model/temperature từ request hoặc cấu hình mặc định.
 	private final AiGenerationOptionsService aiGenerationOptionsService;
+	// Kiểm tra quyền theo gói và ghi nhận token đã sử dụng.
 	private final SubscriptionEntitlementService subscriptionEntitlementService;
 
 	public ChatServiceImpl(
@@ -105,13 +114,19 @@ public class ChatServiceImpl implements ChatService {
 	}
 
 	private List<ChatSourceResponse> toSources(List<RetrievedChunk> chunks) {
+		// Chuyển kết quả nội bộ thành DTO citation; không trả content/vector thô của entity ra API.
 		return chunks.stream()
 				.map(retrieved -> {
+					// Lấy entity chunk đi kèm similarity score trong RetrievedChunk.
 					var chunk = retrieved.getChunk();
 					return new ChatSourceResponse(
+							// ID này cho phép client truy vết đúng chunk được dùng.
 							chunk.getChunkId(),
+							// Vị trí tuần tự của chunk trong document.
 							chunk.getChunkIndex(),
+							// Trang nguồn, có thể null nếu parser không xác định được.
 							chunk.getPageNumber(),
+							// Làm tròn score để response ổn định và dễ hiển thị.
 							roundScore(retrieved.getScore())
 					);
 				})
@@ -119,6 +134,7 @@ public class ChatServiceImpl implements ChatService {
 	}
 
 	private double roundScore(double score) {
+		// Giữ tối đa bốn chữ số thập phân của cosine similarity.
 		return Math.round(score * 10000.0) / 10000.0;
 	}
 }
