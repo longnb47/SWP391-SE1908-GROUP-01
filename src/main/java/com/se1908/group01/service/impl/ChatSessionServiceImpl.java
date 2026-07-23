@@ -250,6 +250,37 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 		 * -> embed/search -> build prompt -> kiểm tra token -> gọi LLM -> lưu ASSISTANT message/sources.
 		 */
 		var session = findOwnedSession(sessionId);
+		var requestedModel = request.model() != null ? request.model() : session.getModel();
+		var requestedTemperature = request.temperature() != null
+				? request.temperature()
+				: session.getTemperature();
+		var options = aiGenerationOptionsService.resolve(requestedModel, requestedTemperature);
+		var sessionChanged = false;
+		if (!options.modelName().equals(session.getModel())) {
+			session.setModel(options.modelName());
+			sessionChanged = true;
+		}
+		if (!Double.valueOf(options.temperature()).equals(session.getTemperature())) {
+			session.setTemperature(options.temperature());
+			sessionChanged = true;
+		}
+		if (request.useGeneralKnowledge() != null) {
+			if (session.getChatMode() != ChatMode.USER_STORAGE) {
+				throw new IllegalArgumentException(
+						"General knowledge can only be changed in UserStorage mode"
+				);
+			}
+			var requestedPolicy = request.useGeneralKnowledge()
+					? KnowledgePolicy.DOCUMENTS_PLUS_GENERAL
+					: KnowledgePolicy.DOCUMENTS_ONLY;
+			if (requestedPolicy != session.getKnowledgePolicy()) {
+				session.setKnowledgePolicy(requestedPolicy);
+				sessionChanged = true;
+			}
+		}
+		if (sessionChanged) {
+			chatSessionRepository.save(session);
+		}
 		// Memory chỉ lấy các message COMPLETED gần nhất để hiểu câu hỏi follow-up.
 		var conversationMemory = chatConversationMemoryService.getRecentMessages(sessionId);
 		// Lưu câu hỏi trước khi gọi AI để lịch sử vẫn ghi nhận user đã gửi gì.
@@ -263,7 +294,6 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 		try {
 			// Resolve lại document ở backend, tránh tin danh sách document cũ mà session từng lưu.
 			var documents = resolveDocuments(session);
-			var options = aiGenerationOptionsService.resolve(session.getModel(), session.getTemperature());
 			// Kiểm tra entitlement lần nữa ở thời điểm gửi message, không chỉ lúc tạo session.
 			subscriptionEntitlementService.enforceDocumentChatEntitlement(session.getUserId(), documents.size());
 			if (documents.isEmpty()) {

@@ -3544,7 +3544,7 @@ Rules:
 - `SelectedDocuments` requires all selected documents to be accessible and `READY`.
 - `folderId` is not accepted in `SelectedDocuments`.
 - `selectedDocumentIds` is not accepted in `UserStorage`.
-- Session model, temperature, retrieval mode, and document scope are fixed when the session is created.
+- Temperature, retrieval mode, and document scope are fixed when the session is created. The model can be changed when sending a message and becomes the session default.
 
 Success data:
 
@@ -3652,19 +3652,29 @@ Success data:
 
 ```json
 {
-  "question": "Can you explain that more simply?"
+  "question": "Can you explain that more simply?",
+  "model": "gemini-3.1-flash-lite",
+  "useGeneralKnowledge": true,
+  "temperature": 0.7
 }
 ```
+
+`model` is optional. When provided, it must be one of the supported chat model IDs listed in section 6.2. The selected model is used for this message and saved as the session default for subsequent messages. When omitted, the session's current model is used.
+
+`useGeneralKnowledge` is optional and only supported for `UserStorage` sessions. When provided, it updates whether the session retrieves from private files only or private files plus public Community documents. When omitted, the session's current knowledge policy is used.
+
+`temperature` is optional and must be between `0.0` and `1.0`. When provided, it is used for this message and saved as the session default for subsequent messages. When omitted, the session's current temperature is used.
 
 Flow:
 
 1. Verify the session belongs to the authenticated user.
-2. Load at most the five latest completed messages as Spring AI chat memory.
-3. Save the current user message.
-4. Resolve the session's document scope and retrieve relevant chunks.
-5. Build a grounded prompt containing memory, document context, and the current question.
-6. Call the session's configured Gemini model and temperature.
-7. Save the assistant message and RAG source chunks.
+2. Validate the requested model, knowledge scope, and temperature, if provided, and update the session configuration.
+3. Load at most the five latest completed messages as Spring AI chat memory.
+4. Save the current user message.
+5. Resolve the session's document scope and retrieve relevant chunks.
+6. Build a grounded prompt containing memory, document context, and the current question.
+7. Call the selected Gemini model and the session's configured temperature.
+8. Save the assistant message and RAG source chunks.
 
 The complete message history remains in the database, but only five recent completed messages are sent as conversational memory. Full private document context is not stored as a chat message.
 
@@ -3672,7 +3682,7 @@ Error cases:
 
 | Status | Message | Reason |
 |---|---|---|
-| `400` | `Validation failed` | Blank question or invalid session configuration |
+| `400` | `Validation failed` | Blank question, unsupported model, invalid scope/temperature, or invalid session configuration |
 | `401` | `Unauthorized` | Missing or invalid JWT |
 | `404` | `Resource not found` | Session does not exist, was deleted, or belongs to another user |
 | `503` | `AI service is unavailable` | Gemini/Spring AI call failed; the failed assistant attempt is recorded with `FAILED` status |
