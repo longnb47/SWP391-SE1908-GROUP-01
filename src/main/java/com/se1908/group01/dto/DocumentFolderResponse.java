@@ -8,6 +8,8 @@ public class DocumentFolderResponse {
 	private Long userId;
 	private String name;
 	private Boolean isStarred;
+	private Boolean isDeleted;
+	private Instant deletedAt;
 	private Instant createdAt;
 	private Instant updatedAt;
 
@@ -41,6 +43,22 @@ public class DocumentFolderResponse {
 
 	public void setIsStarred(Boolean isStarred) {
 		this.isStarred = isStarred;
+	}
+
+	public Boolean getIsDeleted() {
+		return isDeleted;
+	}
+
+	public void setIsDeleted(Boolean isDeleted) {
+		this.isDeleted = isDeleted;
+	}
+
+	public Instant getDeletedAt() {
+		return deletedAt;
+	}
+
+	public void setDeletedAt(Instant deletedAt) {
+		this.deletedAt = deletedAt;
 	}
 
 	public Instant getCreatedAt() {
