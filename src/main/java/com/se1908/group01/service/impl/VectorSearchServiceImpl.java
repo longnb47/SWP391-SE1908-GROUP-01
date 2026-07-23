@@ -69,13 +69,18 @@ public class VectorSearchServiceImpl implements VectorSearchService {
 		List<DocumentChunk> chunks;
 
 		if (documentIds != null && !documentIds.isEmpty()) {
+			// Danh sách ID đã được DocumentAccessService kiểm tra quyền/READY trước khi đi vào đây.
 			chunks = documentChunkRepository.findByDocumentIds(documentIds);
 		} else if (folderId != null) {
+			// Nhánh fallback theo folder tự áp điều kiện accessible và READY tại repository.
 			chunks = documentChunkRepository.findChunksByUserAndFolderAccessible(userId, folderId, DocumentStatus.READY);
 		} else {
+			// Không có document/folder cụ thể thì tìm trên toàn bộ storage mà user được phép đọc.
 			chunks = documentChunkRepository.findChunksByUserAccessible(userId, DocumentStatus.READY);
 		}
 
+		// Đây là xếp hạng in-memory: DB chỉ nạp chunk, Java tính cosine rồi lấy TOP_K toàn cục.
+		// Hiện chưa có minimum similarity threshold nên mọi vector hợp lệ đều có thể lọt vào kết quả.
 		return chunks.stream()
 				.map(chunk -> score(chunk, queryVector))
 				.filter(result -> result != null)
@@ -86,10 +91,12 @@ public class VectorSearchServiceImpl implements VectorSearchService {
 
 	private RetrievedChunk score(DocumentChunk chunk, double[] queryVector) {
 		if (!StringUtils.hasText(chunk.getEmbeddingVector())) {
+			// Chunk thiếu embedding không thể tham gia semantic search.
 			return null;
 		}
 		var chunkVector = parseVector(chunk.getEmbeddingVector());
 		if (chunkVector.length != queryVector.length) {
+			// Khác số chiều thường cho thấy chunk và question được tạo bởi model embedding khác nhau.
 			return null;
 		}
 		return new RetrievedChunk(chunk, cosineSimilarity(queryVector, chunkVector));
@@ -97,6 +104,7 @@ public class VectorSearchServiceImpl implements VectorSearchService {
 
 	private double[] parseVector(String json) {
 		try {
+			// embedding_vector được lưu trong SQL Server dưới dạng JSON text, không phải native vector type.
 			return objectMapper.readValue(json, double[].class);
 		} catch (JsonProcessingException e) {
 			throw new IllegalStateException("Failed to parse embedding vector", e);
@@ -104,6 +112,7 @@ public class VectorSearchServiceImpl implements VectorSearchService {
 	}
 
 	private double cosineSimilarity(double[] left, double[] right) {
+		// cosine = tích vô hướng / (độ lớn vector trái * độ lớn vector phải).
 		double dot = 0.0;
 		double leftMagnitude = 0.0;
 		double rightMagnitude = 0.0;
@@ -113,6 +122,7 @@ public class VectorSearchServiceImpl implements VectorSearchService {
 			rightMagnitude += right[i] * right[i];
 		}
 		if (leftMagnitude == 0.0 || rightMagnitude == 0.0) {
+			// Tránh chia cho 0; zero-vector được xem là không tương đồng.
 			return 0.0;
 		}
 		return dot / (Math.sqrt(leftMagnitude) * Math.sqrt(rightMagnitude));

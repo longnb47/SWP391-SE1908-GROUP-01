@@ -22,6 +22,7 @@ import org.springframework.util.StringUtils;
 public class DocumentEmbeddingService {
 
 	private static final Logger log = LoggerFactory.getLogger(DocumentEmbeddingService.class);
+	// Prefix khác nhau giúp embedding model phân biệt "đoạn tài liệu" và "truy vấn tìm kiếm".
 	private static final String DOCUMENT_PREFIX = "title: none | text: ";
 	private static final String QUESTION_PREFIX = "task: question answering | query: ";
 	private static final int MAX_EMBEDDING_BATCH_SIZE = 90;
@@ -56,6 +57,7 @@ public class DocumentEmbeddingService {
 			return List.of();
 		}
 
+		// Chuẩn bị từng chunk theo định dạng document trước khi gửi batch sang embedding provider.
 		var prepared = new ArrayList<String>(texts.size());
 		for (String text : texts) {
 			prepared.add(StringUtils.hasText(text) ? DOCUMENT_PREFIX + text : "");
@@ -88,6 +90,7 @@ public class DocumentEmbeddingService {
 			for (var r : results) {
 				var output = r.getOutput();
 				try {
+					// Serialize float[] thành JSON để lưu trực tiếp vào cột embedding_vector.
 					vectors.add(objectMapper.writeValueAsString(output));
 				} catch (JsonProcessingException e) {
 					throw new IllegalStateException("Failed to serialize embedding vector", e);
