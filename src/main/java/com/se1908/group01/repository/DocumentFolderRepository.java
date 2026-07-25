@@ -10,13 +10,17 @@ import org.springframework.data.jpa.repository.JpaRepository;
  */
 public interface DocumentFolderRepository extends JpaRepository<DocumentFolder, Long> {
 
-	List<DocumentFolder> findByUserIdOrderByNameAsc(Long userId);
+	List<DocumentFolder> findByUserIdAndIsDeletedFalseOrderByNameAsc(Long userId);
 
-	List<DocumentFolder> findByUserIdAndIsStarredTrueOrderByNameAsc(Long userId);
+	List<DocumentFolder> findByUserIdAndIsStarredTrueAndIsDeletedFalseOrderByNameAsc(Long userId);
+
+	List<DocumentFolder> findByUserIdAndIsDeletedTrueOrderByDeletedAtDesc(Long userId);
+
+	Optional<DocumentFolder> findByFolderIdAndUserIdAndIsDeletedFalse(Long folderId, Long userId);
 
 	Optional<DocumentFolder> findByFolderIdAndUserId(Long folderId, Long userId);
 
-	boolean existsByUserIdAndNameIgnoreCase(Long userId, String name);
+	boolean existsByUserIdAndNameIgnoreCaseAndIsDeletedFalse(Long userId, String name);
 
-	boolean existsByUserIdAndNameIgnoreCaseAndFolderIdNot(Long userId, String name, Long folderId);
+	boolean existsByUserIdAndNameIgnoreCaseAndFolderIdNotAndIsDeletedFalse(Long userId, String name, Long folderId);
 }

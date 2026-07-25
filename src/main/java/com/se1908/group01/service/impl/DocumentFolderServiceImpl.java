@@ -15,6 +15,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.Instant;
+
 @Service
 public class DocumentFolderServiceImpl implements DocumentFolderService {
 
@@ -37,7 +39,7 @@ public class DocumentFolderServiceImpl implements DocumentFolderService {
 	public DocumentFolderResponse createFolder(DocumentFolderRequest request) {
 		var userId = currentUserService.getCurrentUserId();
 		var name = normalizeName(request.getName());
-		if (documentFolderRepository.existsByUserIdAndNameIgnoreCase(userId, name)) {
+		if (documentFolderRepository.existsByUserIdAndNameIgnoreCaseAndIsDeletedFalse(userId, name)) {
 			throw new IllegalArgumentException("Folder name already exists");
 		}
 
@@ -51,7 +53,7 @@ public class DocumentFolderServiceImpl implements DocumentFolderService {
 	@Override
 	public List<DocumentFolderResponse> getMyFolders() {
 		var userId = currentUserService.getCurrentUserId();
-		return documentFolderRepository.findByUserIdOrderByNameAsc(userId)
+		return documentFolderRepository.findByUserIdAndIsDeletedFalseOrderByNameAsc(userId)
 				.stream()
 				.map(this::toResponse)
 				.toList();
@@ -61,7 +63,17 @@ public class DocumentFolderServiceImpl implements DocumentFolderService {
 	@Override
 	public List<DocumentFolderResponse> getStarredFolders() {
 		var userId = currentUserService.getCurrentUserId();
-		return documentFolderRepository.findByUserIdAndIsStarredTrueOrderByNameAsc(userId)
+		return documentFolderRepository.findByUserIdAndIsStarredTrueAndIsDeletedFalseOrderByNameAsc(userId)
+				.stream()
+				.map(this::toResponse)
+				.toList();
+	}
+
+	@Transactional(readOnly = true)
+	@Override
+	public List<DocumentFolderResponse> getTrashFolders() {
+		var userId = currentUserService.getCurrentUserId();
+		return documentFolderRepository.findByUserIdAndIsDeletedTrueOrderByDeletedAtDesc(userId)
 				.stream()
 				.map(this::toResponse)
 				.toList();
@@ -71,9 +83,9 @@ public class DocumentFolderServiceImpl implements DocumentFolderService {
 	@Override
 	public DocumentFolderResponse updateFolder(Long folderId, DocumentFolderRequest request) {
 		var userId = currentUserService.getCurrentUserId();
-		var folder = findOwnedFolder(userId, folderId);
+		var folder = findOwnedActiveFolder(userId, folderId);
 		var name = normalizeName(request.getName());
-		if (documentFolderRepository.existsByUserIdAndNameIgnoreCaseAndFolderIdNot(userId, name, folderId)) {
+		if (documentFolderRepository.existsByUserIdAndNameIgnoreCaseAndFolderIdNotAndIsDeletedFalse(userId, name, folderId)) {
 			throw new IllegalArgumentException("Folder name already exists");
 		}
 
@@ -88,7 +100,7 @@ public class DocumentFolderServiceImpl implements DocumentFolderService {
 			throw new IllegalArgumentException("isStarred is required");
 		}
 		var userId = currentUserService.getCurrentUserId();
-		var folder = findOwnedFolder(userId, folderId);
+		var folder = findOwnedActiveFolder(userId, folderId);
 		folder.setIsStarred(isStarred);
 		return toResponse(documentFolderRepository.save(folder));
 	}
@@ -97,8 +109,51 @@ public class DocumentFolderServiceImpl implements DocumentFolderService {
 	@Override
 	public void deleteFolder(Long folderId) {
 		var userId = currentUserService.getCurrentUserId();
+		var folder = findOwnedActiveFolder(userId, folderId);
+		var now = Instant.now();
+		folder.setIsDeleted(true);
+		folder.setDeletedAt(now);
+		documentFolderRepository.save(folder);
+		documentRepository.softDeleteFolderDocuments(userId, folder.getFolderId(), now);
+	}
+
+	@Transactional
+	@Override
+	public DocumentFolderResponse restoreFolder(Long folderId) {
+		var userId = currentUserService.getCurrentUserId();
 		var folder = findOwnedFolder(userId, folderId);
-		documentRepository.clearFolderForUser(userId, folder.getFolderId());
+		folder.setIsDeleted(false);
+		folder.setDeletedAt(null);
+		documentRepository.restoreFolderDocuments(userId, folder.getFolderId());
+		return toResponse(documentFolderRepository.save(folder));
+	}
+
+	@Transactional
+	@Override
+	public void permanentlyDeleteFolder(Long folderId) {
+		var userId = currentUserService.getCurrentUserId();
+		var folder = findOwnedFolder(userId, folderId);
+		var docs = documentRepository.findByUserIdAndFolderId(userId, folder.getFolderId());
+		if (!docs.isEmpty()) {
+			var folderDeletedAt = folder.getDeletedAt();
+			var minDeletedAt = folderDeletedAt != null ? folderDeletedAt.minusSeconds(2) : Instant.EPOCH;
+			var toDelete = new java.util.ArrayList<Document>();
+			var toDetach = new java.util.ArrayList<Document>();
+			for (var doc : docs) {
+				if (folderDeletedAt != null && doc.getDeletedAt() != null && doc.getDeletedAt().isBefore(minDeletedAt)) {
+					doc.setFolderId(null);
+					toDetach.add(doc);
+				} else {
+					toDelete.add(doc);
+				}
+			}
+			if (!toDetach.isEmpty()) {
+				documentRepository.saveAll(toDetach);
+			}
+			if (!toDelete.isEmpty()) {
+				documentRepository.deleteAll(toDelete);
+			}
+		}
 		documentFolderRepository.delete(folder);
 	}
 
@@ -107,13 +162,31 @@ public class DocumentFolderServiceImpl implements DocumentFolderService {
 	public List<DocumentUploadResponse> getFolderDocuments(Long folderId) {
 		var userId = currentUserService.getCurrentUserId();
 		var folder = findOwnedFolder(userId, folderId);
-		return documentRepository.findByUserIdAndFolderIdAndIsDeletedFalseOrderByUploadedAtDesc(
-						userId,
-						folder.getFolderId()
-				)
-				.stream()
+		List<Document> docs;
+		if (Boolean.TRUE.equals(folder.getIsDeleted())) {
+			var minDeletedAt = folder.getDeletedAt() != null ? folder.getDeletedAt().minusSeconds(2) : Instant.EPOCH;
+			docs = documentRepository.findByUserIdAndFolderIdAndIsDeletedTrueAndDeletedAtGreaterThanEqualOrderByUploadedAtDesc(
+					userId,
+					folder.getFolderId(),
+					minDeletedAt
+			);
+		} else {
+			docs = documentRepository.findByUserIdAndFolderIdAndIsDeletedFalseOrderByUploadedAtDesc(
+					userId,
+					folder.getFolderId()
+			);
+		}
+		return docs.stream()
 				.map(this::toDocumentResponse)
 				.toList();
+	}
+
+	private DocumentFolder findOwnedActiveFolder(Long userId, Long folderId) {
+		if (folderId == null) {
+			throw new IllegalArgumentException("folderId is required");
+		}
+		return documentFolderRepository.findByFolderIdAndUserIdAndIsDeletedFalse(folderId, userId)
+				.orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
 	}
 
 	private DocumentFolder findOwnedFolder(Long userId, Long folderId) {
@@ -137,6 +210,8 @@ public class DocumentFolderServiceImpl implements DocumentFolderService {
 		response.setUserId(folder.getUserId());
 		response.setName(folder.getName());
 		response.setIsStarred(folder.getIsStarred());
+		response.setIsDeleted(folder.getIsDeleted());
+		response.setDeletedAt(folder.getDeletedAt());
 		response.setCreatedAt(folder.getCreatedAt());
 		response.setUpdatedAt(folder.getUpdatedAt());
 		return response;

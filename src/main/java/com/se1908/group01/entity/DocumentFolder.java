@@ -35,6 +35,12 @@ public class DocumentFolder {
 	@Column(name = "is_starred", nullable = false)
 	private Boolean isStarred = Boolean.FALSE;
 
+	@Column(name = "is_deleted", nullable = false)
+	private Boolean isDeleted = Boolean.FALSE;
+
+	@Column(name = "deleted_at")
+	private Instant deletedAt;
+
 	@Column(name = "created_at", nullable = false)
 	private Instant createdAt;
 
@@ -52,6 +58,9 @@ public class DocumentFolder {
 		}
 		if (isStarred == null) {
 			isStarred = Boolean.FALSE;
+		}
+		if (isDeleted == null) {
+			isDeleted = Boolean.FALSE;
 		}
 	}
 
@@ -90,6 +99,22 @@ public class DocumentFolder {
 
 	public void setIsStarred(Boolean isStarred) {
 		this.isStarred = isStarred;
+	}
+
+	public Boolean getIsDeleted() {
+		return isDeleted;
+	}
+
+	public void setIsDeleted(Boolean isDeleted) {
+		this.isDeleted = isDeleted;
+	}
+
+	public Instant getDeletedAt() {
+		return deletedAt;
+	}
+
+	public void setDeletedAt(Instant deletedAt) {
+		this.deletedAt = deletedAt;
 	}
 
 	public Instant getCreatedAt() {

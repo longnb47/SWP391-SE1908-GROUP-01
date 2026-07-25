@@ -13,11 +13,17 @@ public interface DocumentFolderService {
 
 	List<DocumentFolderResponse> getStarredFolders();
 
+	List<DocumentFolderResponse> getTrashFolders();
+
 	DocumentFolderResponse updateFolder(Long folderId, DocumentFolderRequest request);
 
 	DocumentFolderResponse updateStarred(Long folderId, Boolean isStarred);
 
 	void deleteFolder(Long folderId);
+
+	DocumentFolderResponse restoreFolder(Long folderId);
+
+	void permanentlyDeleteFolder(Long folderId);
 
 	List<DocumentUploadResponse> getFolderDocuments(Long folderId);
 }

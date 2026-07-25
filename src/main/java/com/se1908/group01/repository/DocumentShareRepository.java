@@ -19,5 +19,7 @@ public interface DocumentShareRepository extends JpaRepository<DocumentShare, Lo
 			Long sharedWithUserId
 	);
 
+	List<DocumentShare> findByDocument_DocumentIdAndOwnerIdOrderByCreatedAtDesc(Long documentId, Long ownerId);
+
 	void deleteByDocument_DocumentId(Long documentId);
 }

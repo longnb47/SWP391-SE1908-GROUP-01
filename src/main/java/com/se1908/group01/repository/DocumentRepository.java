@@ -27,6 +27,10 @@ public interface DocumentRepository extends JpaRepository<Document, Long>, JpaSp
 
 	List<Document> findByUserIdAndFolderIdAndIsDeletedFalseOrderByUploadedAtDesc(Long userId, Long folderId);
 
+	List<Document> findByUserIdAndFolderIdOrderByUploadedAtDesc(Long userId, Long folderId);
+
+	List<Document> findByUserIdAndFolderIdAndIsDeletedTrueAndDeletedAtGreaterThanEqualOrderByUploadedAtDesc(Long userId, Long folderId, java.time.Instant minDeletedAt);
+
 	List<Document> findByIsPublicTrueAndIsDeletedFalseOrderByUploadedAtDesc();
 
 	List<Document> findByUserIdAndIsDeletedTrueOrderByDeletedAtDesc(Long userId);
@@ -45,6 +49,16 @@ public interface DocumentRepository extends JpaRepository<Document, Long>, JpaSp
 	@Modifying
 	@Query("update Document d set d.folderId = null where d.userId = :userId and d.folderId = :folderId")
 	void clearFolderForUser(@Param("userId") Long userId, @Param("folderId") Long folderId);
+
+	@Modifying
+	@Query("UPDATE Document d SET d.isDeleted = true, d.deletedAt = :deletedAt WHERE d.userId = :userId AND d.folderId = :folderId AND d.isDeleted = false")
+	void softDeleteFolderDocuments(@Param("userId") Long userId, @Param("folderId") Long folderId, @Param("deletedAt") java.time.Instant deletedAt);
+
+	@Modifying
+	@Query("UPDATE Document d SET d.isDeleted = false, d.deletedAt = null WHERE d.userId = :userId AND d.folderId = :folderId AND d.isDeleted = true")
+	void restoreFolderDocuments(@Param("userId") Long userId, @Param("folderId") Long folderId);
+
+	List<Document> findByUserIdAndFolderId(Long userId, Long folderId);
 
 	@Query("SELECT d FROM Document d WHERE d.documentId IN :documentIds AND d.isDeleted = false AND d.status = :status AND (d.userId = :userId OR d.isPublic = true)")
 	List<Document> findAccessibleDocumentsByIdsAndStatus(

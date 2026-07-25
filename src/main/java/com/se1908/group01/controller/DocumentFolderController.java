@@ -45,6 +45,12 @@ public class DocumentFolderController {
 		return ApiResponse.success("Get starred document folders successfully", response);
 	}
 
+	@GetMapping("/trash")
+	public ApiResponse<List<DocumentFolderResponse>> getTrashFolders() {
+		var response = documentFolderService.getTrashFolders();
+		return ApiResponse.success("Get trash document folders successfully", response);
+	}
+
 	@PatchMapping("/{folderId}")
 	public ApiResponse<DocumentFolderResponse> updateFolder(
 			@PathVariable Long folderId,
@@ -67,6 +73,18 @@ public class DocumentFolderController {
 	public ApiResponse<Void> deleteFolder(@PathVariable Long folderId) {
 		documentFolderService.deleteFolder(folderId);
 		return ApiResponse.success("Delete document folder successfully", null);
+	}
+
+	@PatchMapping("/{folderId}/restore")
+	public ApiResponse<DocumentFolderResponse> restoreFolder(@PathVariable Long folderId) {
+		var response = documentFolderService.restoreFolder(folderId);
+		return ApiResponse.success("Restore document folder successfully", response);
+	}
+
+	@DeleteMapping("/{folderId}/permanent")
+	public ApiResponse<Void> permanentlyDeleteFolder(@PathVariable Long folderId) {
+		documentFolderService.permanentlyDeleteFolder(folderId);
+		return ApiResponse.success("Permanently delete document folder successfully", null);
 	}
 
 	@GetMapping("/{folderId}/documents")
